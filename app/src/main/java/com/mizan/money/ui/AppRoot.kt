@@ -127,6 +127,7 @@ private fun PermissionScreen(onGrant: () -> Unit) {
 
         Row(
             Modifier.fillMaxWidth()
+                .height(IntrinsicSize.Min)
                 .clip(RoundedCornerShape(2.dp))
                 .background(Paper)
                 .padding(1.dp)
@@ -696,6 +697,7 @@ private fun AdviceRow(a: Advice) {
     }
     Row(
         Modifier.fillMaxWidth()
+            .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(2.dp))
             .background(Paper)
             .padding(1.dp)
