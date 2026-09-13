@@ -73,13 +73,13 @@ private val Amber     = Color(0xFFF59E0B)
 private val Sans = FontFamily.Default
 private val Mono = FontFamily.Monospace
 
-private val T_Display = TextStyle(Sans, 32.sp, FontWeight.Bold, color = TextPri, letterSpacing = (-0.5).sp)
-private val T_H1      = TextStyle(Sans, 22.sp, FontWeight.Bold, color = TextPri)
-private val T_H2      = TextStyle(Sans, 16.sp, FontWeight.SemiBold, color = TextPri)
-private val T_Body    = TextStyle(Sans, 14.sp, color = TextSec, lineHeight = 20.sp)
-private val T_Small   = TextStyle(Sans, 12.sp, color = TextTer)
-private val T_Big     = TextStyle(Mono, 40.sp, FontWeight.Bold, color = TextPri, letterSpacing = (-1).sp)
-private val T_Num     = TextStyle(Mono, 14.sp, FontWeight.SemiBold, color = TextPri)
+private val T_Display = TextStyle(fontFamily = Sans, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = TextPri, letterSpacing = (-0.5).sp)
+private val T_H1      = TextStyle(fontFamily = Sans, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPri)
+private val T_H2      = TextStyle(fontFamily = Sans, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPri)
+private val T_Body    = TextStyle(fontFamily = Sans, fontSize = 14.sp, color = TextSec, lineHeight = 20.sp)
+private val T_Small   = TextStyle(fontFamily = Sans, fontSize = 12.sp, color = TextTer)
+private val T_Big     = TextStyle(fontFamily = Mono, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = TextPri, letterSpacing = (-1).sp)
+private val T_Num     = TextStyle(fontFamily = Mono, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPri)
 
 // ==================== ENTRY ====================
 @Composable
