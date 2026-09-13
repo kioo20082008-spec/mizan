@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "com.mizan.money"
     compileSdk = 34
+
     defaultConfig {
         applicationId = "com.mizan.money"
         minSdk = 26
@@ -15,6 +16,22 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+
+    signingConfigs {
+        create("fixed") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("fixed")
+        }
+    }
+
     buildFeatures { compose = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
