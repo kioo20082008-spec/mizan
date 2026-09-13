@@ -14,9 +14,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -24,15 +27,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -44,19 +48,22 @@ import com.mizan.money.advisor.MonthSummary
 import com.mizan.money.data.*
 import com.mizan.money.sms.CategoryClassifier
 
-// ============ الألوان ============
-private val Bg = Color(0xFF0A0E1A)
-private val Surface1 = Color(0xFF141A29)
-private val Surface2 = Color(0xFF1C2438)
-private val Primary = Color(0xFF7C6BFF)
-private val PrimaryDark = Color(0xFF5B4FE8)
-private val Accent = Color(0xFF00E5A0)
-private val Danger = Color(0xFFFF4D6D)
-private val Warn = Color(0xFFFFB347)
-private val TextPri = Color(0xFFF1F5FF)
-private val TextSec = Color(0xFF8B94B8)
+// ================== Colors ==================
+private val Paper   = Color(0xFFE5D9BD)
+private val Ink     = Color(0xFF182A20)
+private val InkSoft = Color(0xFF243D32)
+private val Bronze  = Color(0xFF8C6239)
+private val BronzeText = Color(0xFFD9A56B)
+private val Crimson = Color(0xFF7A2818)
+private val Olive   = Color(0xFF4F6B43)
+private val Slate   = Color(0xFF5F5A4C)
 
-// ============ نقطة الدخول ============
+// ================== Typography ==================
+private val Num = TextStyle(fontFamily = FontFamily.Monospace)
+private val Lbl = TextStyle(color = Slate, fontSize = 11.sp)
+private val Sec = TextStyle(color = Slate, fontSize = 12.sp)
+
+// ================== AppRoot ==================
 @Composable
 fun AppRoot() {
     val ctx = LocalContext.current
@@ -73,28 +80,37 @@ fun AppRoot() {
     }
 
     MaterialTheme(
-        colorScheme = darkColorScheme(
-            background = Bg,
-            surface = Surface1,
-            primary = Primary,
-            onBackground = TextPri,
-            onSurface = TextPri,
-            surfaceVariant = Surface2,
-            onSurfaceVariant = TextSec,
+        colorScheme = lightColorScheme(
+            background = Paper,
+            surface = Paper,
+            surfaceVariant = InkSoft,
+            surfaceTint = Color.Transparent,
+            primary = Bronze,
+            onPrimary = Paper,
+            onBackground = Ink,
+            onSurface = Ink,
+            onSurfaceVariant = Slate,
+            error = Crimson,
+            onError = Paper,
         )
     ) {
-        Surface(Modifier.fillMaxSize(), color = Bg) {
-            if (!hasSms) PermissionScreen {
-                launcher.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
-            } else HomeScaffold(vm)
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            Surface(Modifier.fillMaxSize(), color = Paper) {
+                if (!hasSms) PermissionScreen {
+                    launcher.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
+                } else {
+                    HomeScaffold(vm)
+                }
+            }
         }
     }
 }
 
 private fun hasSmsPermission(ctx: Context): Boolean =
-    ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
+    ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) ==
+        PackageManager.PERMISSION_GRANTED
 
-// ============ شاشة الصلاحية ============
+// ================== Permission ==================
 @Composable
 private fun PermissionScreen(onGrant: () -> Unit) {
     Column(
@@ -102,123 +118,98 @@ private fun PermissionScreen(onGrant: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            Modifier.size(120.dp).clip(CircleShape)
-                .background(Brush.radialGradient(listOf(Primary.copy(alpha = 0.4f), Color.Transparent))),
-            contentAlignment = Alignment.Center
+        Text("ميزان", fontSize = 42.sp, fontWeight = FontWeight.Black, color = Ink)
+        Spacer(Modifier.height(10.dp))
+        Box(Modifier.width(48.dp).height(2.dp).background(Bronze))
+        Spacer(Modifier.height(14.dp))
+        Text("دفترك المالي الشخصي", fontSize = 15.sp, color = Slate)
+        Spacer(Modifier.height(48.dp))
+
+        Row(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(2.dp))
+                .background(Paper)
+                .padding(1.dp)
         ) {
-            Box(
-                Modifier.size(80.dp).clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(Primary, PrimaryDark))),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.AccountBalanceWallet, null,
-                    Modifier.size(40.dp), tint = Color.White)
+            Box(Modifier.width(3.dp).fillMaxHeight().background(Bronze))
+            Column(Modifier.padding(16.dp)) {
+                Text("نقرأ رسائل بنكك تلقائياً", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ink)
+                Spacer(Modifier.height(6.dp))
+                Text("لتصنيف مصاريفك وعرض تحليل ذكي.", fontSize = 13.sp, color = Slate)
+                Spacer(Modifier.height(10.dp))
+                Text("لا شيء يخرج من جهازك.", fontSize = 12.sp, color = Bronze)
             }
         }
-        Spacer(Modifier.height(32.dp))
-        Text("ميزان", fontSize = 36.sp, fontWeight = FontWeight.Black, color = TextPri)
-        Spacer(Modifier.height(8.dp))
-        Text("مديرك المالي الذكي", fontSize = 16.sp, color = TextSec)
+
         Spacer(Modifier.height(40.dp))
-        Text(
-            "لأتمكن من تتبع مصاريفك تلقائياً أحتاج قراءة رسائل البنك (SMS).",
-            fontSize = 15.sp, textAlign = TextAlign.Center, color = TextSec, lineHeight = 22.sp
-        )
-        Spacer(Modifier.height(16.dp))
-        Row(
-            Modifier.clip(RoundedCornerShape(14.dp))
-                .background(Accent.copy(alpha = 0.1f))
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Lock, null, Modifier.size(18.dp), tint = Accent)
-            Spacer(Modifier.width(8.dp))
-            Text("كل البيانات تبقى على جهازك فقط", fontSize = 13.sp, color = Accent)
-        }
-        Spacer(Modifier.height(40.dp))
+
         Button(
             onClick = onGrant,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(18.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Primary)
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(4.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Ink)
         ) {
-            Text("السماح بقراءة الرسائل", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("ابدأ", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Paper)
         }
     }
 }
 
-// ============ الهيكل الرئيسي ============
+// ================== Home scaffold ==================
 @Composable
 private fun HomeScaffold(vm: MainViewModel) {
     var tab by remember { mutableIntStateOf(0) }
-    Box(Modifier.fillMaxSize()) {
-        when (tab) {
-            0 -> DashboardScreen(vm)
-            1 -> TransactionsScreen(vm)
-            2 -> BudgetScreen(vm)
-            else -> AdvisorScreen(vm)
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f)) {
+            when (tab) {
+                0 -> DashboardScreen(vm)
+                1 -> TransactionsScreen(vm)
+                2 -> BudgetScreen(vm)
+                else -> AdvisorScreen(vm)
+            }
         }
-        // شريط سفلي عائم
-        FloatingNavBar(
-            selected = tab,
-            onSelect = { tab = it },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+        BottomBar(tab) { tab = it }
     }
 }
 
 @Composable
-private fun FloatingNavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+private fun BottomBar(selected: Int, onSelect: (Int) -> Unit) {
     val items = listOf(
-        Triple("الرئيسية", Icons.Filled.Home, Icons.Outlined.Home),
-        Triple("العمليات", Icons.Filled.ReceiptLong, Icons.Outlined.ReceiptLong),
-        Triple("الميزانية", Icons.Filled.Savings, Icons.Outlined.Savings),
-        Triple("المستشار", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome)
+        Triple("الرئيسية", Icons.Filled.Home, 0),
+        Triple("العمليات", Icons.Filled.ReceiptLong, 1),
+        Triple("الميزانية", Icons.Filled.Savings, 2),
+        Triple("المستشار", Icons.Filled.AutoAwesome, 3)
     )
-    Row(
-        modifier
-            .padding(horizontal = 16.dp, vertical = 16.dp)
-            .fillMaxWidth()
-            .shadow(20.dp, RoundedCornerShape(28.dp), spotColor = Color.Black)
-            .clip(RoundedCornerShape(28.dp))
-            .background(Surface1)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        items.forEachIndexed { index, (label, filled, outlined) ->
-            val isSelected = selected == index
-            val bgColor by animateColorAsState(
-                if (isSelected) Primary.copy(alpha = 0.15f) else Color.Transparent,
-                tween(250), label = "bg"
-            )
-            val contentColor by animateColorAsState(
-                if (isSelected) Primary else TextSec,
-                tween(250), label = "content"
-            )
-            Column(
-                Modifier.weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(bgColor)
-                    .clickable { onSelect(index) }
-                    .padding(vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    if (isSelected) filled else outlined,
-                    label,
-                    Modifier.size(22.dp),
-                    tint = contentColor
+    Column {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Ink.copy(alpha = 0.12f)))
+        Row(
+            Modifier.fillMaxWidth().background(Paper).padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            items.forEach { (label, icon, idx) ->
+                val isSel = selected == idx
+                val content by animateColorAsState(
+                    if (isSel) Ink else Slate, tween(200), label = "c"
                 )
-                Spacer(Modifier.height(2.dp))
-                Text(label, fontSize = 10.sp, color = contentColor,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                Column(
+                    Modifier.weight(1f).clickable { onSelect(idx) }.padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(icon, label, Modifier.size(22.dp), tint = content)
+                    Spacer(Modifier.height(2.dp))
+                    Text(label, fontSize = 10.sp, color = content,
+                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal)
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        Modifier.width(if (isSel) 20.dp else 0.dp)
+                            .height(2.dp).background(Bronze)
+                    )
+                }
             }
         }
     }
 }
 
-// ============ 1) الرئيسية ============
+// ================== Dashboard ==================
 @Composable
 private fun DashboardScreen(vm: MainViewModel) {
     val txs by vm.transactions.collectAsState()
@@ -229,235 +220,170 @@ private fun DashboardScreen(vm: MainViewModel) {
     val summary = remember(txs, offset) { FinancialAdvisor.summarize(txs, range.first, range.last) }
     val monthlyBudget = budgets.firstOrNull {
         it.monthKey == Dates.monthKey(offset) && it.category == TOTAL_BUDGET
-    }?.limitAmount ?: budgets.firstOrNull { it.monthKey == ALL_MONTHS && it.category == TOTAL_BUDGET }?.limitAmount ?: 0.0
-
-    val advice = remember(summary, monthlyBudget) {
-        FinancialAdvisor.advise(summary, monthlyBudget, txs, range.first, range.last)
-    }
+    }?.limitAmount ?: budgets.firstOrNull {
+        it.monthKey == ALL_MONTHS && it.category == TOTAL_BUDGET
+    }?.limitAmount ?: 0.0
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("مساء الخير 👋", fontSize = 13.sp, color = TextSec)
-                    Text("ميزانك", fontSize = 22.sp, fontWeight = FontWeight.Black, color = TextPri)
-                }
-                IconButton(
-                    onClick = { },
-                    modifier = Modifier.size(44.dp).clip(CircleShape).background(Surface1)
-                ) { Icon(Icons.Outlined.Notifications, null, tint = TextPri) }
-            }
-        }
-
         item { MonthSwitcher(offset, onPrev = { offset-- }, onNext = { if (offset < 0) offset++ }) }
-
         item { HeroBalanceCard(summary) }
-
-        if (monthlyBudget > 0) {
-            item { BudgetRingCard(summary.spent, monthlyBudget) }
-        }
-
+        if (monthlyBudget > 0) item { BudgetBarCard(summary.spent, monthlyBudget) }
         if (summary.categoryTotals.isNotEmpty()) {
-            item {
-                Text("توزيع المصاريف", fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                    color = TextPri, modifier = Modifier.padding(top = 8.dp))
-            }
-            items(summary.categoryTotals.take(6)) { cat ->
-                CategoryBarRow(cat, summary.spent)
-            }
+            item { SectionLabel("التصنيفات") }
+            items(summary.categoryTotals) { cat -> CategoryRow(cat, summary.spent) }
         }
-
-        advice.firstOrNull()?.let { a ->
-            item {
-                Text("نصيحة اليوم", fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                    color = TextPri, modifier = Modifier.padding(top = 8.dp))
-            }
-            item { AdviceCard(a) }
-        }
-
-        if (txs.isEmpty()) {
-            item { EmptyState() }
-        }
+        if (txs.isEmpty()) item { EmptyRow("لا توجد عمليات بعد") }
     }
 }
 
 @Composable
 private fun MonthSwitcher(offset: Int, onPrev: () -> Unit, onNext: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface1),
+        Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onPrev) { Icon(Icons.Default.ChevronRight, null, tint = TextSec) }
+        IconButton(onClick = onNext) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
+                tint = if (offset < 0) Ink else Ink.copy(alpha = 0.25f))
+        }
         Text(
             monthName(offset),
             Modifier.weight(1f),
             fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPri,
+            fontWeight = FontWeight.Bold,
+            color = Ink,
             textAlign = TextAlign.Center
         )
-        IconButton(onClick = onNext) {
-            Icon(Icons.Default.ChevronLeft, null, tint = if (offset < 0) TextSec else TextSec.copy(alpha = 0.3f))
+        IconButton(onClick = onPrev) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, tint = Ink)
         }
     }
 }
 
 @Composable
 private fun HeroBalanceCard(s: MonthSummary) {
-    val netColor = if (s.net >= 0) Accent else Danger
+    val counter by animateFloatAsState(
+        targetValue = s.net.toFloat(),
+        animationSpec = tween(900),
+        label = "count"
+    )
     Box(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(Brush.linearGradient(listOf(Primary, PrimaryDark, Color(0xFF3B2DB8))))
-            .padding(24.dp)
+            .clip(CutCornerShape(topEnd = 20.dp))
+            .background(Ink)
+            .padding(22.dp)
     ) {
         Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(36.dp).clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.AccountBalanceWallet, null, Modifier.size(20.dp), tint = Color.White) }
-                Spacer(Modifier.width(10.dp))
-                Text("صافي هذا الشهر", fontSize = 13.sp, color = Color.White.copy(alpha = 0.85f))
-            }
-            Spacer(Modifier.height(18.dp))
+            Text("صافي الشهر", fontSize = 11.sp, color = Paper.copy(alpha = 0.65f))
+            Spacer(Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    FinancialAdvisor.fmt(kotlin.math.abs(s.net)),
-                    fontSize = 40.sp, fontWeight = FontWeight.Black, color = Color.White
+                    FinancialAdvisor.fmt(kotlin.math.abs(counter.toDouble())),
+                    style = Num.copy(
+                        fontSize = 38.sp,
+                        fontWeight = FontWeight.Black,
+                        color = BronzeText
+                    )
                 )
-                Spacer(Modifier.width(6.dp))
-                Text("ر.س", fontSize = 16.sp, color = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(bottom = 6.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("ر.س", fontSize = 14.sp,
+                    color = Paper.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(bottom = 5.dp))
             }
-            Spacer(Modifier.height(20.dp))
-            Row(
-                Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.2f))
-                    .padding(vertical = 12.dp)
-            ) {
-                HeroStat("المصروف", FinancialAdvisor.fmt(s.spent), Danger, Modifier.weight(1f))
-                Box(Modifier.width(1.dp).height(30.dp).background(Color.White.copy(alpha = 0.15f)))
-                HeroStat("الدخل", FinancialAdvisor.fmt(s.income), Accent, Modifier.weight(1f))
-                Box(Modifier.width(1.dp).height(30.dp).background(Color.White.copy(alpha = 0.15f)))
-                HeroStat("العمليات", s.count.toString(), Color.White, Modifier.weight(1f))
+            Spacer(Modifier.height(16.dp))
+            Box(Modifier.fillMaxWidth().height(2.dp).background(Bronze))
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth()) {
+                HeroMini("المصروف", s.spent, Modifier.weight(1f))
+                HeroMini("الدخل", s.income, Modifier.weight(1f))
+                HeroMini("العمليات", s.count.toDouble(), Modifier.weight(1f), isCount = true)
             }
         }
     }
 }
 
 @Composable
-private fun HeroStat(label: String, value: String, color: Color, mod: Modifier = Modifier) {
-    Column(mod, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f))
-        Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = color)
+private fun HeroMini(label: String, value: Double, mod: Modifier = Modifier, isCount: Boolean = false) {
+    Column(mod, horizontalAlignment = Alignment.Start) {
+        Text(label, fontSize = 10.sp, color = Paper.copy(alpha = 0.55f))
+        Spacer(Modifier.height(3.dp))
+        Text(
+            if (isCount) value.toInt().toString() else FinancialAdvisor.fmt(value),
+            style = Num.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Paper)
+        )
     }
 }
 
 @Composable
-private fun BudgetRingCard(spent: Double, budget: Double) {
+private fun BudgetBarCard(spent: Double, budget: Double) {
     val pct = (spent / budget).coerceIn(0.0, 1.0).toFloat()
     val color = when {
-        spent > budget -> Danger
-        pct > 0.8f -> Warn
-        else -> Accent
+        spent > budget -> Crimson
+        pct > 0.8f -> Bronze
+        else -> Olive
     }
-    val animated by animateFloatAsState(pct, tween(800), label = "ring")
-
-    Row(
-        Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(Surface1)
-            .padding(20.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(Modifier.size(76.dp), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                progress = { 1f },
-                modifier = Modifier.fillMaxSize(),
-                color = color.copy(alpha = 0.15f),
-                strokeWidth = 8.dp,
-                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
-            )
-            CircularProgressIndicator(
-                progress = { animated },
-                modifier = Modifier.fillMaxSize(),
-                color = color,
-                strokeWidth = 8.dp,
-                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
-            )
-            Text("${(pct * 100).toInt()}%", fontSize = 16.sp,
-                fontWeight = FontWeight.Black, color = color)
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+            Text("الميزانية", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Spacer(Modifier.weight(1f))
+            Text("${(spent / budget * 100).toInt()}%",
+                style = Num.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = color))
         }
-        Spacer(Modifier.width(20.dp))
-        Column(Modifier.weight(1f)) {
-            Text("الميزانية الشهرية", fontSize = 14.sp,
-                fontWeight = FontWeight.Bold, color = TextPri)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "صرفت ${FinancialAdvisor.fmt(spent)} من ${FinancialAdvisor.fmt(budget)} ر.س",
-                fontSize = 12.sp, color = TextSec
-            )
-            Spacer(Modifier.height(6.dp))
-            val remaining = budget - spent
-            Text(
-                if (remaining >= 0) "باقي لك ${FinancialAdvisor.fmt(remaining)} ر.س"
-                else "تجاوزت بـ ${FinancialAdvisor.fmt(-remaining)} ر.س",
-                fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color
+        Spacer(Modifier.height(8.dp))
+        // RTL: bar fills from right (LayoutDirection handles it)
+        Box(
+            Modifier.fillMaxWidth().height(8.dp).background(Ink.copy(alpha = 0.08f))
+        ) {
+            Box(
+                Modifier.fillMaxWidth(pct).fillMaxHeight().background(color)
             )
         }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            FinancialAdvisor.fmt(spent) + " / " + FinancialAdvisor.fmt(budget) + " ر.س",
+            style = Num.copy(fontSize = 12.sp, color = Slate)
+        )
     }
 }
 
 @Composable
-private fun CategoryBarRow(cat: com.mizan.money.advisor.CategoryTotal, total: Double) {
-    val frac = if (total > 0) (cat.amount / total).toFloat() else 0f
-    val animated by animateFloatAsState(frac, tween(700), label = "bar")
-    val icon = categoryIcon(cat.category)
-    val color = categoryColor(cat.category)
-
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Surface1).padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            Modifier.size(44.dp).clip(RoundedCornerShape(14.dp))
-                .background(color.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) { Icon(icon, null, Modifier.size(22.dp), tint = color) }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(cat.category, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPri)
-                Spacer(Modifier.weight(1f))
-                Text("${FinancialAdvisor.fmt(cat.amount)}", fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold, color = TextPri)
-                Spacer(Modifier.width(4.dp))
-                Text("ر.س", fontSize = 11.sp, color = TextSec)
-            }
-            Spacer(Modifier.height(8.dp))
-            Box(
-                Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp))
-                    .background(Surface2)
-            ) {
-                Box(
-                    Modifier.fillMaxWidth(animated).fillMaxHeight()
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Brush.horizontalGradient(listOf(color, color.copy(alpha = 0.6f))))
-                )
-            }
-        }
+private fun SectionLabel(text: String) {
+    Column {
+        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Ink.copy(alpha = 0.12f)))
     }
 }
 
-// ============ 2) العمليات ============
+@Composable
+private fun CategoryRow(cat: com.mizan.money.advisor.CategoryTotal, total: Double) {
+    val frac = if (total > 0) (cat.amount / total).toFloat() else 0f
+    val animated by animateFloatAsState(frac, tween(700), label = "bar")
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(3.dp).height(16.dp).background(Bronze))
+            Spacer(Modifier.width(10.dp))
+            Text(cat.category, fontSize = 14.sp, color = Ink, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.weight(1f))
+            Text(FinancialAdvisor.fmt(cat.amount),
+                style = Num.copy(fontSize = 14.sp, color = Ink, fontWeight = FontWeight.Bold))
+            Spacer(Modifier.width(4.dp))
+            Text("ر.س", fontSize = 10.sp, color = Slate)
+        }
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth().height(4.dp).background(Ink.copy(alpha = 0.06f))) {
+            Box(Modifier.fillMaxWidth(animated).fillMaxHeight().background(Bronze))
+        }
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Ink.copy(alpha = 0.08f)))
+    }
+}
+
+// ================== Transactions ==================
 @Composable
 private fun TransactionsScreen(vm: MainViewModel) {
     val txs by vm.transactions.collectAsState()
@@ -465,33 +391,35 @@ private fun TransactionsScreen(vm: MainViewModel) {
     val grouped = remember(txs) { txs.groupBy { Dates.dayLabel(it.timestamp) } }
 
     Box(Modifier.fillMaxSize()) {
-        if (txs.isEmpty()) {
-            EmptyState()
-        } else {
-            LazyColumn(
-                Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp)
+        ) {
+            item {
+                Text("العمليات", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Ink)
+                Spacer(Modifier.height(6.dp))
+                Box(Modifier.width(48.dp).height(2.dp).background(Bronze))
+                Spacer(Modifier.height(12.dp))
+            }
+            grouped.forEach { (day, list) ->
                 item {
-                    Text("العمليات", fontSize = 26.sp, fontWeight = FontWeight.Black,
-                        color = TextPri, modifier = Modifier.padding(bottom = 8.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text(day, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate)
+                    Spacer(Modifier.height(4.dp))
                 }
-                grouped.forEach { (day, list) ->
-                    item {
-                        Text(day, fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                            color = TextSec, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-                    }
-                    items(list, key = { it.id }) { tx -> TransactionRow(tx) { vm.delete(tx) } }
+                items(list, key = { it.id }) { tx ->
+                    TransactionRow(tx, onDelete = { vm.delete(tx) })
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Ink.copy(alpha = 0.08f)))
                 }
             }
+            if (txs.isEmpty()) item { EmptyRow("لا توجد عمليات بعد") }
         }
         FloatingActionButton(
             onClick = { showAdd = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 110.dp),
-            containerColor = Primary,
-            shape = RoundedCornerShape(20.dp)
-        ) { Icon(Icons.Default.Add, "إضافة", tint = Color.White) }
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp),
+            containerColor = Ink,
+            shape = CircleShape
+        ) { Icon(Icons.Default.Add, "إضافة", tint = Paper) }
     }
 
     if (showAdd) AddTransactionDialog(
@@ -503,55 +431,35 @@ private fun TransactionsScreen(vm: MainViewModel) {
 @Composable
 private fun TransactionRow(tx: TransactionEntity, onDelete: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val color = categoryColor(tx.category)
-    val icon = categoryIcon(tx.category)
     val sign = if (tx.type == TxType.EXPENSE) "-" else "+"
-    val amtColor = if (tx.type == TxType.EXPENSE) Danger else Accent
+    val amtColor = if (tx.type == TxType.EXPENSE) Crimson else Olive
 
-    Column(
-        Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Surface1)
-            .clickable { expanded = !expanded }
-            .padding(14.dp)
-    ) {
+    Column(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(vertical = 14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
-                    .background(color.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) { Icon(icon, null, Modifier.size(22.dp), tint = color) }
-            Spacer(Modifier.width(14.dp))
+            Box(Modifier.width(3.dp).height(28.dp).background(Bronze.copy(alpha = 0.5f)))
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(tx.merchant ?: "غير معروف", fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp, color = TextPri)
+                Text(tx.merchant ?: "غير معروف",
+                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                 Spacer(Modifier.height(2.dp))
-                Text("${tx.category}  ·  ${if (tx.isManual) "يدوي" else (tx.bankName ?: "SMS")}",
-                    fontSize = 11.sp, color = TextSec)
+                Text(
+                    tx.category + " · " + (if (tx.isManual) "يدوي" else (tx.bankName ?: "SMS")),
+                    fontSize = 11.sp, color = Slate
+                )
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("$sign${FinancialAdvisor.fmt(tx.amount)}",
-                    fontWeight = FontWeight.Black, fontSize = 16.sp, color = amtColor)
-                Spacer(Modifier.height(2.dp))
-                Text("ر.س", fontSize = 10.sp, color = TextSec)
-            }
+            Text(sign + FinancialAdvisor.fmt(tx.amount),
+                style = Num.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = amtColor))
+            Spacer(Modifier.width(4.dp))
+            Text("ر.س", fontSize = 10.sp, color = Slate)
         }
         if (expanded) {
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = Surface2)
             Spacer(Modifier.height(10.dp))
-            Text(tx.rawSms, fontSize = 12.sp, color = TextSec, lineHeight = 18.sp)
-            Spacer(Modifier.height(10.dp))
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                    .background(Danger.copy(alpha = 0.1f))
-                    .clickable { onDelete() }
-                    .padding(vertical = 10.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(Icons.Default.Delete, null, Modifier.size(18.dp), tint = Danger)
+            Text(tx.rawSms, fontSize = 11.sp, color = Slate, lineHeight = 17.sp)
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = onDelete, colors = ButtonDefaults.textButtonColors(contentColor = Crimson)) {
+                Icon(Icons.Default.Delete, null, Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("حذف", color = Danger, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text("حذف", fontSize = 13.sp)
             }
         }
     }
@@ -567,9 +475,9 @@ private fun AddTransactionDialog(onDismiss: () -> Unit, onSave: (Double, String,
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Surface1,
-        shape = RoundedCornerShape(28.dp),
-        title = { Text("إضافة عملية", fontWeight = FontWeight.Bold, color = TextPri) },
+        containerColor = Paper,
+        shape = RoundedCornerShape(4.dp),
+        title = { Text("إضافة عملية", color = Ink, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 OutlinedTextField(
@@ -577,59 +485,40 @@ private fun AddTransactionDialog(onDismiss: () -> Unit, onSave: (Double, String,
                     label = { Text("المبلغ") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Primary, unfocusedBorderColor = Surface2
-                    )
+                    shape = RoundedCornerShape(4.dp)
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = merchant, onValueChange = { merchant = it },
-                    label = { Text("الجهة / التاجر") },
+                    label = { Text("الجهة") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Primary, unfocusedBorderColor = Surface2
-                    )
+                    shape = RoundedCornerShape(4.dp)
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 Row {
                     FilterChip(
                         selected = type == TxType.EXPENSE,
                         onClick = { type = TxType.EXPENSE },
-                        label = { Text("مصروف") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Danger.copy(alpha = 0.2f),
-                            selectedLabelColor = Danger
-                        )
+                        label = { Text("مصروف") }
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
                     FilterChip(
                         selected = type == TxType.INCOME,
                         onClick = { type = TxType.INCOME },
-                        label = { Text("دخل") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Accent.copy(alpha = 0.2f),
-                            selectedLabelColor = Accent
-                        )
+                        label = { Text("دخل") }
                     )
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 Box {
                     OutlinedButton(
                         onClick = { menuOpen = true },
                         Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPri)
-                    ) { Text("التصنيف: $category") }
-                    DropdownMenu(
-                        expanded = menuOpen,
-                        onDismissRequest = { menuOpen = false },
-                        containerColor = Surface2
-                    ) {
+                        shape = RoundedCornerShape(4.dp)
+                    ) { Text(category, color = Ink) }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         CategoryClassifier.categories.forEach { c ->
                             DropdownMenuItem(
-                                text = { Text(c, color = TextPri) },
+                                text = { Text(c) },
                                 onClick = { category = c; menuOpen = false }
                             )
                         }
@@ -638,19 +527,17 @@ private fun AddTransactionDialog(onDismiss: () -> Unit, onSave: (Double, String,
             }
         },
         confirmButton = {
-            Button(
-                onClick = { amount.toDoubleOrNull()?.let { onSave(it, merchant, category, type) } },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Primary)
-            ) { Text("حفظ") }
+            TextButton(onClick = { amount.toDoubleOrNull()?.let { onSave(it, merchant, category, type) } }) {
+                Text("حفظ", color = Bronze, fontWeight = FontWeight.Bold)
+            }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("إلغاء", color = TextSec) }
+            TextButton(onClick = onDismiss) { Text("إلغاء", color = Slate) }
         }
     )
 }
 
-// ============ 3) الميزانية ============
+// ================== Budget ==================
 @Composable
 private fun BudgetScreen(vm: MainViewModel) {
     val budgets by vm.budgets.collectAsState()
@@ -660,8 +547,10 @@ private fun BudgetScreen(vm: MainViewModel) {
     val summary = remember(txs) { FinancialAdvisor.summarize(txs, range.first, range.last) }
 
     var totalInput by remember {
-        mutableStateOf(budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }
-            ?.limitAmount?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: "")
+        mutableStateOf(
+            budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }
+                ?.limitAmount?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: ""
+        )
     }
     var catInputs by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
@@ -674,99 +563,80 @@ private fun BudgetScreen(vm: MainViewModel) {
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("الميزانية", fontSize = 26.sp, fontWeight = FontWeight.Black, color = TextPri)
+            Text("الميزانية", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Ink)
+            Spacer(Modifier.height(6.dp))
+            Box(Modifier.width(48.dp).height(2.dp).background(Bronze))
         }
         item {
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Surface1)) {
-                Column(Modifier.padding(20.dp)) {
-                    Text("الميزانية الكلية", fontSize = 14.sp, color = TextSec)
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = totalInput,
-                        onValueChange = { totalInput = it.filter { ch -> ch.isDigit() || ch == '.' } },
-                        label = { Text("الحد الشهري") },
-                        suffix = { Text("ر.س", color = TextSec) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Primary, unfocusedBorderColor = Surface2
-                        )
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = { totalInput.toDoubleOrNull()?.let { vm.setBudget(monthKey, TOTAL_BUDGET, it) } },
-                        Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                    ) { Text("حفظ الميزانية", fontWeight = FontWeight.Bold) }
-                }
+            Text("الميزانية الكلية", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = totalInput,
+                    onValueChange = { totalInput = it.filter { ch -> ch.isDigit() || ch == '.' } },
+                    label = { Text("الحد الشهري") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(4.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = { totalInput.toDoubleOrNull()?.let { vm.setBudget(monthKey, TOTAL_BUDGET, it) } },
+                    shape = RoundedCornerShape(4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Ink)
+                ) { Text("حفظ", color = Paper) }
             }
         }
         item {
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                    .background(Primary.copy(alpha = 0.1f)).padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Info, null, Modifier.size(18.dp), tint = Primary)
-                Spacer(Modifier.width(10.dp))
-                Text("صرفت هذا الشهر: ${FinancialAdvisor.fmt(summary.spent)} ر.س",
-                    fontSize = 13.sp, color = TextPri)
-            }
+            Spacer(Modifier.height(8.dp))
+            Text("صرفت هذا الشهر: " + FinancialAdvisor.fmt(summary.spent) + " ر.س",
+                fontSize = 13.sp, color = Slate)
         }
         item {
-            Text("ميزانية لكل تصنيف", fontSize = 16.sp, fontWeight = FontWeight.Bold,
-                color = TextPri, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+            Spacer(Modifier.height(8.dp))
+            SectionLabel("ميزانية لكل تصنيف")
         }
         items(CategoryClassifier.categories) { cat ->
             val spentInCat = summary.categoryTotals.firstOrNull { it.category == cat }?.amount ?: 0.0
-            val color = categoryColor(cat)
-            val icon = categoryIcon(cat)
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface1).padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
-                        .background(color.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) { Icon(icon, null, Modifier.size(18.dp), tint = color) }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(cat, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPri)
-                    Text("صرفت ${FinancialAdvisor.fmt(spentInCat)} ر.س", fontSize = 11.sp, color = TextSec)
+            Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(cat, fontSize = 13.sp, color = Ink, modifier = Modifier.weight(1f))
+                    Text(FinancialAdvisor.fmt(spentInCat) + " ر.س",
+                        style = Num.copy(fontSize = 11.sp, color = Slate))
                 }
-                OutlinedTextField(
-                    value = catInputs[cat] ?: "",
-                    onValueChange = { v ->
-                        catInputs = catInputs + (cat to v.filter { ch -> ch.isDigit() || ch == '.' })
-                    },
-                    placeholder = { Text("0", color = TextSec, fontSize = 13.sp) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.width(90.dp),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Primary, unfocusedBorderColor = Surface2
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = catInputs[cat] ?: "",
+                        onValueChange = { v ->
+                            catInputs = catInputs + (cat to v.filter { ch -> ch.isDigit() || ch == '.' })
+                        },
+                        placeholder = { Text("0", color = Slate) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(4.dp)
                     )
-                )
-                Spacer(Modifier.width(6.dp))
-                IconButton(
-                    onClick = { (catInputs[cat]?.toDoubleOrNull() ?: 0.0).let { vm.setBudget(monthKey, cat, it) } },
-                    modifier = Modifier.size(36.dp).clip(CircleShape).background(Primary)
-                ) { Icon(Icons.Default.Check, "حفظ", tint = Color.White, modifier = Modifier.size(18.dp)) }
+                    Spacer(Modifier.width(6.dp))
+                    IconButton(
+                        onClick = {
+                            (catInputs[cat]?.toDoubleOrNull() ?: 0.0).let { vm.setBudget(monthKey, cat, it) }
+                        },
+                        modifier = Modifier.size(40.dp).background(Ink, RoundedCornerShape(4.dp))
+                    ) { Icon(Icons.Default.Check, "حفظ", tint = Paper, modifier = Modifier.size(18.dp)) }
+                }
+                Spacer(Modifier.height(6.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Ink.copy(alpha = 0.08f)))
             }
         }
     }
 }
 
-// ============ 4) المستشار ============
+// ================== Advisor ==================
 @Composable
 private fun AdvisorScreen(vm: MainViewModel) {
     val txs by vm.transactions.collectAsState()
@@ -782,137 +652,83 @@ private fun AdvisorScreen(vm: MainViewModel) {
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("المستشار", fontSize = 26.sp, fontWeight = FontWeight.Black, color = TextPri)
+            Text("المستشار", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Ink)
+            Spacer(Modifier.height(6.dp))
+            Box(Modifier.width(48.dp).height(2.dp).background(Bronze))
+            Spacer(Modifier.height(12.dp))
         }
         item {
             Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                    .background(Brush.linearGradient(
-                        listOf(Color(0xFF2B2350), Color(0xFF3B2DB8))
-                    ))
-                    .padding(24.dp)
+                Modifier.fillMaxWidth()
+                    .clip(CutCornerShape(topEnd = 16.dp))
+                    .background(Ink)
+                    .padding(18.dp)
             ) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier.size(48.dp).clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) { Icon(Icons.Default.AutoAwesome, null, Modifier.size(26.dp), tint = Color(0xFFFFD166)) }
-                        Spacer(Modifier.width(14.dp))
-                        Column {
-                            Text("تقرير ذكي", fontSize = 17.sp,
-                                fontWeight = FontWeight.Black, color = Color.White)
-                            Text("مخصص لك هذا الشهر", fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.7f))
-                        }
+                        Icon(Icons.Default.AutoAwesome, null, Modifier.size(20.dp), tint = BronzeText)
+                        Spacer(Modifier.width(8.dp))
+                        Text("تقرير ذكي", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Paper)
                     }
-                    Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(10.dp))
                     Text(
-                        "راجعت ${summary.count} عملية بإجمالي ${FinancialAdvisor.fmt(summary.spent)} ر.س. إليك ${advice.size} ملاحظة:",
-                        fontSize = 13.sp, color = Color.White.copy(alpha = 0.85f), lineHeight = 20.sp
+                        "راجعت " + summary.count.toString() + " عملية. إليك " + advice.size.toString() + " ملاحظة:",
+                        fontSize = 12.sp, color = Paper.copy(alpha = 0.7f)
                     )
                 }
             }
         }
-        items(advice) { a -> AdviceCard(a) }
+        items(advice) { a -> AdviceRow(a) }
     }
 }
 
 @Composable
-private fun AdviceCard(a: Advice) {
-    val color = when (a.level) {
-        Level.DANGER -> Danger
-        Level.WARN -> Warn
-        Level.GOOD -> Accent
-        Level.INFO -> Primary
-    }
-    val icon = when (a.level) {
-        Level.DANGER -> Icons.Default.Warning
-        Level.WARN -> Icons.Default.Info
-        Level.GOOD -> Icons.Default.CheckCircle
-        Level.INFO -> Icons.Default.Lightbulb
+private fun AdviceRow(a: Advice) {
+    val (color, icon) = when (a.level) {
+        Level.DANGER -> Crimson to Icons.Default.Warning
+        Level.WARN -> Bronze to Icons.Default.Info
+        Level.GOOD -> Olive to Icons.Default.CheckCircle
+        Level.INFO -> Slate to Icons.Default.Lightbulb
     }
     Row(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Surface1)
-            .padding(16.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Paper)
+            .padding(1.dp)
     ) {
-        Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(14.dp))
-                .background(color.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) { Icon(icon, null, Modifier.size(20.dp), tint = color) }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(a.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = color)
-            Spacer(Modifier.height(6.dp))
-            Text(a.body, fontSize = 13.sp, color = TextSec, lineHeight = 20.sp)
+        Box(Modifier.width(3.dp).fillMaxHeight().background(color))
+        Row(Modifier.padding(14.dp)) {
+            Icon(icon, null, Modifier.size(18.dp), tint = color)
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(a.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = color)
+                Spacer(Modifier.height(6.dp))
+                Text(a.body, fontSize = 12.sp, color = Slate, lineHeight = 18.sp)
+            }
         }
     }
 }
 
-// ============ مساعدات ============
+// ================== Helpers ==================
 @Composable
-private fun EmptyState() {
+private fun EmptyRow(text: String) {
     Column(
-        Modifier.fillMaxSize().padding(40.dp),
-        verticalArrangement = Arrangement.Center,
+        Modifier.fillMaxWidth().padding(vertical = 60.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            Modifier.size(80.dp).clip(CircleShape).background(Surface1),
-            contentAlignment = Alignment.Center
-        ) { Icon(Icons.Outlined.ReceiptLong, null, Modifier.size(36.dp), tint = TextSec) }
-        Spacer(Modifier.height(20.dp))
-        Text("لا توجد عمليات بعد", fontSize = 16.sp,
-            fontWeight = FontWeight.Bold, color = TextPri)
-        Spacer(Modifier.height(6.dp))
-        Text("أضف عملية يدوياً من تبويب العمليات",
-            fontSize = 13.sp, color = TextSec, textAlign = TextAlign.Center)
+        Icon(Icons.Outlined.ReceiptLong, null, Modifier.size(36.dp), tint = Slate)
+        Spacer(Modifier.height(10.dp))
+        Text(text, fontSize = 14.sp, color = Slate)
     }
-}
-
-private fun categoryIcon(cat: String): ImageVector = when (cat) {
-    "طعام وشراب" -> Icons.Default.Restaurant
-    "بقالة" -> Icons.Default.ShoppingCart
-    "مواصلات" -> Icons.Default.DirectionsCar
-    "وقود" -> Icons.Default.LocalGasStation
-    "تسوق" -> Icons.Default.ShoppingBag
-    "فواتير" -> Icons.Default.Receipt
-    "اتصالات" -> Icons.Default.PhoneAndroid
-    "صحة" -> Icons.Default.LocalHospital
-    "ترفيه" -> Icons.Default.Movie
-    "اشتراكات" -> Icons.Default.Subscriptions
-    "تعليم" -> Icons.Default.School
-    "تحويلات" -> Icons.Default.SwapHoriz
-    else -> Icons.Default.Category
-}
-
-private fun categoryColor(cat: String): Color = when (cat) {
-    "طعام وشراب" -> Color(0xFFFF7A59)
-    "بقالة" -> Color(0xFF4ADE80)
-    "مواصلات" -> Color(0xFF60A5FA)
-    "وقود" -> Color(0xFFFBBF24)
-    "تسوق" -> Color(0xFFF472B6)
-    "فواتير" -> Color(0xFFA78BFA)
-    "اتصالات" -> Color(0xFF38BDF8)
-    "صحة" -> Color(0xFFFB7185)
-    "ترفيه" -> Color(0xFFC084FC)
-    "اشتراكات" -> Color(0xFF2DD4BF)
-    "تعليم" -> Color(0xFF818CF8)
-    "تحويلات" -> Color(0xFF34D399)
-    else -> Color(0xFF94A3B8)
 }
 
 private fun monthName(offset: Int): String {
     val c = java.util.Calendar.getInstance().apply { add(java.util.Calendar.MONTH, offset) }
     val names = listOf("يناير","فبراير","مارس","أبريل","مايو","يونيو",
         "يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر")
-    return "${names[c.get(java.util.Calendar.MONTH)]} ${c.get(java.util.Calendar.YEAR)}"
+    return names[c.get(java.util.Calendar.MONTH)] + " " + c.get(java.util.Calendar.YEAR)
 }
