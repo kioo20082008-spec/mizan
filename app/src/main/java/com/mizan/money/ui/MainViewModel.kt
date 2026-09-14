@@ -3,7 +3,8 @@ package com.mizan.money.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.mizan.money.MoneyApp
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mizan.money.data.*
 import com.mizan.money.sms.InboxScanner
 import kotlinx.coroutines.Dispatchers
@@ -13,8 +14,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
-class MainViewModel(app: Application) : AndroidViewModel(app) {
-    private val repo = (app as MoneyApp).repository
+// The repository is constructor-injected (see MainViewModel.factory()) instead of
+// cast out of Application inside the class, so this can be constructed with a
+// fake repository in tests or previews.
+class MainViewModel(app: Application, private val repo: TransactionRepository) : AndroidViewModel(app) {
     val transactions = repo.allTransactions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val budgets = repo.budgets().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     fun scanInbox() {
@@ -34,9 +37,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 timestamp = now, isManual = true))
         }
     }
+    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.update(tx) }
     fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx) }
     fun setBudget(monthKey: String, category: String, amount: Double) =
         viewModelScope.launch { repo.setBudget(monthKey, category, amount) }
+
+    companion object {
+        fun factory(app: Application, repo: TransactionRepository) = viewModelFactory {
+            initializer { MainViewModel(app, repo) }
+        }
+    }
 }
 
 object Dates {

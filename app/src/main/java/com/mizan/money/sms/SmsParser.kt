@@ -1,6 +1,7 @@
 package com.mizan.money.sms
 
 import com.mizan.money.data.TxType
+import java.security.MessageDigest
 import java.util.Locale
 
 data class ParsedSms(
@@ -96,5 +97,10 @@ object SmsParser {
             else -> "SAR"
         }
         return ParsedSms(amount, currency, merchant, last4, bankName, type, timestamp, body, sender)
+    }
+    fun hashFor(sender: String, timestamp: Long, body: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest("$sender|$timestamp|$body".toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
     }
 }

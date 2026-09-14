@@ -23,7 +23,7 @@ class SmsReceiver : BroadcastReceiver() {
                     val body = msg.messageBody ?: continue
                     val ts = msg.timestampMillis
                     val parsed = SmsParser.parse(sender, body, ts) ?: continue
-                    val hash = "$sender|$ts|${body.hashCode()}".hashCode().toString()
+                    val hash = SmsParser.hashFor(sender, ts, body)
                     app.repository.add(TransactionEntity(
                         amount = parsed.amount, currency = parsed.currency,
                         merchant = parsed.merchant ?: parsed.bankName ?: sender,

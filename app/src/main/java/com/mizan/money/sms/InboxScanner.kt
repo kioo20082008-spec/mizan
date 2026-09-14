@@ -26,7 +26,7 @@ object InboxScanner {
                 val body = c.getString(iBody) ?: continue
                 val date = c.getLong(iDate)
                 val parsed = SmsParser.parse(sender, body, date) ?: continue
-                val hash = "$sender|$date|${body.hashCode()}".hashCode().toString()
+                val hash = SmsParser.hashFor(sender, date, body)
                 out += TransactionEntity(
                     amount = parsed.amount, currency = parsed.currency,
                     merchant = parsed.merchant ?: parsed.bankName ?: sender,

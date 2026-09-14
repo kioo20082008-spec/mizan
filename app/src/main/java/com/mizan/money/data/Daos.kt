@@ -11,6 +11,8 @@ interface TransactionDao {
     suspend fun insert(tx: TransactionEntity): Long
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(list: List<TransactionEntity>): List<Long>
+    @Update
+    suspend fun update(tx: TransactionEntity)
     @Delete
     suspend fun delete(tx: TransactionEntity)
     @Query("SELECT COUNT(*) FROM transactions")

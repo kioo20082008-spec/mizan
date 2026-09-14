@@ -17,7 +17,9 @@ data class MonthSummary(
 object FinancialAdvisor {
     fun fmt(v: Double): String = String.format(Locale.US, "%,.2f", v)
     fun summarize(txs: List<TransactionEntity>, monthStart: Long, monthEnd: Long): MonthSummary {
-        val inMonth = txs.filter { it.timestamp in monthStart..monthEnd }
+        // Totals are only meaningful within one currency; scope to SAR (the app's
+        // primary currency) so a USD/EUR transaction doesn't get added in as-is.
+        val inMonth = txs.filter { it.timestamp in monthStart..monthEnd && it.currency == "SAR" }
         val expenses = inMonth.filter { it.type == TxType.EXPENSE }
         val incomes = inMonth.filter { it.type == TxType.INCOME }
         val spent = expenses.sumOf { it.amount }
