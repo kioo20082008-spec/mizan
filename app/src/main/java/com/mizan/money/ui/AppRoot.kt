@@ -9,6 +9,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -50,24 +52,27 @@ import com.mizan.money.data.*
 import com.mizan.money.sms.CategoryClassifier
 import kotlin.math.abs
 
-// ============ COLORS (from HTML) ============
-private val Bg           = Color(0xFFF8FAFC)
-private val BgOuter      = Color(0xFFF1F5F9)
+// ============ COLORS — warm emerald & gold identity ============
+private val Bg           = Color(0xFFFAF9F5)
+private val BgOuter      = Color(0xFFF1EFE8)
 private val White        = Color(0xFFFFFFFF)
-private val TextMain     = Color(0xFF1E293B)
-private val TextMuted    = Color(0xFF64748B)
-private val TextLight    = Color(0xFF94A3B8)
-private val Brand50      = Color(0xFFEFF6FF)
-private val Brand100     = Color(0xFFDBEAFE)
-private val Brand500     = Color(0xFF3B82F6)
-private val Brand600     = Color(0xFF2563EB)
-private val Brand700     = Color(0xFF1D4ED8)
-private val Success      = Color(0xFF10B981)
-private val Danger       = Color(0xFFF43F5E)
+private val TextMain     = Color(0xFF1C1917)
+private val TextMuted    = Color(0xFF78716C)
+private val TextLight    = Color(0xFFA8A29E)
+private val Brand50      = Color(0xFFECFDF5)
+private val Brand100     = Color(0xFFD1FAE5)
+private val Brand500     = Color(0xFF10B981)
+private val Brand600     = Color(0xFF059669)
+private val Brand700     = Color(0xFF047857)
+private val Success      = Color(0xFF16A34A)
+private val Danger       = Color(0xFFE11D48)
 private val Amber        = Color(0xFFF59E0B)
-private val Purple       = Color(0xFFA855F7)
-private val BorderSoft   = Color(0xFFE2E8F0)
-private val Slate100     = Color(0xFFF1F5F9)
+private val Purple       = Color(0xFF8B5CF6)
+private val BorderSoft   = Color(0xFFE7E5E0)
+private val Slate100     = Color(0xFFF1EFE8)
+private val Ink900       = Color(0xFF0B1512)
+private val Ink800       = Color(0xFF13221D)
+private val Gold         = Color(0xFFFBBF24)
 
 // ============ TYPE ============
 private val Sans = FontFamily.Default
@@ -147,14 +152,16 @@ private fun PermissionScreen(onGrant: () -> Unit) {
 
         // Logo circle
         Box(
-            Modifier.size(96.dp).clip(CircleShape).background(Brand100),
+            Modifier.size(100.dp).clip(RoundedCornerShape(32.dp))
+                .background(Brush.linearGradient(listOf(Brand500, Brand700)))
+                .shadow(16.dp, RoundedCornerShape(32.dp), ambientColor = Brand600.copy(alpha = 0.4f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.AccountBalance, null, Modifier.size(48.dp), tint = Brand600)
+            Icon(Icons.Default.Savings, null, Modifier.size(48.dp), tint = White)
         }
 
         Spacer(Modifier.height(20.dp))
-        Text("ميزان", style = H1.copy(fontSize = 32.sp))
+        Text("ميزان", style = H1.copy(fontSize = 32.sp, color = Brand700))
         Spacer(Modifier.height(6.dp))
         Text("إدارة مالية بخصوصية تامة", style = BodyMuted)
 
@@ -163,25 +170,27 @@ private fun PermissionScreen(onGrant: () -> Unit) {
         // Trust points
         Column(
             Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(28.dp))
                 .background(White)
-                .shadow(4.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
+                .border(1.dp, BorderSoft, RoundedCornerShape(28.dp))
+                .shadow(6.dp, RoundedCornerShape(28.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            TrustPoint("اقرأ رسائل بنكك", "لتصنيف مصاريفك تلقائياً")
+            TrustPoint(Icons.Default.MarkEmailRead, Brand600, "اقرأ رسائل بنكك", "لتصنيف مصاريفك تلقائياً")
             Box(Modifier.fillMaxWidth().height(1.dp).background(Slate100))
-            TrustPoint("حلّل عاداتك", "اعرض أنماط صرفك بوضوح")
+            TrustPoint(Icons.Default.Insights, Amber, "حلّل عاداتك", "اعرض أنماط صرفك بوضوح")
             Box(Modifier.fillMaxWidth().height(1.dp).background(Slate100))
-            TrustPoint("خصوصيتك أولاً", "البيانات على جهازك فقط")
+            TrustPoint(Icons.Default.Lock, Purple, "خصوصيتك أولاً", "البيانات على جهازك فقط")
         }
 
         Spacer(Modifier.weight(1f))
 
         Button(
             onClick = onGrant,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().height(56.dp)
+                .shadow(12.dp, RoundedCornerShape(18.dp), ambientColor = Brand600.copy(alpha = 0.5f)),
+            shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Brand600,
                 contentColor = White
@@ -193,13 +202,13 @@ private fun PermissionScreen(onGrant: () -> Unit) {
 }
 
 @Composable
-private fun TrustPoint(title: String, desc: String) {
+private fun TrustPoint(icon: ImageVector, accent: Color, title: String, desc: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            Modifier.size(44.dp).clip(CircleShape).background(Brand50),
+            Modifier.size(44.dp).clip(CircleShape).background(accent.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
-            Box(Modifier.size(10.dp).clip(CircleShape).background(Brand500))
+            Icon(icon, null, Modifier.size(20.dp), tint = accent)
         }
         Spacer(Modifier.width(14.dp))
         Column {
@@ -226,7 +235,7 @@ private fun RootScaffold(vm: MainViewModel) {
                 }
             }
         }
-        BottomNav(tab) { tab = it }
+        BottomNav(tab, Modifier.align(Alignment.BottomCenter)) { tab = it }
     }
 }
 
@@ -237,10 +246,11 @@ private fun AppHeader() {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            Modifier.size(48.dp).clip(CircleShape).background(Brand100),
+            Modifier.size(48.dp).clip(RoundedCornerShape(16.dp))
+                .background(Brush.linearGradient(listOf(Brand500, Brand700))),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.AccountBalance, null, Modifier.size(24.dp), tint = Brand600)
+            Icon(Icons.Default.Savings, null, Modifier.size(24.dp), tint = White)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -249,6 +259,7 @@ private fun AppHeader() {
         }
         Box(
             Modifier.size(40.dp).clip(CircleShape).background(White)
+                .border(1.dp, BorderSoft, CircleShape)
                 .shadow(2.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.05f)),
             contentAlignment = Alignment.Center
         ) {
@@ -258,44 +269,46 @@ private fun AppHeader() {
 }
 
 @Composable
-private fun BottomNav(selected: Int, onSelect: (Int) -> Unit) {
+private fun BottomNav(selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
     val items = listOf(
         Triple("الرئيسية",  Icons.Filled.Home,        0),
         Triple("العمليات",  Icons.Filled.ReceiptLong, 1),
         Triple("الميزانية", Icons.Filled.AccountBalanceWallet, 2),
         Triple("المستشار",  Icons.Filled.PieChart,    3)
     )
-    Surface(
-        Modifier.fillMaxWidth(),
-        color = White,
-        shadowElevation = 8.dp
-    ) {
+    Box(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier
+                .fillMaxWidth()
+                .shadow(14.dp, RoundedCornerShape(28.dp), ambientColor = Ink900.copy(alpha = 0.18f))
+                .clip(RoundedCornerShape(28.dp))
+                .background(White)
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             items.forEach { (label, icon, idx) ->
                 val isSel = selected == idx
-                val tint by animateColorAsState(
-                    if (isSel) Brand600 else TextLight,
-                    tween(200), label = "tint"
+                val bg by animateColorAsState(
+                    if (isSel) Brand600 else Color.Transparent, tween(200), label = "bg"
                 )
-                Column(
+                val tint by animateColorAsState(
+                    if (isSel) White else TextLight, tween(200), label = "tint"
+                )
+                Row(
                     Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(bg)
                         .clickable { onSelect(idx) }
-                        .padding(vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(icon, label, Modifier.size(22.dp), tint = tint)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        label,
-                        fontSize = 11.sp,
-                        color = tint,
-                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
-                    )
+                    Icon(icon, label, Modifier.size(20.dp), tint = tint)
+                    if (isSel) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(label, fontSize = 12.sp, color = tint, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -371,53 +384,66 @@ private fun DashboardScreen(vm: MainViewModel) {
 private fun BalanceCard(s: MonthSummary, offset: Int, onPrev: () -> Unit, onNext: () -> Unit) {
     Box(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
+            .clip(RoundedCornerShape(32.dp))
             .background(
                 Brush.linearGradient(
-                    colors = listOf(Brand500, Brand700),
+                    colors = listOf(Brand700, Ink900),
                     start = Offset(0f, 0f),
-                    end = Offset(1000f, 1000f)
+                    end = Offset(900f, 900f)
                 )
             )
-            .padding(24.dp)
     ) {
-        Column {
+        // decorative depth
+        Box(
+            Modifier
+                .size(220.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 70.dp, y = (-90).dp)
+                .clip(CircleShape)
+                .background(Brand500.copy(alpha = 0.25f))
+        )
+        Box(
+            Modifier
+                .size(140.dp)
+                .align(Alignment.BottomStart)
+                .offset(x = (-50).dp, y = 50.dp)
+                .clip(CircleShape)
+                .background(Gold.copy(alpha = 0.12f))
+        )
+        Column(Modifier.padding(24.dp)) {
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = onPrev, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = White, modifier = Modifier.size(16.dp))
+                }
                 Text(
                     monthName(offset),
-                    style = Body.copy(color = White, fontWeight = FontWeight.Medium),
+                    style = Body.copy(color = White, fontWeight = FontWeight.Bold),
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
-                        .background(White.copy(alpha = 0.2f))
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .background(White.copy(alpha = 0.15f))
+                        .padding(horizontal = 14.dp, vertical = 5.dp)
                 )
+                IconButton(onClick = onNext, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = White.copy(alpha = if (offset < 0) 1f else 0.3f), modifier = Modifier.size(16.dp).graphicsLayer(rotationZ = 180f))
+                }
                 Spacer(Modifier.weight(1f))
                 Row(
                     Modifier
                         .clip(RoundedCornerShape(50))
-                        .background(White.copy(alpha = 0.2f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                        .background(Gold.copy(alpha = 0.18f))
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.CheckCircle, null, Modifier.size(12.dp), tint = White)
+                    Icon(Icons.Default.Shield, null, Modifier.size(12.dp), tint = Gold)
                     Spacer(Modifier.width(4.dp))
-                    Text("محلي ١٠٠٪", style = XS.copy(color = White))
-                }
-            }
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                IconButton(onClick = onNext, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = White.copy(alpha = if (offset < 0) 1f else 0.3f), modifier = Modifier.size(18.dp))
-                }
-                IconButton(onClick = onPrev, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = White, modifier = Modifier.size(18.dp))
+                    Text("محلي ١٠٠٪", style = XS.copy(color = Gold, fontWeight = FontWeight.Bold))
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(22.dp))
             Text("الرصيد المتبقي المتاح", style = Body.copy(color = Brand100))
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.Bottom) {
@@ -963,7 +989,7 @@ private fun AdvisorScreen(vm: MainViewModel) {
             Box(
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(28.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF1E293B), Color(0xFF0F172A))))
+                    .background(Brush.linearGradient(listOf(Ink800, Ink900)))
                     .padding(20.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1026,9 +1052,10 @@ private fun SoftCard(
     Column(
         modifier
             .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
-            .clip(RoundedCornerShape(24.dp))
+            .shadow(6.dp, RoundedCornerShape(26.dp), ambientColor = Color.Black.copy(alpha = 0.06f))
+            .clip(RoundedCornerShape(26.dp))
             .background(White)
+            .border(1.dp, BorderSoft, RoundedCornerShape(26.dp))
             .padding(18.dp),
         content = content
     )
@@ -1051,18 +1078,18 @@ private fun EmptyState(text: String) {
 
 private fun catColor(cat: String): Color = when (cat) {
     "طعام وشراب" -> Amber
-    "بقالة" -> Color(0xFF10B981)
+    "بقالة" -> Color(0xFF06B6D4)
     "مواصلات" -> Color(0xFF3B82F6)
-    "وقود" -> Color(0xFF64748B)
+    "وقود" -> Color(0xFF78716C)
     "تسوق" -> Purple
     "فواتير" -> Color(0xFF6366F1)
     "اتصالات" -> Color(0xFF0EA5E9)
     "صحة" -> Color(0xFFEC4899)
     "ترفيه" -> Color(0xFFD946EF)
     "اشتراكات" -> Color(0xFF14B8A6)
-    "تعليم" -> Color(0xFF8B5CF6)
-    "تحويلات" -> Color(0xFF059669)
-    else -> Color(0xFF94A3B8)
+    "تعليم" -> Color(0xFFF97316)
+    "تحويلات" -> Brand600
+    else -> TextLight
 }
 
 private fun catColorSoft(cat: String): Color {
