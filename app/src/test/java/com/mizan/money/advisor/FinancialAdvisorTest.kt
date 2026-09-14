@@ -10,6 +10,8 @@ import org.junit.Test
 
 private const val JAN_2024_START = 1_704_067_200_000L // 2024-01-01T00:00:00Z
 private const val JAN_2024_END = 1_706_745_599_999L   // 2024-01-31T23:59:59.999Z
+private val FEB_MARK = JAN_2024_START + 35L * 86_400_000L // safely inside February
+private val MAR_MARK = JAN_2024_START + 65L * 86_400_000L // safely inside March
 
 private fun tx(
     amount: Double,
@@ -111,6 +113,44 @@ class FinancialAdvisorTest {
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
         assertTrue(advice.any { it.title.contains("سحوبات نقدية") })
+    }
+
+    @Test
+    fun `advise detects a recurring monthly salary across multiple months`() {
+        val allTx = listOf(
+            tx(9500.0, TxType.INCOME, timestamp = JAN_2024_START + 1_000L),
+            tx(9600.0, TxType.INCOME, timestamp = FEB_MARK),
+            tx(9400.0, TxType.INCOME, timestamp = MAR_MARK)
+        )
+        val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
+        val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
+
+        assertTrue(advice.any { it.title.contains("راتبك الشهري") })
+    }
+
+    @Test
+    fun `advise does not claim a salary from a single month of income`() {
+        val txs = listOf(tx(9500.0, TxType.INCOME))
+        val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
+        val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
+
+        assertFalse(advice.any { it.title.contains("راتبك الشهري") })
+    }
+
+    @Test
+    fun `50-30-20 advice uses the detected salary even when this month has no income yet`() {
+        val history = listOf(
+            tx(8000.0, TxType.INCOME, timestamp = JAN_2024_START + 1_000L),
+            tx(8000.0, TxType.INCOME, timestamp = FEB_MARK)
+            // no income timestamped in March, simulating "before payday"
+        )
+        val marchStart = MAR_MARK - 5L * 86_400_000L
+        val marchEnd = MAR_MARK + 25L * 86_400_000L
+        val s = FinancialAdvisor.summarize(history, marchStart, marchEnd)
+        val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = history, monthStart = marchStart, monthEnd = marchEnd)
+
+        assertEquals(0.0, s.income, 0.001)
+        assertTrue(advice.any { it.title.contains("50 / 30 / 20") && it.body.contains(FinancialAdvisor.fmt(8000.0)) })
     }
 
     @Test

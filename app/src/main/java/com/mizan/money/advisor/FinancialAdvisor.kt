@@ -3,6 +3,7 @@ package com.mizan.money.advisor
 import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
+import java.util.Calendar
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
@@ -105,11 +106,43 @@ object FinancialAdvisor {
                 if (rate >= 0.2) "ادخار ممتاز 🏆" else "راجع نسبة الادخار",
                 msg,
                 if (rate >= 0.2) Level.GOOD else if (rate >= 0) Level.INFO else Level.DANGER)
+        }
+        val salary = detectSalary(allTx)
+        if (salary != null) {
+            list += Advice("رصدنا راتبك الشهري 💼",
+                "بناءً على تكرار الإيداعات خلال الأشهر الماضية، دخلك الثابت الشهري تقريباً ${fmt(salary)} ر.س.",
+                Level.INFO)
+        }
+        // Prefer the detected recurring salary as the planning base (more stable
+        // than one month's raw income, and still useful before payday hits).
+        val planningIncome = salary ?: summary.income.takeIf { it > 0 }
+        if (planningIncome != null) {
             list += Advice("قاعدة 50 / 30 / 20 💡",
-                "من دخل ${fmt(summary.income)} ر.س: ${fmt(summary.income * 0.5)} للاحتياجات، ${fmt(summary.income * 0.3)} للرغبات، ${fmt(summary.income * 0.2)} للادخار.",
+                "من دخل ${fmt(planningIncome)} ر.س: ${fmt(planningIncome * 0.5)} للاحتياجات، ${fmt(planningIncome * 0.3)} للرغبات، ${fmt(planningIncome * 0.2)} للادخار.",
                 Level.INFO)
         }
         return list
+    }
+    // Salary is inferred, not tagged per-SMS: bank wording for a payroll deposit
+    // varies too much to match reliably, but a recurring similar-sized deposit
+    // once a month is a strong signal on its own.
+    private fun detectSalary(allTx: List<TransactionEntity>): Double? {
+        val incomes = allTx.filter { it.type == TxType.INCOME && it.currency == "SAR" && !it.isSelfTransfer }
+        if (incomes.isEmpty()) return null
+        fun monthKeyOf(ts: Long): Int {
+            val c = Calendar.getInstance().apply { timeInMillis = ts }
+            return c.get(Calendar.YEAR) * 100 + c.get(Calendar.MONTH)
+        }
+        // The largest deposit per calendar month, since salary is typically a
+        // person's biggest recurring credit — this filters out smaller one-off
+        // refunds landing in the same month.
+        val perMonth = incomes.groupBy { monthKeyOf(it.timestamp) }
+            .mapValues { (_, list) -> list.maxOf { it.amount } }
+        if (perMonth.size < 2) return null
+        val amounts = perMonth.values.toList()
+        val avg = amounts.average()
+        val consistentMonths = amounts.count { abs(it - avg) / avg < 0.15 }
+        return if (consistentMonths >= 2) avg else null
     }
     private fun detectSubscriptions(allTx: List<TransactionEntity>): List<Pair<String, Double>> {
         // Exclude self-transfers so a recurring auto-transfer to a savings account
