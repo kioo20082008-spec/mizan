@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -13,6 +14,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -38,7 +39,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,39 +53,44 @@ import com.mizan.money.data.*
 import com.mizan.money.sms.CategoryClassifier
 import kotlin.math.abs
 
-// ============ COLORS — warm emerald & gold identity ============
-private val Bg           = Color(0xFFFAF9F5)
-private val BgOuter      = Color(0xFFF1EFE8)
+// ============ DESIGN SYSTEM — "Ink & Lime" ============
+// Neutral paper base, near-black ink surfaces for hero moments, one bold
+// signature accent (lime on ink) plus a calm indigo brand color for actions.
+private val Paper       = Color(0xFFFAF9F6)
+private val PaperOuter  = Color(0xFFF0EEE7)
 private val White        = Color(0xFFFFFFFF)
-private val TextMain     = Color(0xFF1C1917)
-private val TextMuted    = Color(0xFF78716C)
-private val TextLight    = Color(0xFFA8A29E)
-private val Brand50      = Color(0xFFECFDF5)
-private val Brand100     = Color(0xFFD1FAE5)
-private val Brand500     = Color(0xFF10B981)
-private val Brand600     = Color(0xFF059669)
-private val Brand700     = Color(0xFF047857)
-private val Success      = Color(0xFF16A34A)
-private val Danger       = Color(0xFFE11D48)
-private val Amber        = Color(0xFFF59E0B)
-private val Purple       = Color(0xFF8B5CF6)
-private val BorderSoft   = Color(0xFFE7E5E0)
-private val Slate100     = Color(0xFFF1EFE8)
-private val Ink900       = Color(0xFF0B1512)
-private val Ink800       = Color(0xFF13221D)
-private val Gold         = Color(0xFFFBBF24)
+private val Line        = Color(0xFFE9E6DE)
+private val Ink         = Color(0xFF15141A)
+private val InkSoft     = Color(0xFF6F6D76)
+private val InkFaint    = Color(0xFFA4A2AA)
+private val Ink900      = Color(0xFF121017)
+private val Ink800      = Color(0xFF1E1B26)
+private val OnInkSoft   = Color(0xFFACA9B8)
+private val Indigo      = Color(0xFF4F46E5)
+private val IndigoDeep  = Color(0xFF3730A3)
+private val IndigoSoft  = Color(0xFFEEEEFD)
+private val Lime        = Color(0xFFD7F26B)
+private val Success     = Color(0xFF22C55E)
+private val Danger      = Color(0xFFF43F5E)
+private val Amber       = Color(0xFFF59E0B)
+private val Purple      = Color(0xFF8B5CF6)
 
-// ============ TYPE ============
+private val RadiusSm = 14.dp
+private val RadiusMd = 20.dp
+private val RadiusLg = 28.dp
+private val RadiusXl = 36.dp
+private val Pill     = 999.dp
+
 private val Sans = FontFamily.Default
 private val Mono = FontFamily.Monospace
 
-private val H1        = TextStyle(fontFamily = Sans, fontSize = 20.sp, fontWeight = FontWeight.Bold,    color = TextMain)
-private val H2        = TextStyle(fontFamily = Sans, fontSize = 16.sp, fontWeight = FontWeight.Bold,    color = TextMain)
-private val Body      = TextStyle(fontFamily = Sans, fontSize = 14.sp,                                  color = TextMain)
-private val BodyMuted = TextStyle(fontFamily = Sans, fontSize = 13.sp,                                  color = TextMuted)
-private val XS        = TextStyle(fontFamily = Sans, fontSize = 11.sp,                                  color = TextMuted)
-private val BalanceNum= TextStyle(fontFamily = Sans, fontSize = 38.sp, fontWeight = FontWeight.Bold,    color = White)
-private val NumBold   = TextStyle(fontFamily = Mono, fontSize = 15.sp, fontWeight = FontWeight.Bold,    color = TextMain)
+private val Display    = TextStyle(fontFamily = Sans, fontSize = 38.sp, fontWeight = FontWeight.Black, color = Lime, letterSpacing = (-0.6).sp)
+private val H1         = TextStyle(fontFamily = Sans, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ink, letterSpacing = (-0.3).sp)
+private val H2         = TextStyle(fontFamily = Sans, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
+private val Body       = TextStyle(fontFamily = Sans, fontSize = 14.sp, color = Ink)
+private val BodyMuted  = TextStyle(fontFamily = Sans, fontSize = 13.sp, color = InkSoft)
+private val Eyebrow    = TextStyle(fontFamily = Sans, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = InkFaint, letterSpacing = 0.6.sp)
+private val NumBold    = TextStyle(fontFamily = Mono, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)
 
 // ============ ENTRY ============
 @Composable
@@ -104,23 +110,23 @@ fun AppRoot() {
 
     MaterialTheme(
         colorScheme = lightColorScheme(
-            background = Bg,
+            background = Paper,
             surface = White,
             surfaceTint = Color.Transparent,
-            primary = Brand600,
+            primary = Indigo,
             onPrimary = White,
-            onBackground = TextMain,
-            onSurface = TextMain,
+            onBackground = Ink,
+            onSurface = Ink,
             error = Danger,
             onError = White,
         )
     ) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-            Surface(Modifier.fillMaxSize(), color = BgOuter) {
+            Surface(Modifier.fillMaxSize(), color = PaperOuter) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                     Surface(
                         Modifier.fillMaxWidth().fillMaxHeight(),
-                        color = Bg
+                        color = Paper
                     ) {
                         if (!hasSms) PermissionScreen {
                             launcher.launch(arrayOf(
@@ -141,46 +147,77 @@ private fun checkSms(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) ==
         PackageManager.PERMISSION_GRANTED
 
-// ============ PERMISSION ============
+// ============ SHARED PRIMITIVES ============
+@Composable
+private fun IconBadge(
+    icon: ImageVector,
+    tint: Color,
+    bg: Color,
+    size: Dp = 44.dp,
+    iconSize: Dp = 20.dp,
+    radius: Dp = RadiusSm
+) {
+    Box(
+        Modifier.size(size).clip(RoundedCornerShape(radius)).background(bg),
+        contentAlignment = Alignment.Center
+    ) { Icon(icon, null, Modifier.size(iconSize), tint = tint) }
+}
+
+@Composable
+private fun SoftCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .shadow(3.dp, RoundedCornerShape(RadiusLg), ambientColor = Ink.copy(alpha = 0.05f))
+            .clip(RoundedCornerShape(RadiusLg))
+            .background(White)
+            .border(1.dp, Line, RoundedCornerShape(RadiusLg))
+            .padding(18.dp),
+        content = content
+    )
+}
+
+// ============ PERMISSION / ONBOARDING ============
 @Composable
 private fun PermissionScreen(onGrant: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(36.dp))
 
-        // Logo circle
         Box(
-            Modifier.size(100.dp).clip(RoundedCornerShape(32.dp))
-                .background(Brush.linearGradient(listOf(Brand500, Brand700)))
-                .shadow(16.dp, RoundedCornerShape(32.dp), ambientColor = Brand600.copy(alpha = 0.4f)),
+            Modifier.size(104.dp).clip(RoundedCornerShape(RadiusXl))
+                .background(Ink900)
+                .border(1.dp, Lime.copy(alpha = 0.25f), RoundedCornerShape(RadiusXl))
+                .shadow(20.dp, RoundedCornerShape(RadiusXl), ambientColor = Ink900.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Savings, null, Modifier.size(48.dp), tint = White)
+            Icon(Icons.Default.Savings, null, Modifier.size(46.dp), tint = Lime)
         }
 
-        Spacer(Modifier.height(20.dp))
-        Text("ميزان", style = H1.copy(fontSize = 32.sp, color = Brand700))
+        Spacer(Modifier.height(22.dp))
+        Text("ميزان", style = H1.copy(fontSize = 34.sp, fontWeight = FontWeight.Black))
         Spacer(Modifier.height(6.dp))
         Text("إدارة مالية بخصوصية تامة", style = BodyMuted)
 
-        Spacer(Modifier.height(50.dp))
+        Spacer(Modifier.height(44.dp))
 
-        // Trust points
         Column(
             Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(28.dp))
+                .clip(RoundedCornerShape(RadiusLg))
                 .background(White)
-                .border(1.dp, BorderSoft, RoundedCornerShape(28.dp))
-                .shadow(6.dp, RoundedCornerShape(28.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
+                .border(1.dp, Line, RoundedCornerShape(RadiusLg))
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            TrustPoint(Icons.Default.MarkEmailRead, Brand600, "اقرأ رسائل بنكك", "لتصنيف مصاريفك تلقائياً")
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Slate100))
+            TrustPoint(Icons.Default.MarkEmailRead, Indigo, "اقرأ رسائل بنكك", "لتصنيف مصاريفك تلقائياً")
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
             TrustPoint(Icons.Default.Insights, Amber, "حلّل عاداتك", "اعرض أنماط صرفك بوضوح")
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Slate100))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
             TrustPoint(Icons.Default.Lock, Purple, "خصوصيتك أولاً", "البيانات على جهازك فقط")
         }
 
@@ -188,15 +225,14 @@ private fun PermissionScreen(onGrant: () -> Unit) {
 
         Button(
             onClick = onGrant,
-            modifier = Modifier.fillMaxWidth().height(56.dp)
-                .shadow(12.dp, RoundedCornerShape(18.dp), ambientColor = Brand600.copy(alpha = 0.5f)),
-            shape = RoundedCornerShape(18.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Brand600,
-                contentColor = White
-            )
+            modifier = Modifier.fillMaxWidth().height(58.dp)
+                .shadow(16.dp, RoundedCornerShape(RadiusMd), ambientColor = Ink900.copy(alpha = 0.35f)),
+            shape = RoundedCornerShape(RadiusMd),
+            colors = ButtonDefaults.buttonColors(containerColor = Ink900, contentColor = Lime)
         ) {
-            Text("ابدأ الآن", style = Body.copy(color = White, fontWeight = FontWeight.Bold, fontSize = 16.sp))
+            Text("ابدأ الآن", style = Body.copy(color = Lime, fontWeight = FontWeight.Bold, fontSize = 16.sp))
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(16.dp).graphicsLayer(rotationZ = 180f), tint = Lime)
         }
     }
 }
@@ -204,17 +240,12 @@ private fun PermissionScreen(onGrant: () -> Unit) {
 @Composable
 private fun TrustPoint(icon: ImageVector, accent: Color, title: String, desc: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier.size(44.dp).clip(CircleShape).background(accent.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, null, Modifier.size(20.dp), tint = accent)
-        }
+        IconBadge(icon, accent, accent.copy(alpha = 0.12f), size = 44.dp)
         Spacer(Modifier.width(14.dp))
         Column {
             Text(title, style = H2.copy(fontSize = 15.sp))
             Spacer(Modifier.height(2.dp))
-            Text(desc, style = XS)
+            Text(desc, style = Eyebrow.copy(fontSize = 12.sp))
         }
     }
 }
@@ -245,29 +276,23 @@ private fun AppHeader() {
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            Modifier.size(48.dp).clip(RoundedCornerShape(16.dp))
-                .background(Brush.linearGradient(listOf(Brand500, Brand700))),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.Savings, null, Modifier.size(24.dp), tint = White)
-        }
+        IconBadge(Icons.Default.Savings, Lime, Ink900, size = 46.dp, radius = RadiusSm)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
+            Text("أهلاً بك 👋", style = Eyebrow)
             Text("ميزان", style = H1)
-            Text("إدارة مالية بخصوصية تامة", style = XS)
         }
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(White)
-                .border(1.dp, BorderSoft, CircleShape)
-                .shadow(2.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.05f)),
+            Modifier.size(42.dp).clip(RoundedCornerShape(RadiusSm)).background(White)
+                .border(1.dp, Line, RoundedCornerShape(RadiusSm)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Outlined.Settings, null, Modifier.size(20.dp), tint = TextMuted)
+            Icon(Icons.Outlined.Settings, null, Modifier.size(20.dp), tint = InkSoft)
         }
     }
 }
 
+// ============ BOTTOM NAV — glass pill with a sliding lime indicator ============
 @Composable
 private fun BottomNav(selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
     val items = listOf(
@@ -276,38 +301,43 @@ private fun BottomNav(selected: Int, modifier: Modifier = Modifier, onSelect: (I
         Triple("الميزانية", Icons.Filled.AccountBalanceWallet, 2),
         Triple("المستشار",  Icons.Filled.PieChart,    3)
     )
-    Box(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
-        Row(
+    Box(modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)) {
+        BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
-                .shadow(14.dp, RoundedCornerShape(28.dp), ambientColor = Ink900.copy(alpha = 0.18f))
-                .clip(RoundedCornerShape(28.dp))
-                .background(White)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+                .height(64.dp)
+                .shadow(20.dp, RoundedCornerShape(Pill), ambientColor = Ink900.copy(alpha = 0.3f))
+                .clip(RoundedCornerShape(Pill))
+                .background(Ink900)
+                .padding(6.dp)
         ) {
-            items.forEach { (label, icon, idx) ->
-                val isSel = selected == idx
-                val bg by animateColorAsState(
-                    if (isSel) Brand600 else Color.Transparent, tween(200), label = "bg"
-                )
-                val tint by animateColorAsState(
-                    if (isSel) White else TextLight, tween(200), label = "tint"
-                )
-                Row(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(bg)
-                        .clickable { onSelect(idx) }
-                        .padding(vertical = 10.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(icon, label, Modifier.size(20.dp), tint = tint)
-                    if (isSel) {
-                        Spacer(Modifier.width(6.dp))
-                        Text(label, fontSize = 12.sp, color = tint, fontWeight = FontWeight.Bold)
+            val itemWidth = maxWidth / items.size
+            val indicatorX by animateDpAsState(itemWidth * selected, tween(320), label = "nav")
+            Box(
+                Modifier
+                    .offset(x = indicatorX)
+                    .width(itemWidth)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(Pill))
+                    .background(Lime)
+            )
+            Row(Modifier.fillMaxWidth().fillMaxHeight(), horizontalArrangement = Arrangement.SpaceBetween) {
+                items.forEach { (label, icon, idx) ->
+                    val isSel = selected == idx
+                    val tint by animateColorAsState(if (isSel) Ink900 else OnInkSoft, tween(220), label = "tint")
+                    Row(
+                        Modifier
+                            .width(itemWidth)
+                            .fillMaxHeight()
+                            .clickable { onSelect(idx) },
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(icon, label, Modifier.size(20.dp), tint = tint)
+                        if (isSel) {
+                            Spacer(Modifier.width(6.dp))
+                            Text(label, fontSize = 12.sp, color = tint, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -330,35 +360,31 @@ private fun DashboardScreen(vm: MainViewModel) {
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 110.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // Balance Card
         item {
             BalanceCard(summary, offset, onPrev = { offset-- }, onNext = { if (offset < 0) offset++ })
         }
 
-        // Budget status
         if (budget > 0) {
             item { BudgetStatusCard(budget, summary.spent) }
         }
 
-        // Top categories
         if (summary.categoryTotals.isNotEmpty()) {
             item {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("الأكثر استهلاكاً", style = H2, modifier = Modifier.weight(1f))
-                }
+                Text("الأكثر استهلاكاً", style = H2, modifier = Modifier.padding(horizontal = 4.dp))
             }
-            items(summary.categoryTotals.take(3)) { cat ->
-                CategoryCard(cat, summary.spent)
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    items(summary.categoryTotals.take(6)) { cat -> CategoryChip(cat) }
+                }
             }
         }
 
-        // Recent transactions
         if (txs.isNotEmpty()) {
             item {
                 Row(
@@ -366,7 +392,7 @@ private fun DashboardScreen(vm: MainViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("أحدث العمليات", style = H2, modifier = Modifier.weight(1f))
-                    Text("عرض الكل", style = BodyMuted.copy(color = Brand600, fontWeight = FontWeight.Medium))
+                    Text("عرض الكل", style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold))
                 }
             }
             items(txs.take(3)) { tx ->
@@ -384,37 +410,19 @@ private fun DashboardScreen(vm: MainViewModel) {
 private fun BalanceCard(s: MonthSummary, offset: Int, onPrev: () -> Unit, onNext: () -> Unit) {
     Box(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(32.dp))
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(Brand700, Ink900),
-                    start = Offset(0f, 0f),
-                    end = Offset(900f, 900f)
-                )
-            )
+            .clip(RoundedCornerShape(RadiusXl))
+            .background(Brush.linearGradient(listOf(Ink800, Ink900)))
     ) {
-        // decorative depth
         Box(
-            Modifier
-                .size(220.dp)
-                .align(Alignment.TopEnd)
-                .offset(x = 70.dp, y = (-90).dp)
-                .clip(CircleShape)
-                .background(Brand500.copy(alpha = 0.25f))
+            Modifier.size(240.dp).align(Alignment.TopEnd).offset(x = 80.dp, y = (-100).dp)
+                .clip(CircleShape).background(Indigo.copy(alpha = 0.35f))
         )
         Box(
-            Modifier
-                .size(140.dp)
-                .align(Alignment.BottomStart)
-                .offset(x = (-50).dp, y = 50.dp)
-                .clip(CircleShape)
-                .background(Gold.copy(alpha = 0.12f))
+            Modifier.size(140.dp).align(Alignment.BottomStart).offset(x = (-50).dp, y = 40.dp)
+                .clip(CircleShape).background(Lime.copy(alpha = 0.10f))
         )
-        Column(Modifier.padding(24.dp)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Column(Modifier.padding(26.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onPrev, modifier = Modifier.size(28.dp)) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = White, modifier = Modifier.size(16.dp))
                 }
@@ -422,65 +430,61 @@ private fun BalanceCard(s: MonthSummary, offset: Int, onPrev: () -> Unit, onNext
                     monthName(offset),
                     style = Body.copy(color = White, fontWeight = FontWeight.Bold),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(White.copy(alpha = 0.15f))
+                        .clip(RoundedCornerShape(Pill))
+                        .background(White.copy(alpha = 0.12f))
                         .padding(horizontal = 14.dp, vertical = 5.dp)
                 )
                 IconButton(onClick = onNext, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = White.copy(alpha = if (offset < 0) 1f else 0.3f), modifier = Modifier.size(16.dp).graphicsLayer(rotationZ = 180f))
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack, null,
+                        tint = White.copy(alpha = if (offset < 0) 1f else 0.3f),
+                        modifier = Modifier.size(16.dp).graphicsLayer(rotationZ = 180f)
+                    )
                 }
                 Spacer(Modifier.weight(1f))
                 Row(
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Gold.copy(alpha = 0.18f))
+                    Modifier.clip(RoundedCornerShape(Pill)).background(Lime.copy(alpha = 0.16f))
                         .padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Shield, null, Modifier.size(12.dp), tint = Gold)
+                    Icon(Icons.Default.Shield, null, Modifier.size(12.dp), tint = Lime)
                     Spacer(Modifier.width(4.dp))
-                    Text("محلي ١٠٠٪", style = XS.copy(color = Gold, fontWeight = FontWeight.Bold))
+                    Text("محلي ١٠٠٪", style = Eyebrow.copy(color = Lime, fontSize = 11.sp))
                 }
+            }
+
+            Spacer(Modifier.height(24.dp))
+            Text("الرصيد المتبقي المتاح", style = Body.copy(color = OnInkSoft))
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(FinancialAdvisor.fmt(abs(s.net)), style = Display)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "ر.س", style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium, fontSize = 16.sp),
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
             }
 
             Spacer(Modifier.height(22.dp))
-            Text("الرصيد المتبقي المتاح", style = Body.copy(color = Brand100))
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(FinancialAdvisor.fmt(abs(s.net)), style = BalanceNum)
-                Spacer(Modifier.width(6.dp))
-                Text("ر.س", style = Body.copy(color = Brand100, fontWeight = FontWeight.Medium, fontSize = 16.sp),
-                    modifier = Modifier.padding(bottom = 6.dp))
-            }
-
-            Spacer(Modifier.height(20.dp))
-            Box(Modifier.fillMaxWidth().height(1.dp).background(White.copy(alpha = 0.2f)))
-            Spacer(Modifier.height(16.dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(White.copy(alpha = 0.08f)))
+            Spacer(Modifier.height(18.dp))
 
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                // Income side
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(40.dp).clip(CircleShape).background(White.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Default.ArrowDownward, null, Modifier.size(20.dp), tint = White) }
+                    IconBadge(Icons.Default.ArrowDownward, Lime, White.copy(alpha = 0.08f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("إجمالي الدخل", style = XS.copy(color = Brand100))
+                        Text("إجمالي الدخل", style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
                         Text(FinancialAdvisor.fmt(s.income), style = Body.copy(color = White, fontWeight = FontWeight.Bold))
                     }
                 }
-                Box(Modifier.width(1.dp).height(32.dp).background(White.copy(alpha = 0.2f)))
+                Box(Modifier.width(1.dp).height(32.dp).background(White.copy(alpha = 0.08f)))
                 Spacer(Modifier.width(16.dp))
-                // Expense side
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(40.dp).clip(CircleShape).background(White.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Default.ArrowUpward, null, Modifier.size(20.dp), tint = White) }
+                    IconBadge(Icons.Default.ArrowUpward, Color(0xFFFB7185), White.copy(alpha = 0.08f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("إجمالي الصرف", style = XS.copy(color = Brand100))
+                        Text("إجمالي الصرف", style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
                         Text(FinancialAdvisor.fmt(s.spent), style = Body.copy(color = White, fontWeight = FontWeight.Bold))
                     }
                 }
@@ -493,72 +497,67 @@ private fun BalanceCard(s: MonthSummary, offset: Int, onPrev: () -> Unit, onNext
 private fun BudgetStatusCard(budget: Double, spent: Double) {
     val pct = (spent / budget).coerceIn(0.0, 1.0).toFloat()
     val anim by animateFloatAsState(pct, tween(800), label = "b")
+    val overBudget = spent > budget
 
     SoftCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("استهلاك ميزانية الشهر", style = H2, modifier = Modifier.weight(1f))
             Text(
                 "${(spent / budget * 100).toInt()}٪",
-                style = Body.copy(color = Brand600, fontWeight = FontWeight.Bold),
+                style = Body.copy(color = if (overBudget) Danger else Indigo, fontWeight = FontWeight.Bold),
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Brand50)
+                    .clip(RoundedCornerShape(RadiusSm))
+                    .background(if (overBudget) Danger.copy(alpha = 0.1f) else IndigoSoft)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             )
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(14.dp))
         Box(
-            Modifier.fillMaxWidth().height(12.dp)
-                .clip(RoundedCornerShape(50))
-                .background(Slate100)
+            Modifier.fillMaxWidth().height(10.dp)
+                .clip(RoundedCornerShape(Pill))
+                .background(PaperOuter)
         ) {
             Box(
                 Modifier.fillMaxWidth(anim).fillMaxHeight()
-                    .clip(RoundedCornerShape(50))
-                    .background(Brand500)
+                    .clip(RoundedCornerShape(Pill))
+                    .background(
+                        Brush.horizontalGradient(
+                            if (overBudget) listOf(Danger, Danger) else listOf(Indigo, IndigoDeep)
+                        )
+                    )
             )
         }
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth()) {
-            Text("صرفت: ${FinancialAdvisor.fmt(spent)} ر.س", style = XS)
+            Text("صرفت: ${FinancialAdvisor.fmt(spent)} ر.س", style = BodyMuted.copy(fontSize = 12.sp))
             Spacer(Modifier.weight(1f))
-            Text("السقف: ${FinancialAdvisor.fmt(budget)} ر.س", style = XS)
+            Text("السقف: ${FinancialAdvisor.fmt(budget)} ر.س", style = BodyMuted.copy(fontSize = 12.sp))
         }
     }
 }
 
 @Composable
-private fun CategoryCard(cat: com.mizan.money.advisor.CategoryTotal, total: Double) {
-    val pct = (cat.share).toFloat()
-    SoftCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+private fun CategoryChip(cat: com.mizan.money.advisor.CategoryTotal) {
+    Column(
+        Modifier.width(136.dp)
+            .clip(RoundedCornerShape(RadiusMd))
+            .background(White)
+            .border(1.dp, Line, RoundedCornerShape(RadiusMd))
+            .padding(14.dp)
+    ) {
+        IconBadge(catIcon(cat.category), catColor(cat.category), catColorSoft(cat.category), size = 40.dp, iconSize = 18.dp)
+        Spacer(Modifier.height(10.dp))
+        Text(cat.category, style = H2.copy(fontSize = 13.sp), maxLines = 1)
+        Spacer(Modifier.height(2.dp))
+        Text(FinancialAdvisor.fmt(cat.amount) + " ر.س", style = NumBold.copy(fontSize = 12.sp))
+        Spacer(Modifier.height(8.dp))
+        Box(
+            Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(Pill)).background(PaperOuter)
+        ) {
             Box(
-                Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))
-                    .background(catColorSoft(cat.category)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(catIcon(cat.category), null, Modifier.size(22.dp), tint = catColor(cat.category))
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(cat.category, style = H2.copy(fontSize = 14.sp))
-                Text("${(cat.share * 100).toInt()}٪ من إجمالي الصرف", style = XS)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(FinancialAdvisor.fmt(cat.amount), style = NumBold)
-                Spacer(Modifier.height(4.dp))
-                Box(
-                    Modifier.width(64.dp).height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Slate100)
-                ) {
-                    Box(
-                        Modifier.fillMaxWidth(pct).fillMaxHeight()
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(catColor(cat.category))
-                    )
-                }
-            }
+                Modifier.fillMaxWidth(cat.share.toFloat()).fillMaxHeight()
+                    .clip(RoundedCornerShape(Pill)).background(catColor(cat.category))
+            )
         }
     }
 }
@@ -567,29 +566,23 @@ private fun CategoryCard(cat: com.mizan.money.advisor.CategoryTotal, total: Doub
 private fun TransactionCard(tx: TransactionEntity, onClick: () -> Unit) {
     val isExpense = tx.type == TxType.EXPENSE
     val sign = if (isExpense) "-" else "+"
-    val amtColor = if (isExpense) TextMain else Success
+    val amtColor = if (isExpense) Ink else Success
 
     SoftCard(Modifier.clickable { onClick() }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(48.dp).clip(CircleShape)
-                    .background(catColorSoft(tx.category)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(catIcon(tx.category), null, Modifier.size(22.dp), tint = catColor(tx.category))
-            }
+            IconBadge(catIcon(tx.category), catColor(tx.category), catColorSoft(tx.category), size = 46.dp)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(tx.merchant ?: "غير معروف", style = H2.copy(fontSize = 14.sp))
                 Spacer(Modifier.height(2.dp))
-                Text("${tx.category} • ${Dates.dayLabel(tx.timestamp)}", style = XS)
+                Text("${tx.category} • ${Dates.dayLabel(tx.timestamp)}", style = Eyebrow.copy(fontSize = 11.sp))
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     "$sign${FinancialAdvisor.fmt(tx.amount)}",
                     style = NumBold.copy(color = amtColor, fontSize = 16.sp)
                 )
-                Text("ر.س", style = XS)
+                Text("ر.س", style = Eyebrow.copy(fontSize = 10.sp))
             }
         }
     }
@@ -614,32 +607,32 @@ private fun TransactionsScreen(vm: MainViewModel) {
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 100.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("سجل العمليات", style = H1)
-                    Text("مستخرجة تلقائياً من رسائل البنك", style = XS)
+                    Text("مستخرجة تلقائياً من رسائل البنك", style = Eyebrow)
                 }
                 Box(
-                    Modifier.size(40.dp).clip(CircleShape).background(Brand500)
+                    Modifier.size(42.dp).clip(RoundedCornerShape(RadiusSm)).background(Ink900)
                         .clickable { showAdd = true },
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.Add, "إضافة", tint = White, modifier = Modifier.size(22.dp)) }
+                ) { Icon(Icons.Default.Add, "إضافة", tint = Lime, modifier = Modifier.size(22.dp)) }
             }
         }
         item {
             Row(
                 Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(RadiusMd))
                     .background(White)
-                    .shadow(2.dp, RoundedCornerShape(16.dp), ambientColor = Color.Black.copy(alpha = 0.04f))
+                    .border(1.dp, Line, RoundedCornerShape(RadiusMd))
                     .padding(horizontal = 14.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Search, null, Modifier.size(18.dp), tint = TextLight)
+                Icon(Icons.Default.Search, null, Modifier.size(18.dp), tint = InkFaint)
                 Spacer(Modifier.width(10.dp))
                 TextField(
                     value = query,
@@ -685,22 +678,19 @@ private fun TxDetailDialog(tx: TransactionEntity, onDismiss: () -> Unit, onDelet
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = White,
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(RadiusXl),
         title = { Text("تفاصيل العملية", style = H2) },
         text = {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(32.dp).clip(CircleShape).background(Slate100),
-                        contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Default.AccountBalance, null, Modifier.size(16.dp), tint = TextMuted) }
+                    IconBadge(Icons.Default.AccountBalance, InkSoft, PaperOuter, size = 32.dp, iconSize = 16.dp)
                     Spacer(Modifier.width(8.dp))
                     Text(tx.bankName ?: "بنك", style = Body.copy(fontWeight = FontWeight.Medium))
                     Spacer(Modifier.weight(1f))
-                    Text(Dates.dayLabel(tx.timestamp), style = XS)
+                    Text(Dates.dayLabel(tx.timestamp), style = Eyebrow)
                 }
                 Spacer(Modifier.height(16.dp))
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Slate100))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(16.dp))
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(tx.merchant ?: "غير معروف", style = H2.copy(fontSize = 18.sp))
@@ -714,14 +704,14 @@ private fun TxDetailDialog(tx: TransactionEntity, onDismiss: () -> Unit, onDelet
                     )
                 }
                 Spacer(Modifier.height(16.dp))
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Slate100))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(16.dp))
                 Text("الرسالة الأصلية", style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(8.dp))
                 Text(tx.rawSms, style = BodyMuted, modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Slate100)
+                    .clip(RoundedCornerShape(RadiusSm))
+                    .background(PaperOuter)
                     .padding(12.dp))
             }
         },
@@ -731,7 +721,7 @@ private fun TxDetailDialog(tx: TransactionEntity, onDismiss: () -> Unit, onDelet
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("إغلاق", style = Body.copy(color = TextMuted)) }
+            TextButton(onClick = onDismiss) { Text("إغلاق", style = Body.copy(color = InkSoft)) }
         }
     )
 }
@@ -746,22 +736,22 @@ private fun AddDialog(onDismiss: () -> Unit, onSave: (Double, String, String, Tx
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = White,
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(RadiusXl),
         title = { Text("إضافة عملية يدوية", style = H2) },
         text = {
             Column {
-                Row {
-                    TypeChip("مصروف", type == TxType.EXPENSE, Danger) { type = TxType.EXPENSE }
-                    Spacer(Modifier.width(8.dp))
-                    TypeChip("دخل", type == TxType.INCOME, Success) { type = TxType.INCOME }
-                }
+                SegmentedToggle(
+                    options = listOf("مصروف" to Danger, "دخل" to Success),
+                    selectedIndex = if (type == TxType.EXPENSE) 0 else 1,
+                    onSelect = { type = if (it == 0) TxType.EXPENSE else TxType.INCOME }
+                )
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = amount, onValueChange = { amount = it },
                     label = { Text("المبلغ (ر.س)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(RadiusSm),
                     textStyle = Body
                 )
                 Spacer(Modifier.height(10.dp))
@@ -769,11 +759,11 @@ private fun AddDialog(onDismiss: () -> Unit, onSave: (Double, String, String, Tx
                     value = merchant, onValueChange = { merchant = it },
                     label = { Text("الجهة / التاجر") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(RadiusSm),
                     textStyle = Body
                 )
                 Spacer(Modifier.height(10.dp))
-                Text("التصنيف", style = XS)
+                Text("التصنيف", style = Eyebrow)
                 Spacer(Modifier.height(6.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     CategoryClassifier.categories.chunked(2).forEach { row ->
@@ -781,16 +771,16 @@ private fun AddDialog(onDismiss: () -> Unit, onSave: (Double, String, String, Tx
                             row.forEach { c ->
                                 Box(
                                     Modifier.weight(1f)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (category == c) Brand50 else Slate100)
+                                        .clip(RoundedCornerShape(RadiusSm))
+                                        .background(if (category == c) IndigoSoft else PaperOuter)
                                         .clickable { category = c }
                                         .padding(vertical = 8.dp, horizontal = 6.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         c,
-                                        style = XS.copy(
-                                            color = if (category == c) Brand600 else TextMuted,
+                                        style = Eyebrow.copy(
+                                            color = if (category == c) Indigo else InkSoft,
                                             fontWeight = if (category == c) FontWeight.Bold else FontWeight.Normal
                                         )
                                     )
@@ -805,30 +795,41 @@ private fun AddDialog(onDismiss: () -> Unit, onSave: (Double, String, String, Tx
         confirmButton = {
             TextButton(onClick = {
                 amount.toDoubleOrNull()?.let { onSave(it, merchant, category, type) }
-            }) { Text("حفظ", style = Body.copy(color = Brand600, fontWeight = FontWeight.Bold)) }
+            }) { Text("حفظ", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("إلغاء", style = Body.copy(color = TextMuted)) }
+            TextButton(onClick = onDismiss) { Text("إلغاء", style = Body.copy(color = InkSoft)) }
         }
     )
 }
 
 @Composable
-private fun TypeChip(text: String, selected: Boolean, activeColor: Color, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) activeColor.copy(alpha = 0.1f) else Slate100)
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+private fun SegmentedToggle(options: List<Pair<String, Color>>, selectedIndex: Int, onSelect: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(RadiusMd))
+            .background(PaperOuter)
+            .padding(4.dp)
     ) {
-        Text(
-            text,
-            style = Body.copy(
-                color = if (selected) activeColor else TextMuted,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-            )
-        )
+        options.forEachIndexed { i, (label, color) ->
+            val isSel = i == selectedIndex
+            Box(
+                Modifier.weight(1f)
+                    .clip(RoundedCornerShape(RadiusSm))
+                    .background(if (isSel) White else Color.Transparent)
+                    .clickable { onSelect(i) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    label,
+                    style = Body.copy(
+                        color = if (isSel) color else InkSoft,
+                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium
+                    )
+                )
+            }
+        }
     }
 }
 
@@ -858,25 +859,22 @@ private fun BudgetScreen(vm: MainViewModel) {
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 100.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             Text("الميزانية والتصنيفات", style = H1)
-            Text("راقب إنفاقك وقارنه بالحدود المحددة", style = XS)
+            Text("راقب إنفاقك وقارنه بالحدود المحددة", style = Eyebrow)
         }
 
         item {
             SoftCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("الميزانية الإجمالية للشهر", style = XS)
+                        Text("الميزانية الإجمالية للشهر", style = Eyebrow)
                         Spacer(Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                totalInput.ifBlank { "0" },
-                                style = H1.copy(fontSize = 26.sp)
-                            )
+                            Text(totalInput.ifBlank { "0" }, style = H1.copy(fontSize = 26.sp))
                             Spacer(Modifier.width(4.dp))
                             Text("ر.س", style = BodyMuted)
                         }
@@ -889,16 +887,16 @@ private fun BudgetScreen(vm: MainViewModel) {
                     label = { Text("الحد الشهري") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(RadiusSm),
                     textStyle = Body
                 )
                 Spacer(Modifier.height(10.dp))
                 Button(
                     onClick = { totalInput.toDoubleOrNull()?.let { vm.setBudget(monthKey, TOTAL_BUDGET, it) } },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Brand600, contentColor = White)
-                ) { Text("حفظ", style = Body.copy(color = White, fontWeight = FontWeight.Bold)) }
+                    shape = RoundedCornerShape(RadiusSm),
+                    colors = ButtonDefaults.buttonColors(containerColor = Ink900, contentColor = Lime)
+                ) { Text("حفظ", style = Body.copy(color = Lime, fontWeight = FontWeight.Bold)) }
             }
         }
 
@@ -914,11 +912,7 @@ private fun BudgetScreen(vm: MainViewModel) {
 
             SoftCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
-                            .background(catColorSoft(cat)),
-                        contentAlignment = Alignment.Center
-                    ) { Icon(catIcon(cat), null, Modifier.size(20.dp), tint = catColor(cat)) }
+                    IconBadge(catIcon(cat), catColor(cat), catColorSoft(cat), size = 40.dp, iconSize = 18.dp)
                     Spacer(Modifier.width(12.dp))
                     Text(cat, style = H2.copy(fontSize = 14.sp), modifier = Modifier.weight(1f))
                     Text(
@@ -929,12 +923,12 @@ private fun BudgetScreen(vm: MainViewModel) {
                 Spacer(Modifier.height(10.dp))
                 Box(
                     Modifier.fillMaxWidth().height(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Slate100)
+                        .clip(RoundedCornerShape(Pill))
+                        .background(PaperOuter)
                 ) {
                     Box(
                         Modifier.fillMaxWidth(pct).fillMaxHeight()
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(RoundedCornerShape(Pill))
                             .background(if (isOver) Danger else catColor(cat))
                     )
                 }
@@ -945,16 +939,16 @@ private fun BudgetScreen(vm: MainViewModel) {
                         onValueChange = { v ->
                             catInputs = catInputs + (cat to v.filter { ch -> ch.isDigit() || ch == '.' })
                         },
-                        placeholder = { Text("0", style = XS) },
+                        placeholder = { Text("0", style = Eyebrow) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(RadiusSm),
                         textStyle = Body
                     )
                     Spacer(Modifier.width(8.dp))
                     Box(
-                        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Brand600)
+                        Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
                             .clickable {
                                 (catInputs[cat]?.toDoubleOrNull() ?: 0.0).let { vm.setBudget(monthKey, cat, it) }
                             },
@@ -982,29 +976,23 @@ private fun AdvisorScreen(vm: MainViewModel) {
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 100.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             Box(
                 Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(28.dp))
+                    .clip(RoundedCornerShape(RadiusXl))
                     .background(Brush.linearGradient(listOf(Ink800, Ink900)))
-                    .padding(20.dp)
+                    .padding(22.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(56.dp).clip(CircleShape).background(White.copy(alpha = 0.1f)),
-                        contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Default.Lightbulb, null, Modifier.size(28.dp), tint = Amber) }
+                    IconBadge(Icons.Default.Lightbulb, Lime, White.copy(alpha = 0.08f), size = 56.dp, iconSize = 28.dp, radius = RadiusMd)
                     Spacer(Modifier.width(14.dp))
                     Column {
                         Text("المستشار المالي", style = H2.copy(color = White, fontSize = 17.sp))
                         Spacer(Modifier.height(4.dp))
-                        Text(
-                            "تحليل ذكي ومحلي لنمط إنفاقك",
-                            style = BodyMuted.copy(color = Color(0xFFCBD5E1))
-                        )
+                        Text("تحليل ذكي ومحلي لنمط إنفاقك", style = BodyMuted.copy(color = OnInkSoft))
                     }
                 }
             }
@@ -1019,7 +1007,7 @@ private fun AdviceRow(a: Advice) {
         Level.DANGER -> Danger
         Level.WARN   -> Amber
         Level.GOOD   -> Success
-        Level.INFO   -> Brand600
+        Level.INFO   -> Indigo
     }
     val icon = when (a.level) {
         Level.DANGER -> Icons.Default.Warning
@@ -1028,11 +1016,14 @@ private fun AdviceRow(a: Advice) {
         Level.INFO   -> Icons.Default.Lightbulb
     }
     SoftCard {
-        Row(verticalAlignment = Alignment.Top) {
+        Row(Modifier.height(IntrinsicSize.Min)) {
             Box(
-                Modifier.size(44.dp).clip(CircleShape).background(color.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) { Icon(icon, null, Modifier.size(20.dp), tint = color) }
+                Modifier.width(4.dp).fillMaxHeight()
+                    .clip(RoundedCornerShape(Pill))
+                    .background(color)
+            )
+            Spacer(Modifier.width(14.dp))
+            IconBadge(icon, color, color.copy(alpha = 0.12f), size = 44.dp)
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(a.title, style = H2.copy(fontSize = 14.sp))
@@ -1045,32 +1036,12 @@ private fun AdviceRow(a: Advice) {
 
 // ============ HELPERS ============
 @Composable
-private fun SoftCard(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(
-        modifier
-            .fillMaxWidth()
-            .shadow(6.dp, RoundedCornerShape(26.dp), ambientColor = Color.Black.copy(alpha = 0.06f))
-            .clip(RoundedCornerShape(26.dp))
-            .background(White)
-            .border(1.dp, BorderSoft, RoundedCornerShape(26.dp))
-            .padding(18.dp),
-        content = content
-    )
-}
-
-@Composable
 private fun EmptyState(text: String) {
     Column(
         Modifier.fillMaxWidth().padding(vertical = 60.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            Modifier.size(72.dp).clip(CircleShape).background(Slate100),
-            contentAlignment = Alignment.Center
-        ) { Icon(Icons.Outlined.ReceiptLong, null, Modifier.size(30.dp), tint = TextLight) }
+        IconBadge(Icons.Outlined.ReceiptLong, InkFaint, PaperOuter, size = 72.dp, iconSize = 30.dp, radius = RadiusMd)
         Spacer(Modifier.height(14.dp))
         Text(text, style = BodyMuted)
     }
@@ -1078,7 +1049,7 @@ private fun EmptyState(text: String) {
 
 private fun catColor(cat: String): Color = when (cat) {
     "طعام وشراب" -> Amber
-    "بقالة" -> Color(0xFF06B6D4)
+    "بقالة" -> Color(0xFF10B981)
     "مواصلات" -> Color(0xFF3B82F6)
     "وقود" -> Color(0xFF78716C)
     "تسوق" -> Purple
@@ -1088,14 +1059,11 @@ private fun catColor(cat: String): Color = when (cat) {
     "ترفيه" -> Color(0xFFD946EF)
     "اشتراكات" -> Color(0xFF14B8A6)
     "تعليم" -> Color(0xFFF97316)
-    "تحويلات" -> Brand600
-    else -> TextLight
+    "تحويلات" -> Indigo
+    else -> InkFaint
 }
 
-private fun catColorSoft(cat: String): Color {
-    val c = catColor(cat)
-    return c.copy(alpha = 0.12f)
-}
+private fun catColorSoft(cat: String): Color = catColor(cat).copy(alpha = 0.12f)
 
 private fun catIcon(cat: String): ImageVector = when (cat) {
     "طعام وشراب" -> Icons.Default.Restaurant
