@@ -99,9 +99,10 @@ private fun RootScaffold(vm: MainViewModel) {
     // Shared across tabs so paging the month on the dashboard also updates
     // what Budget/Advisor show, instead of them being stuck on the current month.
     var monthOffset by remember { mutableIntStateOf(0) }
+    var showSettings by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            AppHeader()
+            AppHeader(onSettingsClick = { showSettings = true })
             Box(Modifier.weight(1f)) {
                 when (tab) {
                     0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it })
@@ -113,10 +114,16 @@ private fun RootScaffold(vm: MainViewModel) {
         }
         BottomNav(tab, Modifier.align(Alignment.BottomCenter)) { tab = it }
     }
+    if (showSettings) {
+        SettingsDialog(
+            onDismiss = { showSettings = false },
+            onRescan = { vm.scanInbox(); showSettings = false }
+        )
+    }
 }
 
 @Composable
-private fun AppHeader() {
+private fun AppHeader(onSettingsClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -129,12 +136,51 @@ private fun AppHeader() {
         }
         Box(
             Modifier.size(42.dp).clip(RoundedCornerShape(RadiusSm)).background(White)
-                .border(1.dp, Line, RoundedCornerShape(RadiusSm)),
+                .border(1.dp, Line, RoundedCornerShape(RadiusSm))
+                .clickable(onClick = onSettingsClick),
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Outlined.Settings, null, Modifier.size(20.dp), tint = InkSoft)
         }
     }
+}
+
+@Composable
+private fun SettingsDialog(onDismiss: () -> Unit, onRescan: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = White,
+        shape = RoundedCornerShape(RadiusXl),
+        title = { Text("الإعدادات", style = H2) },
+        text = {
+            Column {
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(RadiusMd))
+                        .background(IndigoSoft)
+                        .clickable(onClick = onRescan)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconBadge(Icons.Default.Sync, Indigo, White, size = 40.dp, iconSize = 18.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("إعادة مسح الرسائل", style = Body.copy(fontWeight = FontWeight.Bold))
+                        Text("يبحث مجدداً عن عمليات في آخر 120 يوم", style = Eyebrow.copy(fontSize = 11.sp))
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                Spacer(Modifier.height(18.dp))
+                Text("ميزان", style = Body.copy(fontWeight = FontWeight.Bold))
+                Spacer(Modifier.height(4.dp))
+                Text("جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي.", style = Eyebrow)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("إغلاق", style = Body.copy(color = InkSoft)) }
+        }
+    )
 }
 
 // ============ BOTTOM NAV — glass pill with a sliding lime indicator ============

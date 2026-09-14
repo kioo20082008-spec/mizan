@@ -57,7 +57,6 @@ val RadiusXl = 36.dp
 val Pill     = 999.dp
 
 private val Sans = FontFamily.Default
-private val Mono = FontFamily.Monospace
 
 val Display    = TextStyle(fontFamily = Sans, fontSize = 38.sp, fontWeight = FontWeight.Black, color = Lime, letterSpacing = (-0.6).sp)
 val H1         = TextStyle(fontFamily = Sans, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ink, letterSpacing = (-0.3).sp)
@@ -65,7 +64,7 @@ val H2         = TextStyle(fontFamily = Sans, fontSize = 16.sp, fontWeight = Fon
 val Body       = TextStyle(fontFamily = Sans, fontSize = 14.sp, color = Ink)
 val BodyMuted  = TextStyle(fontFamily = Sans, fontSize = 13.sp, color = InkSoft)
 val Eyebrow    = TextStyle(fontFamily = Sans, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = InkFaint, letterSpacing = 0.6.sp)
-val NumBold    = TextStyle(fontFamily = Mono, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)
+val NumBold    = TextStyle(fontFamily = Sans, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink, letterSpacing = (-0.2).sp)
 
 // ============ SHARED PRIMITIVES ============
 @Composable
