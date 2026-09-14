@@ -33,6 +33,11 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 val ctx = getApplication<Application>()
                 val found = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
                 repo.addAll(found)
+            } catch (e: Exception) {
+                // Reading the SMS provider can fail in device-specific ways (some
+                // OEM builds reject the query even with READ_SMS granted). An
+                // uncaught exception here would otherwise crash the whole app on
+                // launch, so degrade to "no transactions found" instead.
             } finally {
                 _isScanning.value = false
             }

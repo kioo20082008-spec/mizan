@@ -36,6 +36,8 @@ class SmsReceiver : BroadcastReceiver() {
                         isSelfTransfer = parsed.isSelfTransfer
                     ))
                 }
+            } catch (e: Exception) {
+                // Never let a malformed SMS crash the app in the background.
             } finally { pending.finish() }
         }
     }
