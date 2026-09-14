@@ -116,6 +116,7 @@ private fun RootScaffold(vm: MainViewModel) {
     }
     if (showSettings) {
         SettingsDialog(
+            vm = vm,
             onDismiss = { showSettings = false },
             onRescan = { vm.scanInbox(); showSettings = false }
         )
@@ -146,7 +147,9 @@ private fun AppHeader(onSettingsClick: () -> Unit) {
 }
 
 @Composable
-private fun SettingsDialog(onDismiss: () -> Unit, onRescan: () -> Unit) {
+private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: () -> Unit) {
+    val ctx = LocalContext.current
+    val txs by vm.transactions.collectAsState()
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = White,
@@ -169,12 +172,33 @@ private fun SettingsDialog(onDismiss: () -> Unit, onRescan: () -> Unit) {
                         Text("يبحث مجدداً عن عمليات في آخر 120 يوم", style = Eyebrow.copy(fontSize = 11.sp))
                     }
                 }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(RadiusMd))
+                        .background(PaperOuter)
+                        .clickable(enabled = txs.isNotEmpty()) {
+                            exportRawSmsForDebugging(ctx, txs)
+                        }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconBadge(Icons.Default.Share, InkSoft, White, size = 40.dp, iconSize = 18.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("تصدير الرسائل للتشخيص", style = Body.copy(fontWeight = FontWeight.Bold))
+                        Text(
+                            if (txs.isEmpty()) "لا توجد عمليات بعد" else "شارك ملف نصي بكل العمليات ورسائلها الأصلية",
+                            style = Eyebrow.copy(fontSize = 11.sp)
+                        )
+                    }
+                }
                 Spacer(Modifier.height(18.dp))
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
                 Text("ميزان", style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(4.dp))
-                Text("جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي.", style = Eyebrow)
+                Text("جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي إلا إذا اخترت تصديرها ومشاركتها بنفسك.", style = Eyebrow)
             }
         },
         confirmButton = {
