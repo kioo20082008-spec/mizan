@@ -20,7 +20,11 @@ data class TransactionEntity(
     val rawSms: String = "",
     val smsHash: String,
     val timestamp: Long,
-    val isManual: Boolean = false
+    val isManual: Boolean = false,
+    // Money moved between the user's own accounts (bank SMS wording like
+    // "بين حساباتك") isn't real income or spending, so it's tracked but kept
+    // out of the totals in FinancialAdvisor.
+    val isSelfTransfer: Boolean = false
 )
 
 @Entity(tableName = "budgets", primaryKeys = ["monthKey", "category"])
@@ -32,3 +36,5 @@ data class BudgetEntity(
 
 const val TOTAL_BUDGET = "__TOTAL__"
 const val ALL_MONTHS  = "ALL"
+const val SELF_TRANSFER_CATEGORY = "تحويل بين حساباتي"
+const val CASH_WITHDRAWAL_CATEGORY = "سحب نقدي"

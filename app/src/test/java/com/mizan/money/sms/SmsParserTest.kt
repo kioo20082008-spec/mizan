@@ -66,6 +66,25 @@ class SmsParserTest {
     }
 
     @Test
+    fun `flags a transfer between the user's own accounts as a self transfer`() {
+        val sms = "تم تحويل مبلغ 2000.00 ريال بين حساباتك في مصرف الراجحي"
+        val parsed = SmsParser.parse("ALRAJHIBANK", sms, 6_000L)
+
+        assertNotNull(parsed)
+        assertTrue(parsed!!.isSelfTransfer)
+        assertEquals(2000.00, parsed.amount, 0.001)
+    }
+
+    @Test
+    fun `does not flag a transfer to someone else as a self transfer`() {
+        val sms = "تم تحويل مبلغ 500.00 ريال إلى حساب صديقك عبر STC Pay"
+        val parsed = SmsParser.parse("STCPAY", sms, 7_000L)
+
+        assertNotNull(parsed)
+        assertFalse(parsed!!.isSelfTransfer)
+    }
+
+    @Test
     fun `hashFor is stable for identical input and differs when any field changes`() {
         val h1 = SmsParser.hashFor("BANK", 1_000L, "same body")
         val h2 = SmsParser.hashFor("BANK", 1_000L, "same body")

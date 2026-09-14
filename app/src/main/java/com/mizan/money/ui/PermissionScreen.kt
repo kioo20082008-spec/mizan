@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -73,6 +74,39 @@ fun PermissionScreen(onGrant: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(16.dp).graphicsLayer(rotationZ = 180f), tint = Lime)
         }
+    }
+}
+
+// Shown once, right after the user grants SMS access, while the first scan
+// runs — so the first thing a new user sees isn't an empty dashboard.
+@Composable
+fun ScanningScreen() {
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            Modifier.size(104.dp).clip(RoundedCornerShape(RadiusXl))
+                .background(Ink900)
+                .border(1.dp, Lime.copy(alpha = 0.25f), RoundedCornerShape(RadiusXl))
+                .shadow(20.dp, RoundedCornerShape(RadiusXl), ambientColor = Ink900.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(40.dp), color = Lime, strokeWidth = 3.dp)
+        }
+        Spacer(Modifier.height(28.dp))
+        Text(
+            "جاري تحليل رسائلك المصرفية...",
+            style = H1.copy(fontSize = 20.sp),
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "نبحث عن عمليات الشراء والتحويلات لنجهز لك لوحة مالية دقيقة. قد يستغرق هذا بضع لحظات.",
+            style = BodyMuted,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

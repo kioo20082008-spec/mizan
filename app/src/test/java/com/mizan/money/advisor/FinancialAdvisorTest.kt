@@ -1,8 +1,10 @@
 package com.mizan.money.advisor
 
+import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -15,11 +17,12 @@ private fun tx(
     category: String = "أخرى",
     currency: String = "SAR",
     merchant: String? = "Test",
-    timestamp: Long = JAN_2024_START + 1_000L
+    timestamp: Long = JAN_2024_START + 1_000L,
+    isSelfTransfer: Boolean = false
 ): TransactionEntity = TransactionEntity(
     amount = amount, currency = currency, merchant = merchant, category = category,
     type = type, rawSms = "", smsHash = "h-${System.nanoTime()}-${(0..999999).random()}",
-    timestamp = timestamp
+    timestamp = timestamp, isSelfTransfer = isSelfTransfer
 )
 
 class FinancialAdvisorTest {
@@ -85,5 +88,39 @@ class FinancialAdvisorTest {
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
         assertTrue(advice.any { it.level == Level.INFO && it.title.contains("ميزانيتك") })
+    }
+
+    @Test
+    fun `summarize excludes self-transfers from spent and income totals`() {
+        val realExpense = tx(100.0, TxType.EXPENSE)
+        val selfTransferOut = tx(5000.0, TxType.EXPENSE, isSelfTransfer = true)
+        val selfTransferIn = tx(5000.0, TxType.INCOME, isSelfTransfer = true)
+        val s = FinancialAdvisor.summarize(listOf(realExpense, selfTransferOut, selfTransferIn), JAN_2024_START, JAN_2024_END)
+
+        assertEquals(100.0, s.spent, 0.001)
+        assertEquals(0.0, s.income, 0.001)
+    }
+
+    @Test
+    fun `advise flags a large cash withdrawal share of spending`() {
+        val txs = listOf(
+            tx(200.0, category = "طعام وشراب"),
+            tx(300.0, category = CASH_WITHDRAWAL_CATEGORY)
+        )
+        val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
+        val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
+
+        assertTrue(advice.any { it.title.contains("سحوبات نقدية") })
+    }
+
+    @Test
+    fun `advise does not mistake a recurring self-transfer for a subscription`() {
+        val savings = List(4) {
+            tx(1000.0, merchant = "حسابي التوفير", isSelfTransfer = true, timestamp = JAN_2024_START + it * 1_000L)
+        }
+        val s = FinancialAdvisor.summarize(savings, JAN_2024_START, JAN_2024_END)
+        val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = savings, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
+
+        assertFalse(advice.any { it.title.contains("اشتراكات") })
     }
 }

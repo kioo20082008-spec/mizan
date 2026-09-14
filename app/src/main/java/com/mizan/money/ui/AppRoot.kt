@@ -41,6 +41,7 @@ fun AppRoot() {
     val vm: MainViewModel = viewModel(factory = MainViewModel.factory(app, app.repository))
     var hasSms by remember { mutableStateOf(checkSms(ctx)) }
     var scanned by remember { mutableStateOf(false) }
+    val isScanning by vm.isScanning.collectAsState()
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -75,6 +76,8 @@ fun AppRoot() {
                                 Manifest.permission.READ_SMS,
                                 Manifest.permission.RECEIVE_SMS
                             ))
+                        } else if (!scanned || isScanning) {
+                            ScanningScreen()
                         } else {
                             RootScaffold(vm)
                         }

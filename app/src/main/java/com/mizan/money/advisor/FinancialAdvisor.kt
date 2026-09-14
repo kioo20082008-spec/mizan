@@ -1,5 +1,6 @@
 package com.mizan.money.advisor
 
+import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
 import java.util.Locale
@@ -19,7 +20,11 @@ object FinancialAdvisor {
     fun summarize(txs: List<TransactionEntity>, monthStart: Long, monthEnd: Long): MonthSummary {
         // Totals are only meaningful within one currency; scope to SAR (the app's
         // primary currency) so a USD/EUR transaction doesn't get added in as-is.
-        val inMonth = txs.filter { it.timestamp in monthStart..monthEnd && it.currency == "SAR" }
+        // Self-transfers (money moved between the user's own accounts) are excluded
+        // too, since they're neither real income nor real spending.
+        val inMonth = txs.filter {
+            it.timestamp in monthStart..monthEnd && it.currency == "SAR" && !it.isSelfTransfer
+        }
         val expenses = inMonth.filter { it.type == TxType.EXPENSE }
         val incomes = inMonth.filter { it.type == TxType.INCOME }
         val spent = expenses.sumOf { it.amount }
@@ -63,6 +68,13 @@ object FinancialAdvisor {
                     Level.WARN)
             }
         }
+        summary.categoryTotals.firstOrNull { it.category == CASH_WITHDRAWAL_CATEGORY }?.let { cash ->
+            if (cash.share >= 0.15 && summary.spent > 0) {
+                list += Advice("سحوبات نقدية ملحوظة 💵",
+                    "سحبت ${fmt(cash.amount)} ر.س نقداً، أي ${(cash.share * 100).toInt()}% من مصاريفك. المصروفات النقدية لا يمكن تتبع تفاصيلها تلقائياً من رسائل البنك — حاول تدوين أين تُصرف.",
+                    Level.INFO)
+            }
+        }
         if (summary.spent > 0) {
             list += Advice("معدل صرفك اليومي 📊",
                 "تصرف بمعدل ${fmt(summary.dailyAvg)} ر.س يومياً. لو استمريت فستنفق ~${fmt(summary.dailyAvg * 30)} ر.س شهرياً.",
@@ -100,7 +112,9 @@ object FinancialAdvisor {
         return list
     }
     private fun detectSubscriptions(allTx: List<TransactionEntity>): List<Pair<String, Double>> {
-        val recent = allTx.filter { it.type == TxType.EXPENSE && it.merchant != null }
+        // Exclude self-transfers so a recurring auto-transfer to a savings account
+        // doesn't get mistaken for a subscription.
+        val recent = allTx.filter { it.type == TxType.EXPENSE && it.merchant != null && !it.isSelfTransfer }
         val grouped = recent.groupBy { it.merchant!!.lowercase().trim() }
         return grouped.mapNotNull { (merchant, list) ->
             if (list.size < 2) return@mapNotNull null

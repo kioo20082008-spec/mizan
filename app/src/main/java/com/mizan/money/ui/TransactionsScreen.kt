@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.advisor.FinancialAdvisor
@@ -204,8 +205,17 @@ private fun TxDetailDialog(
                         Text(
                             "${if (tx.type == TxType.EXPENSE) "-" else "+"}${FinancialAdvisor.fmt(tx.amount)} ${currencyLabel(tx.currency)}",
                             style = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Black,
-                                color = if (tx.type == TxType.EXPENSE) Danger else Success)
+                                color = if (tx.isSelfTransfer) InkFaint else if (tx.type == TxType.EXPENSE) Danger else Success)
                         )
+                        if (tx.isSelfTransfer) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "تحويل بين حساباتك — لا يُحتسب ضمن دخلك أو مصاريفك",
+                                style = Eyebrow.copy(fontSize = 11.sp),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                     Spacer(Modifier.height(16.dp))
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Line))

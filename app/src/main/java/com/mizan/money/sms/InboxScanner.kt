@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.provider.Telephony
+import com.mizan.money.data.SELF_TRANSFER_CATEGORY
 import com.mizan.money.data.TransactionEntity
 import java.util.concurrent.TimeUnit
 
@@ -27,12 +28,15 @@ object InboxScanner {
                 val date = c.getLong(iDate)
                 val parsed = SmsParser.parse(sender, body, date) ?: continue
                 val hash = SmsParser.hashFor(sender, date, body)
+                val category = if (parsed.isSelfTransfer) SELF_TRANSFER_CATEGORY
+                    else CategoryClassifier.classify(parsed.merchant, body)
                 out += TransactionEntity(
                     amount = parsed.amount, currency = parsed.currency,
                     merchant = parsed.merchant ?: parsed.bankName ?: sender,
-                    category = CategoryClassifier.classify(parsed.merchant, body),
+                    category = category,
                     type = parsed.type, bankName = parsed.bankName, cardLast4 = parsed.cardLast4,
-                    rawSms = body, smsHash = hash, timestamp = date, isManual = false
+                    rawSms = body, smsHash = hash, timestamp = date, isManual = false,
+                    isSelfTransfer = parsed.isSelfTransfer
                 )
             }
         }

@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.advisor.FinancialAdvisor
+import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
+import com.mizan.money.data.SELF_TRANSFER_CATEGORY
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
 
@@ -114,7 +116,7 @@ fun EmptyState(text: String) {
 fun TransactionCard(tx: TransactionEntity, onClick: () -> Unit) {
     val isExpense = tx.type == TxType.EXPENSE
     val sign = if (isExpense) "-" else "+"
-    val amtColor = if (isExpense) Ink else Success
+    val amtColor = if (tx.isSelfTransfer) InkFaint else if (isExpense) Ink else Success
 
     SoftCard(Modifier.clickable { onClick() }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -150,6 +152,8 @@ fun catColor(cat: String): Color = when (cat) {
     "اشتراكات" -> Color(0xFF14B8A6)
     "تعليم" -> Color(0xFFF97316)
     "تحويلات" -> Indigo
+    CASH_WITHDRAWAL_CATEGORY -> Color(0xFF71717A)
+    SELF_TRANSFER_CATEGORY -> InkFaint
     else -> InkFaint
 }
 
@@ -176,6 +180,8 @@ fun catIcon(cat: String): ImageVector = when (cat) {
     "اشتراكات" -> Icons.Default.Subscriptions
     "تعليم" -> Icons.Default.School
     "تحويلات" -> Icons.Default.SwapHoriz
+    CASH_WITHDRAWAL_CATEGORY -> Icons.Default.LocalAtm
+    SELF_TRANSFER_CATEGORY -> Icons.Default.CompareArrows
     else -> Icons.Default.Category
 }
 

@@ -8,7 +8,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mizan.money.data.*
 import com.mizan.money.sms.InboxScanner
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -20,11 +22,20 @@ import java.util.Calendar
 class MainViewModel(app: Application, private val repo: TransactionRepository) : AndroidViewModel(app) {
     val transactions = repo.allTransactions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val budgets = repo.budgets().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning
+
     fun scanInbox() {
         viewModelScope.launch {
-            val ctx = getApplication<Application>()
-            val found = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
-            repo.addAll(found)
+            _isScanning.value = true
+            try {
+                val ctx = getApplication<Application>()
+                val found = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
+                repo.addAll(found)
+            } finally {
+                _isScanning.value = false
+            }
         }
     }
     fun addManual(amount: Double, merchant: String, category: String, type: TxType) {
