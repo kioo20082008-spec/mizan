@@ -42,12 +42,12 @@ fun writeSmsExportFile(context: Context, transactions: List<TransactionEntity>):
     return file
 }
 
-fun shareExportFile(context: Context, file: File) {
+fun shareExportFile(context: Context, file: File, mimeType: String = "text/plain", chooserTitle: String = "مشاركة ملف التشخيص") {
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
+        type = mimeType
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(intent, "مشاركة ملف التشخيص"))
+    context.startActivity(Intent.createChooser(intent, chooserTitle))
 }

@@ -147,6 +147,17 @@ private fun checkReceiveSms(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECEIVE_SMS) ==
         PackageManager.PERMISSION_GRANTED
 
+// Full-screen destinations reached from more than one tab (a transaction's own
+// detail dialog, a dashboard category chip, Settings) — kept out of the tab
+// switch below since they don't belong to any single tab, and shown instead
+// of the whole tab/bottom-nav shell rather than as a dialog, since they need
+// their own scroll content.
+sealed class OverlayScreen {
+    data class Merchant(val name: String) : OverlayScreen()
+    data class Category(val name: String) : OverlayScreen()
+    data object Reports : OverlayScreen()
+}
+
 // ============ SCAFFOLD ============
 @Composable
 private fun RootScaffold(vm: MainViewModel) {
@@ -160,9 +171,21 @@ private fun RootScaffold(vm: MainViewModel) {
     // rememberSaveable so a configuration change (e.g. rotation) doesn't drop
     // the pending filter while the app is mid-navigation.
     var categoryFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var overlay by remember { mutableStateOf<OverlayScreen?>(null) }
     val isScanning by vm.isScanning.collectAsState()
     val ctx = LocalContext.current
     var hasReceiveSms by remember { mutableStateOf(checkReceiveSms(ctx)) }
+
+    val currentOverlay = overlay
+    if (currentOverlay != null) {
+        when (currentOverlay) {
+            is OverlayScreen.Merchant -> StatsDetailScreen(vm, DetailFilter.ByMerchant(currentOverlay.name)) { overlay = null }
+            is OverlayScreen.Category -> StatsDetailScreen(vm, DetailFilter.ByCategory(currentOverlay.name)) { overlay = null }
+            OverlayScreen.Reports -> ReportsScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }) { overlay = null }
+        }
+        return
+    }
+
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             AppHeader(onSettingsClick = { showSettings = true })
@@ -188,8 +211,16 @@ private fun RootScaffold(vm: MainViewModel) {
             }
             Box(Modifier.weight(1f)) {
                 when (tab) {
-                    0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
-                    1 -> TransactionsScreen(vm, initialQuery = categoryFilter)
+                    0 -> DashboardScreen(
+                        vm, monthOffset,
+                        onOffsetChange = { monthOffset = it },
+                        onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 },
+                        onOpenCategoryDetail = { cat -> overlay = OverlayScreen.Category(cat) }
+                    )
+                    1 -> TransactionsScreen(
+                        vm, initialQuery = categoryFilter,
+                        onOpenMerchantDetail = { merchant -> overlay = OverlayScreen.Merchant(merchant) }
+                    )
                     2 -> BudgetScreen(vm, monthOffset)
                     else -> AdvisorScreen(vm, monthOffset)
                 }
@@ -201,7 +232,8 @@ private fun RootScaffold(vm: MainViewModel) {
         SettingsDialog(
             vm = vm,
             onDismiss = { showSettings = false },
-            onRescan = { vm.scanInbox(); showSettings = false }
+            onRescan = { vm.scanInbox(); showSettings = false },
+            onOpenReports = { showSettings = false; overlay = OverlayScreen.Reports }
         )
     }
 }
@@ -230,7 +262,7 @@ private fun AppHeader(onSettingsClick: () -> Unit) {
 }
 
 @Composable
-private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: () -> Unit) {
+private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: () -> Unit, onOpenReports: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val txs by vm.transactions.collectAsState()
@@ -315,6 +347,22 @@ private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: (
                             if (txs.isEmpty()) "لا توجد عمليات بعد" else "شارك ملف نصي بكل العمليات ورسائلها الأصلية",
                             style = Eyebrow.copy(fontSize = 11.sp)
                         )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(RadiusMd))
+                        .background(IndigoSoft)
+                        .clickable { onOpenReports() }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconBadge(Icons.Default.PictureAsPdf, Indigo, White, size = 40.dp, iconSize = 18.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("تقرير PDF شهري", style = Body.copy(fontWeight = FontWeight.Bold))
+                        Text("شارك ملخص الشهر كملف PDF", style = Eyebrow.copy(fontSize = 11.sp))
                     }
                 }
                 Spacer(Modifier.height(18.dp))

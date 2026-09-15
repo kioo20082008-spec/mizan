@@ -30,7 +30,7 @@ import com.mizan.money.data.TxType
 
 // ============ TRANSACTIONS ============
 @Composable
-fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
+fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null, onOpenMerchantDetail: (String) -> Unit = {}) {
     val txs by vm.transactions.collectAsState()
     val categories by vm.categories.collectAsState()
     var query by remember { mutableStateOf(initialQuery ?: "") }
@@ -116,7 +116,8 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
             categories = categories,
             onDismiss = { selected = null },
             onDelete = { vm.delete(current); selected = null },
-            onSave = { updated -> vm.update(updated); selected = null }
+            onSave = { updated -> vm.update(updated); selected = null },
+            onOpenMerchant = { merchant -> selected = null; onOpenMerchantDetail(merchant) }
         )
     }
     if (showAdd) {
@@ -134,7 +135,8 @@ private fun TxDetailDialog(
     categories: List<String>,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
-    onSave: (TransactionEntity) -> Unit
+    onSave: (TransactionEntity) -> Unit,
+    onOpenMerchant: (String) -> Unit
 ) {
     var editing by remember(tx.id) { mutableStateOf(false) }
     var amount by remember(tx.id) { mutableStateOf("%.2f".format(tx.amount)) }
@@ -325,6 +327,11 @@ private fun TxDetailDialog(
                         .background(PaperOuter)
                         .padding(12.dp))
                     Spacer(Modifier.height(14.dp))
+                    if (!tx.merchant.isNullOrBlank()) {
+                        TextButton(onClick = { onOpenMerchant(tx.merchant) }) {
+                            Text("كل عمليات ${tx.merchant}", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold))
+                        }
+                    }
                     TextButton(onClick = { confirmingDelete = true }) {
                         Text("حذف العملية", style = Body.copy(color = Danger, fontWeight = FontWeight.Bold))
                     }

@@ -36,7 +36,8 @@ fun DashboardScreen(
     vm: MainViewModel,
     offset: Int,
     onOffsetChange: (Int) -> Unit,
-    onNavigateToTransactions: (String?) -> Unit
+    onNavigateToTransactions: (String?) -> Unit,
+    onOpenCategoryDetail: (String) -> Unit = {}
 ) {
     val txs by vm.transactions.collectAsState()
     val manualSalary by vm.manualSalary.collectAsState()
@@ -93,7 +94,7 @@ fun DashboardScreen(
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
                     items(summary.categoryTotals.take(6)) { cat ->
-                        CategoryChip(cat, onClick = { onNavigateToTransactions(cat.category) })
+                        CategoryChip(cat, onClick = { onOpenCategoryDetail(cat.category) })
                     }
                 }
             }
