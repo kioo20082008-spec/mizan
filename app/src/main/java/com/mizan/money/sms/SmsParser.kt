@@ -29,6 +29,17 @@ fun ParsedSms.toEntity(): TransactionEntity {
 }
 
 object SmsParser {
+    // Restricted, per explicit request, to only the two banks/wallets this
+    // app's user actually holds accounts with. Any other sender — Tabby,
+    // Tamara, a utility company's own bill-reminder SMS, etc — is rejected
+    // outright regardless of what its text looks like, since those senders
+    // can mention an amount and a purchase/payment word too without ever
+    // being the bank's own confirmation that money actually moved.
+    private val allowedSenders = listOf("alinma", "الإنماء", "barq", "برق")
+    private fun isAllowedSender(sender: String): Boolean {
+        val s = sender.lowercase(Locale.ROOT)
+        return allowedSenders.any { s.contains(it) }
+    }
     // Free-text expense/income keywords (single-sentence SMS from banks like
     // Rajhi), plus the header phrases used by banks that instead send a
     // structured multi-line "label: value" SMS (e.g. Alinma, Barq): each field
@@ -140,6 +151,7 @@ object SmsParser {
         "الرياض" to "بنك الرياض","riyad" to "بنك الرياض",
         "البلاد" to "بنك البلاد","albilad" to "بنك البلاد",
         "الإنماء" to "مصرف الإنماء","alinma" to "مصرف الإنماء",
+        "برق" to "Barq","barq" to "Barq",
         "سامبا" to "سامبا","samba" to "سامبا",
         "الجزيرة" to "بنك الجزيرة","aljazira" to "بنك الجزيرة",
         "stc pay" to "STC Pay","urpay" to "UrPay","d360" to "D360"
@@ -180,6 +192,7 @@ object SmsParser {
         return null
     }
     fun parse(sender: String, body: String, timestamp: Long): ParsedSms? {
+        if (!isAllowedSender(sender)) return null
         val n = normalizeDigits(body)
         val low = n.lowercase(Locale.ROOT)
         if (nonTransactionalWords.any { low.contains(it) }) return null

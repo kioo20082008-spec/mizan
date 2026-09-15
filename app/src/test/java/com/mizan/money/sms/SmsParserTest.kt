@@ -17,7 +17,7 @@ class SmsParserTest {
         // generic, earlier-occurring "من" (which would otherwise capture
         // "حسابك في الراجحي لدى ستاربكس فرع العليا" instead of just the merchant).
         val sms = "عميلنا العزيز، تم خصم مبلغ 125.50 ريال من حسابك في الراجحي لدى ستاربكس فرع العليا"
-        val parsed = SmsParser.parse("ALRAJHIBANK", sms, 1_000L)
+        val parsed = SmsParser.parse("alinma", sms, 1_000L)
 
         assertNotNull(parsed)
         assertEquals(125.50, parsed!!.amount, 0.001)
@@ -30,7 +30,7 @@ class SmsParserTest {
     @Test
     fun `falls back to the "من" anchor only when no more specific anchor is present`() {
         val sms = "تم خصم مبلغ 60.00 ريال من محفظتك الرقمية"
-        val parsed = SmsParser.parse("BANK", sms, 1_500L)
+        val parsed = SmsParser.parse("alinma", sms, 1_500L)
 
         assertNotNull(parsed)
         assertEquals("محفظتك الرقمية", parsed!!.merchant)
@@ -39,7 +39,7 @@ class SmsParserTest {
     @Test
     fun `parses an income SMS as INCOME with the right bank and amount`() {
         val sms = "تم إيداع راتب بمبلغ 9500.00 ريال في حسابك لدى بنك الرياض"
-        val parsed = SmsParser.parse("RIBLSARI", sms, 2_000L)
+        val parsed = SmsParser.parse("alinma", sms, 2_000L)
 
         assertNotNull(parsed)
         assertEquals(9500.00, parsed!!.amount, 0.001)
@@ -50,7 +50,7 @@ class SmsParserTest {
     @Test
     fun `detects a foreign currency transaction`() {
         val sms = "Your account was charged 45.00 USD at Amazon"
-        val parsed = SmsParser.parse("BANK", sms, 3_000L)
+        val parsed = SmsParser.parse("barq", sms, 3_000L)
 
         assertNotNull(parsed)
         assertEquals(45.00, parsed!!.amount, 0.001)
@@ -62,14 +62,14 @@ class SmsParserTest {
     fun `rejects OTP messages even when they contain a number`() {
         val sms = "رمز التحقق الخاص بك هو 4821، لا تشارك هذا الرمز مع أي شخص"
         assertFalse(SmsParser.looksLikeTransaction(sms))
-        assertNull(SmsParser.parse("BANK", sms, 4_000L))
+        assertNull(SmsParser.parse("alinma", sms, 4_000L))
     }
 
     @Test
     fun `does not treat a balance-inquiry SMS as a transaction`() {
         val sms = "الرصيد المتاح في حسابك 500.00 ريال"
         assertFalse(SmsParser.looksLikeTransaction(sms))
-        assertNull(SmsParser.parse("BANK", sms, 5_000L))
+        assertNull(SmsParser.parse("alinma", sms, 5_000L))
     }
 
     @Test
@@ -81,7 +81,7 @@ class SmsParserTest {
     @Test
     fun `flags a transfer between the user's own accounts as a self transfer`() {
         val sms = "تم تحويل مبلغ 2000.00 ريال بين حساباتك في مصرف الراجحي"
-        val parsed = SmsParser.parse("ALRAJHIBANK", sms, 6_000L)
+        val parsed = SmsParser.parse("alinma", sms, 6_000L)
 
         assertNotNull(parsed)
         assertTrue(parsed!!.isSelfTransfer)
@@ -91,10 +91,25 @@ class SmsParserTest {
     @Test
     fun `does not flag a transfer to someone else as a self transfer`() {
         val sms = "تم تحويل مبلغ 500.00 ريال إلى حساب صديقك عبر STC Pay"
-        val parsed = SmsParser.parse("STCPAY", sms, 7_000L)
+        val parsed = SmsParser.parse("barq", sms, 7_000L)
 
         assertNotNull(parsed)
         assertFalse(parsed!!.isSelfTransfer)
+    }
+
+    // Per explicit request: only Alinma and Barq are this app's own bank/wallet
+    // — a message from any other sender must never become a transaction, even
+    // if its wording would otherwise look exactly like a real one.
+    @Test
+    fun `rejects a transaction-shaped message from a sender that is not Alinma or Barq`() {
+        val sms = "تم خصم مبلغ 250.00 ريال من بطاقتك لدى Tabby"
+        assertNull(SmsParser.parse("Tabby", sms, 20_000L))
+    }
+
+    @Test
+    fun `rejects a bill-reminder-shaped message from a utility company`() {
+        val sms = "فاتورتك الشهرية بمبلغ 340.00 ريال مستحقة الدفع"
+        assertNull(SmsParser.parse("SaudiEnergy", sms, 20_500L))
     }
 
     // Regression tests for real Alinma/Barq SMS, which use a structured
