@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.advisor.MonthSummary
+import com.mizan.money.data.TOTAL_BUDGET
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -40,14 +41,22 @@ fun DashboardScreen(
     val txs by vm.transactions.collectAsState()
     val manualSalary by vm.manualSalary.collectAsState()
     val startDay by vm.monthStartDay.collectAsState()
+    val budgets by vm.budgets.collectAsState()
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
-    // "استهلاك ميزانية الشهر" is driven by what you actually earned this month
-    // (or your configured/detected salary before payday), not a manually-typed
-    // budget ceiling — so it never needs separate upkeep to stay meaningful.
-    val planningIncome = remember(summary, txs, manualSalary) {
-        FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0
+    // "استهلاك ميزانية الشهر" defaults to what you actually earned this month
+    // (or your configured/detected salary before payday), so it stays meaningful
+    // without separate upkeep — but a total budget explicitly set on the Budget
+    // tab (e.g. to force saving below what you earn) overrides that default,
+    // since otherwise that field would save to the database and never affect
+    // anything the user actually sees.
+    val monthKey = remember(offset, startDay) { Dates.monthKey(offset, startDay) }
+    val manualBudget = remember(budgets, monthKey) {
+        budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }?.limitAmount?.takeIf { it > 0 }
+    }
+    val planningIncome = remember(summary, txs, manualSalary, manualBudget) {
+        manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0)
     }
     // "أحدث العمليات" must reflect the month being browsed — otherwise paging to
     // an older month still shows today's latest transactions as if they belonged
@@ -65,7 +74,13 @@ fun DashboardScreen(
         }
 
         if (planningIncome > 0) {
-            item { BudgetStatusCard(planningIncome, summary.spent, title = "استهلاك دخل الشهر", capLabel = "الدخل") }
+            item {
+                if (manualBudget != null) {
+                    BudgetStatusCard(planningIncome, summary.spent)
+                } else {
+                    BudgetStatusCard(planningIncome, summary.spent, title = "استهلاك دخل الشهر", capLabel = "الدخل")
+                }
+            }
         }
 
         if (summary.categoryTotals.isNotEmpty()) {

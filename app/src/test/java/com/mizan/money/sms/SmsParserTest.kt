@@ -37,7 +37,10 @@ class SmsParserTest {
         assertEquals(125.50, parsed!!.amount, 0.001)
         assertEquals("SAR", parsed.currency)
         assertEquals(TxType.EXPENSE, parsed.type)
-        assertEquals("مصرف الراجحي", parsed.bankName)
+        // bankName resolves from the sender ("alinma"), not an incidental mention
+        // of another bank's name in the body text — banks map only lists the
+        // banks this app actually accepts senders from, for exactly this reason.
+        assertEquals("مصرف الإنماء", parsed.bankName)
         assertEquals("ستاربكس فرع العليا", parsed.merchant)
     }
 
@@ -58,7 +61,7 @@ class SmsParserTest {
         assertNotNull(parsed)
         assertEquals(9500.00, parsed!!.amount, 0.001)
         assertEquals(TxType.INCOME, parsed.type)
-        assertEquals("بنك الرياض", parsed.bankName)
+        assertEquals("مصرف الإنماء", parsed.bankName)
     }
 
     @Test
