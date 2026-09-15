@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -12,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,8 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,10 +28,16 @@ import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.advisor.MonthSummary
 import com.mizan.money.data.TOTAL_BUDGET
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 // ============ DASHBOARD ============
 @Composable
-fun DashboardScreen(vm: MainViewModel, offset: Int, onOffsetChange: (Int) -> Unit) {
+fun DashboardScreen(
+    vm: MainViewModel,
+    offset: Int,
+    onOffsetChange: (Int) -> Unit,
+    onNavigateToTransactions: (String?) -> Unit
+) {
     val txs by vm.transactions.collectAsState()
     val budgets by vm.budgets.collectAsState()
 
@@ -40,6 +46,11 @@ fun DashboardScreen(vm: MainViewModel, offset: Int, onOffsetChange: (Int) -> Uni
     val budget = budgets.firstOrNull {
         it.monthKey == Dates.monthKey(offset) && it.category == TOTAL_BUDGET
     }?.limitAmount ?: 0.0
+    // "أحدث العمليات" must reflect the month being browsed — otherwise paging to
+    // an older month still shows today's latest transactions as if they belonged
+    // to it, while every other card on this screen (balance, budget, categories)
+    // correctly updates.
+    val monthTxs = remember(txs, range) { txs.filter { it.timestamp in range } }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -47,7 +58,7 @@ fun DashboardScreen(vm: MainViewModel, offset: Int, onOffsetChange: (Int) -> Uni
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
-            BalanceCard(summary, offset, onPrev = { onOffsetChange(offset - 1) }, onNext = { if (offset < 0) onOffsetChange(offset + 1) })
+            BalanceCard(summary, offset, budget, onPrev = { onOffsetChange(offset - 1) }, onNext = { if (offset < 0) onOffsetChange(offset + 1) })
         }
 
         if (budget > 0) {
@@ -63,34 +74,40 @@ fun DashboardScreen(vm: MainViewModel, offset: Int, onOffsetChange: (Int) -> Uni
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
-                    items(summary.categoryTotals.take(6)) { cat -> CategoryChip(cat) }
+                    items(summary.categoryTotals.take(6)) { cat ->
+                        CategoryChip(cat, onClick = { onNavigateToTransactions(cat.category) })
+                    }
                 }
             }
         }
 
-        if (txs.isNotEmpty()) {
+        if (monthTxs.isNotEmpty()) {
             item {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("أحدث العمليات", style = H2, modifier = Modifier.weight(1f))
-                    Text("عرض الكل", style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold))
+                    Text(
+                        "عرض الكل",
+                        style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold),
+                        modifier = Modifier.clickable { onNavigateToTransactions(null) }.padding(8.dp)
+                    )
                 }
             }
-            items(txs.take(3)) { tx ->
-                TransactionCard(tx, onClick = { })
+            items(monthTxs.take(3)) { tx ->
+                TransactionCard(tx, onClick = { onNavigateToTransactions(null) })
             }
-        }
-
-        if (txs.isEmpty()) {
+        } else if (txs.isNotEmpty()) {
+            item { EmptyState("لا توجد عمليات في هذا الشهر") }
+        } else {
             item { EmptyState("لم نرصد عمليات بعد") }
         }
     }
 }
 
 @Composable
-private fun BalanceCard(s: MonthSummary, offset: Int, onPrev: () -> Unit, onNext: () -> Unit) {
+private fun BalanceCard(s: MonthSummary, offset: Int, budget: Double, onPrev: () -> Unit, onNext: () -> Unit) {
     Box(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(RadiusXl))
@@ -106,8 +123,8 @@ private fun BalanceCard(s: MonthSummary, offset: Int, onPrev: () -> Unit, onNext
         )
         Column(Modifier.padding(26.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onPrev, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = White, modifier = Modifier.size(16.dp))
+                IconButton(onClick = onPrev, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "الشهر السابق", tint = White, modifier = Modifier.size(16.dp))
                 }
                 Text(
                     monthName(offset),
@@ -117,11 +134,11 @@ private fun BalanceCard(s: MonthSummary, offset: Int, onPrev: () -> Unit, onNext
                         .background(White.copy(alpha = 0.12f))
                         .padding(horizontal = 14.dp, vertical = 5.dp)
                 )
-                IconButton(onClick = onNext, modifier = Modifier.size(28.dp)) {
+                IconButton(onClick = onNext, enabled = offset < 0, modifier = Modifier.size(48.dp)) {
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack, null,
+                        Icons.AutoMirrored.Filled.ArrowForward, "الشهر التالي",
                         tint = White.copy(alpha = if (offset < 0) 1f else 0.3f),
-                        modifier = Modifier.size(16.dp).graphicsLayer(rotationZ = 180f)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
                 Spacer(Modifier.weight(1f))
@@ -132,18 +149,35 @@ private fun BalanceCard(s: MonthSummary, offset: Int, onPrev: () -> Unit, onNext
                 ) {
                     Icon(Icons.Default.Shield, null, Modifier.size(12.dp), tint = Lime)
                     Spacer(Modifier.width(4.dp))
-                    Text("محلي ١٠٠٪", style = Eyebrow.copy(color = Lime, fontSize = 11.sp))
+                    Text("محلي 100٪", style = Eyebrow.copy(color = Lime, fontSize = 11.sp))
                 }
             }
 
             Spacer(Modifier.height(24.dp))
-            Text("الرصيد المتبقي المتاح", style = Body.copy(color = OnInkSoft))
+            // "تجاوزت ميزانيتك" (exceeded your budget) must actually compare spend
+            // to a configured budget — driving it off s.net (income - spent) alone
+            // falsely flags anyone with no budget set, or whose income just hasn't
+            // posted yet this month, as "over budget" when neither is true.
+            val isOverBudget = budget > 0 && s.spent > budget
+            val isNegativeNet = s.net < 0
+            val isPastMonth = offset < 0
+            val label = when {
+                isOverBudget -> "تجاوزت ميزانيتك هذا الشهر"
+                isNegativeNet -> "صرفت أكثر مما دخلت هذا الشهر"
+                isPastMonth -> "صافي الشهر"
+                else -> "الرصيد المتبقي المتاح"
+            }
+            val isDanger = isOverBudget || isNegativeNet
+            Text(label, style = Body.copy(color = OnInkSoft))
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(FinancialAdvisor.fmt(abs(s.net)), style = Display)
+                Text(
+                    (if (isNegativeNet) "-" else "") + FinancialAdvisor.fmt(abs(s.net)),
+                    style = Display.copy(color = if (isDanger) Danger else Lime)
+                )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "ر.س", style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium, fontSize = 16.sp),
+                    currencyLabel("SAR"), style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium, fontSize = 16.sp),
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
             }
@@ -164,7 +198,7 @@ private fun BalanceCard(s: MonthSummary, offset: Int, onPrev: () -> Unit, onNext
                 Box(Modifier.width(1.dp).height(32.dp).background(White.copy(alpha = 0.08f)))
                 Spacer(Modifier.width(16.dp))
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Default.ArrowUpward, Color(0xFFFB7185), White.copy(alpha = 0.08f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
+                    IconBadge(Icons.Default.ArrowUpward, Danger, White.copy(alpha = 0.08f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
                     Spacer(Modifier.width(10.dp))
                     Column {
                         Text("إجمالي الصرف", style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
@@ -186,7 +220,7 @@ private fun BudgetStatusCard(budget: Double, spent: Double) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("استهلاك ميزانية الشهر", style = H2, modifier = Modifier.weight(1f))
             Text(
-                "${(spent / budget * 100).toInt()}٪",
+                "${(spent / budget * 100).roundToInt()}٪",
                 style = Body.copy(color = if (overBudget) Danger else Indigo, fontWeight = FontWeight.Bold),
                 modifier = Modifier
                     .clip(RoundedCornerShape(RadiusSm))
@@ -212,27 +246,28 @@ private fun BudgetStatusCard(budget: Double, spent: Double) {
         }
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth()) {
-            Text("صرفت: ${FinancialAdvisor.fmt(spent)} ر.س", style = BodyMuted.copy(fontSize = 12.sp))
+            Text("صرفت: ${FinancialAdvisor.fmt(spent)} ${currencyLabel("SAR")}", style = BodyMuted.copy(fontSize = 12.sp))
             Spacer(Modifier.weight(1f))
-            Text("السقف: ${FinancialAdvisor.fmt(budget)} ر.س", style = BodyMuted.copy(fontSize = 12.sp))
+            Text("السقف: ${FinancialAdvisor.fmt(budget)} ${currencyLabel("SAR")}", style = BodyMuted.copy(fontSize = 12.sp))
         }
     }
 }
 
 @Composable
-private fun CategoryChip(cat: com.mizan.money.advisor.CategoryTotal) {
+private fun CategoryChip(cat: com.mizan.money.advisor.CategoryTotal, onClick: () -> Unit) {
     Column(
         Modifier.width(136.dp)
             .clip(RoundedCornerShape(RadiusMd))
             .background(White)
             .border(1.dp, Line, RoundedCornerShape(RadiusMd))
+            .clickable(onClick = onClick)
             .padding(14.dp)
     ) {
         IconBadge(catIcon(cat.category), catColor(cat.category), catColorSoft(cat.category), size = 40.dp, iconSize = 18.dp)
         Spacer(Modifier.height(10.dp))
         Text(cat.category, style = H2.copy(fontSize = 13.sp), maxLines = 1)
         Spacer(Modifier.height(2.dp))
-        Text(FinancialAdvisor.fmt(cat.amount) + " ر.س", style = NumBold.copy(fontSize = 12.sp))
+        Text(FinancialAdvisor.fmt(cat.amount) + " " + currencyLabel("SAR"), style = NumBold.copy(fontSize = 12.sp))
         Spacer(Modifier.height(8.dp))
         Box(
             Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(Pill)).background(PaperOuter)

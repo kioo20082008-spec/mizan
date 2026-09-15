@@ -10,10 +10,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Dumps the raw SMS text + what the parser extracted from it, side by side,
-// so a scan can be shared for debugging misclassified/misparsed transactions
-// without anyone having to manually retype bank messages by hand.
-fun exportRawSmsForDebugging(context: Context, transactions: List<TransactionEntity>) {
+// Dumps the raw SMS text + what the parser extracted from it, side by side, so a
+// scan can be shared for debugging misclassified/misparsed transactions without
+// anyone having to manually retype bank messages by hand. Building the text and
+// writing it to disk is IO-bound, so call this off the main thread (Dispatchers.IO)
+// and only hand the resulting File to shareExportFile() back on the main thread.
+fun writeSmsExportFile(context: Context, transactions: List<TransactionEntity>): File {
     val sb = StringBuilder()
     sb.appendLine("== ميزان: تصدير رسائل SMS للتشخيص ==")
     sb.appendLine("تاريخ التصدير: ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())}")
@@ -37,7 +39,10 @@ fun exportRawSmsForDebugging(context: Context, transactions: List<TransactionEnt
     val dir = File(context.cacheDir, "exports").apply { mkdirs() }
     val file = File(dir, "mizan-sms-export.txt")
     file.writeText(sb.toString())
+    return file
+}
 
+fun shareExportFile(context: Context, file: File) {
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"

@@ -32,24 +32,48 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
     val range = remember(offset) { Dates.monthRange(offset) }
     val summary = remember(txs, offset) { FinancialAdvisor.summarize(txs, range.first, range.last) }
 
+    fun Double.toBudgetInput() = if (this % 1.0 == 0.0) toInt().toString() else toString()
+
     var totalInput by remember(monthKey) {
         mutableStateOf(
             budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }
-                ?.limitAmount?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: ""
+                ?.limitAmount?.toBudgetInput() ?: ""
         )
     }
-    var catInputs by remember(monthKey) { mutableStateOf<Map<String, String>>(emptyMap()) }
+    // Seeded synchronously from the already-loaded `budgets` (not emptyMap()), so
+    // switching months doesn't flash every category to "0" for a frame before the
+    // effect below catches up.
+    var catInputs by remember(monthKey) {
+        mutableStateOf(
+            CategoryClassifier.categories.associateWith { c ->
+                budgets.firstOrNull { it.monthKey == monthKey && it.category == c }
+                    ?.limitAmount?.toBudgetInput() ?: ""
+            }
+        )
+    }
     // Only one category's editor is open at a time, so the list stays scannable
-    // instead of showing 13 always-open input rows.
-    var editingCategory by remember { mutableStateOf<String?>(null) }
+    // instead of showing 13 always-open input rows. Keyed by month so switching
+    // months doesn't leave a stale category's editor expanded.
+    var editingCategory by remember(monthKey) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(budgets, monthKey) {
+        // Previously only catInputs was resynced here, so saving the total budget
+        // (or copying last month's) never refreshed the hero card's own number —
+        // it stayed blank/stale until the user left and re-entered the screen.
+        totalInput = budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }
+            ?.limitAmount?.toBudgetInput() ?: ""
         catInputs = CategoryClassifier.categories.associateWith { c ->
-            budgets.firstOrNull { it.monthKey == monthKey && it.category == c }
-                ?.limitAmount?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: ""
+            // Skip the category currently being typed into — otherwise an unrelated
+            // budget write elsewhere (e.g. saving the total) re-fires this effect
+            // and clobbers the in-progress, not-yet-saved keystrokes with what's
+            // still in the database.
+            if (c == editingCategory) catInputs[c] ?: ""
+            else budgets.firstOrNull { it.monthKey == monthKey && it.category == c }
+                ?.limitAmount?.toBudgetInput() ?: ""
         }
     }
 
+    val spentByCat = remember(summary) { summary.categoryTotals.associate { it.category to it.amount } }
     val prevMonthKey = Dates.monthKey(offset - 1)
     val hasPrevBudget = budgets.any { it.monthKey == prevMonthKey }
     val hasCurrentBudget = budgets.any { it.monthKey == monthKey }
@@ -95,14 +119,14 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                     Text("الميزانية الإجمالية للشهر", style = Eyebrow.copy(color = OnInkSoft))
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text(totalInput.ifBlank { "0" }, style = Display.copy(fontSize = 32.sp))
+                        Text(FinancialAdvisor.fmt(totalInput.toDoubleOrNull() ?: 0.0), style = Display.copy(fontSize = 32.sp))
                         Spacer(Modifier.width(6.dp))
                         Text("ر.س", style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium))
                     }
                     Spacer(Modifier.height(18.dp))
                     OutlinedTextField(
                         value = totalInput,
-                        onValueChange = { totalInput = it.filter { ch -> ch.isDigit() || ch == '.' } },
+                        onValueChange = { totalInput = sanitizeAmountInput(it) },
                         label = { Text("الحد الشهري") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
@@ -134,7 +158,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
         }
 
         items(CategoryClassifier.categories) { cat ->
-            val spentInCat = summary.categoryTotals.firstOrNull { it.category == cat }?.amount ?: 0.0
+            val spentInCat = spentByCat[cat] ?: 0.0
             val limit = catInputs[cat]?.toDoubleOrNull() ?: 0.0
             val pct = if (limit > 0) (spentInCat / limit).coerceIn(0.0, 1.0).toFloat() else 0f
             val isOver = limit > 0 && spentInCat > limit
@@ -150,7 +174,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                         Text(
                             if (limit > 0) "${FinancialAdvisor.fmt(spentInCat)} / ${FinancialAdvisor.fmt(limit)} ر.س"
                             else "${FinancialAdvisor.fmt(spentInCat)} ر.س — بدون حد",
-                            style = Eyebrow.copy(fontSize = 11.sp)
+                            style = Eyebrow.copy(fontSize = 11.sp, color = if (isOver) Danger else InkFaint, fontWeight = if (isOver) FontWeight.Bold else FontWeight.Normal)
                         )
                     }
                     Icon(
@@ -158,17 +182,19 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                         null, tint = InkFaint
                     )
                 }
-                Spacer(Modifier.height(10.dp))
-                Box(
-                    Modifier.fillMaxWidth().height(8.dp)
-                        .clip(RoundedCornerShape(Pill))
-                        .background(PaperOuter)
-                ) {
+                if (limit > 0) {
+                    Spacer(Modifier.height(10.dp))
                     Box(
-                        Modifier.fillMaxWidth(pct).fillMaxHeight()
+                        Modifier.fillMaxWidth().height(8.dp)
                             .clip(RoundedCornerShape(Pill))
-                            .background(if (isOver) Danger else catColor(cat))
-                    )
+                            .background(PaperOuter)
+                    ) {
+                        Box(
+                            Modifier.fillMaxWidth(pct).fillMaxHeight()
+                                .clip(RoundedCornerShape(Pill))
+                                .background(if (isOver) Danger else catColor(cat))
+                        )
+                    }
                 }
                 if (isEditing) {
                     Spacer(Modifier.height(14.dp))
@@ -176,7 +202,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                         OutlinedTextField(
                             value = catInputs[cat] ?: "",
                             onValueChange = { v ->
-                                catInputs = catInputs + (cat to v.filter { ch -> ch.isDigit() || ch == '.' })
+                                catInputs = catInputs + (cat to sanitizeAmountInput(v))
                             },
                             placeholder = { Text("0", style = Eyebrow) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -187,7 +213,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                         )
                         Spacer(Modifier.width(8.dp))
                         Box(
-                            Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
+                            Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
                                 .clickable {
                                     (catInputs[cat]?.toDoubleOrNull() ?: 0.0).let { vm.setBudget(monthKey, cat, it) }
                                     editingCategory = null

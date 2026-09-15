@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -122,7 +123,7 @@ fun TransactionCard(tx: TransactionEntity, onClick: () -> Unit) {
             IconBadge(catIcon(tx.category), catColor(tx.category), catColorSoft(tx.category), size = 46.dp)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(tx.merchant ?: "غير معروف", style = H2.copy(fontSize = 14.sp))
+                Text(tx.merchant ?: "غير معروف", style = H2.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(2.dp))
                 Text("${tx.category} • ${Dates.dayLabel(tx.timestamp)}", style = Eyebrow.copy(fontSize = 11.sp))
             }
@@ -182,6 +183,22 @@ fun catIcon(cat: String): ImageVector = when (cat) {
     CASH_WITHDRAWAL_CATEGORY -> Icons.Default.LocalAtm
     SELF_TRANSFER_CATEGORY -> Icons.Default.CompareArrows
     else -> Icons.Default.Category
+}
+
+// Arabic-Indic digits (٠-٩) are common on Arabic-locale numeric keyboards and pass
+// Char.isDigit() fine, but String.toDoubleOrNull() only understands ASCII digits —
+// so a value typed with them looks accepted in the field but silently fails to
+// parse, and for a budget field that means the save is either a no-op or (since
+// the repo treats amount<=0 as "delete") silently wipes the saved budget.
+fun sanitizeAmountInput(raw: String): String {
+    var s = raw
+    val ar = "٠١٢٣٤٥٦٧٨٩"
+    val fa = "۰۱۲۳۴۵۶۷۸۹"
+    ar.forEachIndexed { i, c -> s = s.replace(c, ('0' + i)) }
+    fa.forEachIndexed { i, c -> s = s.replace(c, ('0' + i)) }
+    s = s.filter { it.isDigit() || it == '.' }
+    val firstDot = s.indexOf('.')
+    return if (firstDot == -1) s else s.substring(0, firstDot + 1) + s.substring(firstDot + 1).replace(".", "")
 }
 
 fun monthName(offset: Int): String {

@@ -129,6 +129,18 @@ class FinancialAdvisorTest {
     }
 
     @Test
+    fun `detectSalary does not treat two wildly different monthly deposits as a salary`() {
+        val allTx = listOf(
+            tx(8000.0, TxType.INCOME, timestamp = JAN_2024_START + 1_000L),
+            tx(13000.0, TxType.INCOME, timestamp = FEB_MARK)
+        )
+        val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
+        val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
+
+        assertFalse(advice.any { it.title.contains("راتبك الشهري") })
+    }
+
+    @Test
     fun `advise does not claim a salary from a single month of income`() {
         val txs = listOf(tx(9500.0, TxType.INCOME))
         val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
@@ -151,6 +163,33 @@ class FinancialAdvisorTest {
 
         assertEquals(0.0, s.income, 0.001)
         assertTrue(advice.any { it.title.contains("50 / 30 / 20") && it.body.contains(FinancialAdvisor.fmt(8000.0)) })
+    }
+
+    @Test
+    fun `detectSubscriptions ignores non-SAR charges even at the same merchant`() {
+        val allTx = listOf(
+            tx(35.0, merchant = "Netflix", currency = "SAR", timestamp = JAN_2024_START + 1_000L),
+            tx(35.0, merchant = "Netflix", currency = "SAR", timestamp = FEB_MARK),
+            tx(999.0, merchant = "Netflix", currency = "USD", timestamp = MAR_MARK)
+        )
+        val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
+        val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
+
+        val subsAdvice = advice.firstOrNull { it.title.contains("اشتراكات") }
+        assertTrue(subsAdvice != null)
+        assertTrue(subsAdvice!!.body.contains(FinancialAdvisor.fmt(35.0)))
+        assertFalse(subsAdvice.body.contains(FinancialAdvisor.fmt(999.0)))
+    }
+
+    @Test
+    fun `advise does not show a nonsensical one-day pace when viewing a past month`() {
+        val txs = listOf(tx(850.0))
+        val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
+        val farFuture = JAN_2024_END + 180L * 86_400_000L // 6 months after month end
+        val advice = FinancialAdvisor.advise(s, monthlyBudget = 1000.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END, now = farFuture)
+
+        val paceAdvice = advice.first { it.title.contains("اقتربت من الحد") }
+        assertFalse(paceAdvice.body.contains("لـ 1 يوم"))
     }
 
     @Test
