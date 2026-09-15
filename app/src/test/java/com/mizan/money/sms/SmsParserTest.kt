@@ -97,6 +97,95 @@ class SmsParserTest {
         assertFalse(parsed!!.isSelfTransfer)
     }
 
+    // Regression tests for real Alinma/Barq SMS, which use a structured
+    // multi-line "label: value" body instead of one free-flowing sentence.
+    @Test
+    fun `parses a structured multi-line purchase SMS and finds the merchant on its own line`() {
+        val sms = "شراء إنترنت\nمبلغ: 36.81 SAR\nببطاقة مدى: 3581*\nمن حساب: **3000\nمن: Tabby\nفي: 2025-08-06 04:38"
+        val parsed = SmsParser.parse("alinma", sms, 8_000L)
+
+        assertNotNull(parsed)
+        assertEquals(36.81, parsed!!.amount, 0.001)
+        assertEquals(TxType.EXPENSE, parsed.type)
+        assertEquals("Tabby", parsed.merchant)
+    }
+
+    @Test
+    fun `an earlier "من حساب" line does not shadow the real "من" merchant line that follows it`() {
+        // Both lines start with "من" — the field-anchored line scan must return
+        // the *first line in the message*, not the first "من" occurrence overall,
+        // so it doesn't stop at "من حساب" before reaching the real merchant line.
+        val sms = "POS Purchases:\nmada card: **1929\nAmount: 32.50 SAR\nWallet Balance: 214.10\nAt: MCDONALDS\nOn: 2025-06-30 01:11"
+        val parsed = SmsParser.parse("barq app", sms, 8_500L)
+
+        assertEquals("MCDONALDS", parsed!!.merchant)
+    }
+
+    @Test
+    fun `recognizes the "ريال سعودى" (Saudi Riyal, two words) currency phrasing`() {
+        val sms = "شراء عبر Samsung Wallet\nمبلغ: ريال سعودى 44.37\nبطاقة مدى: 6513*\nحساب: *3000\nمن: Al Nahdi Pharmacy\nفي: 2025-08-22 19:40"
+        val parsed = SmsParser.parse("alinma", sms, 9_000L)
+
+        assertNotNull(parsed)
+        assertEquals(44.37, parsed!!.amount, 0.001)
+    }
+
+    @Test
+    fun `uses the SAR-converted amount for a foreign-currency purchase, not the raw foreign figure`() {
+        val sms = "International POS Purchases:\nVisa card: **1929\nAmount: 1348 THB (156.58 SAR)\nWallet balance: 3359.78\nAt: AT TWENTY TWO HOUSE\nCountry: Thailand\nOn: 2025-07-21 06:20"
+        val parsed = SmsParser.parse("barq app", sms, 9_500L)
+
+        assertNotNull(parsed)
+        assertEquals(156.58, parsed!!.amount, 0.001)
+        assertEquals("SAR", parsed.currency)
+    }
+
+    @Test
+    fun `flags a card top-up of the user's own Barq wallet as a self transfer, not real spending`() {
+        val sms = "شراء إنترنت\nمبلغ: 1,500 SAR\nببطاقة مدى: 6513*\nمن حساب: **3000\nمن: Barq\nفي: 2025-08-06 13:05"
+        val parsed = SmsParser.parse("alinma", sms, 10_000L)
+
+        assertNotNull(parsed)
+        assertTrue(parsed!!.isSelfTransfer)
+    }
+
+    @Test
+    fun `flags an outgoing transfer to the account holder's own name as a self transfer`() {
+        val sms = "Incoming local transfer\nAmount: 1076.00 SAR\nFrom: WALEED HAMADALLAH\nBank: INMA BANK\n2025-07-01 00:50"
+        val parsed = SmsParser.parse("barq app", sms, 10_500L)
+
+        assertNotNull(parsed)
+        assertTrue(parsed!!.isSelfTransfer)
+    }
+
+    @Test
+    fun `does not flag a transfer from a relative sharing the family name as a self transfer`() {
+        val sms = "حوالة داخلية واردة\nبـ  1,400 ريال\nمن عبدالكريم حمدالله\nمن حساب **9000\nلحساب *3000\nفي 06:13 25-12-26"
+        val parsed = SmsParser.parse("alinma", sms, 11_000L)
+
+        assertNotNull(parsed)
+        assertFalse(parsed!!.isSelfTransfer)
+    }
+
+    @Test
+    fun `a beneficiary field on a real transfer confirmation is not mistaken for a beneficiary-added notice`() {
+        // "المستفيد" (beneficiary) is also the field label on a genuine transfer
+        // receipt ("إلى المستفيد: <name>"), so only the more specific "تم إضافة/
+        // تفعيل مستفيد" phrasing should be treated as a non-transactional notice.
+        val sms = "حوالة صادرة داخلية\nمبلغ: 1,014 ريال\nالمستفيد: عبدالكريم هيثم اسعد حمدالله\nإلى حساب: *9000\nمن حساب: **3000\nفي: 2025-07-01 00:22"
+        val parsed = SmsParser.parse("alinma", sms, 11_500L)
+
+        assertNotNull(parsed)
+        assertEquals(1014.0, parsed!!.amount, 0.001)
+    }
+
+    @Test
+    fun `a beneficiary-added notice with no amount is still rejected as non-transactional`() {
+        val sms = "تم إضافة مستفيد بنك محلي بنجاح"
+        assertFalse(SmsParser.looksLikeTransaction(sms))
+        assertNull(SmsParser.parse("alinma", sms, 12_000L))
+    }
+
     @Test
     fun `hashFor is stable for identical input and differs when any field changes`() {
         val h1 = SmsParser.hashFor("BANK", 1_000L, "same body")
