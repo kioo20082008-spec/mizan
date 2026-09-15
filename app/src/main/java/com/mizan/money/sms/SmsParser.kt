@@ -52,9 +52,16 @@ object SmsParser {
         "debit transfer","outgoing local transfer","barq wallet transfer",
         "حوالة صادرة","خصم نهائي","سداد","إشعار خصم","الجهة","الخدمة"
     )
+    // Bare English "deposit" deliberately excluded: Barq's own internal
+    // holding-account name for wallet top-ups is literally "BARQ SAFE AND
+    // DEPOSIT CLIENT MONEY", so it would misclassify an *outgoing* transfer to
+    // that account (a self-transfer, type EXPENSE) as INCOME purely because
+    // its own recipient name happens to contain the word "deposit". "credit"/
+    // "money added"/Arabic "إيداع" already cover every real deposit template
+    // seen, without that collision risk.
     private val incomeWords = listOf(
         "إيداع","ايداع","أضيف","اضيف","راتب","حوالة واردة","استرداد","مرتجع",
-        "deposit","credit","salary","refund","received",
+        "credit","salary","refund","received",
         "credit transfer","incoming local transfer","حوالة داخلية واردة",
         "money added","تم قيد مبلغ","reversal","reverse transaction",
         "reversed local transfer","حوالة عكسية"
@@ -127,11 +134,15 @@ object SmsParser {
     // Alinma's "من: Tabby" (merchant) reliably comes before an unrelated
     // "من حساب: **3000" (source account) elsewhere in the same message, but
     // a single whole-text regex can't tell those two "من" occurrences apart.
-    // The negative lookahead keeps a bare "من" from also matching "من حساب"/
-    // "من بطاقة" ("from account"/"from card") lines, which are a *different*
-    // field and would otherwise win first simply for appearing earlier.
+    // The negative lookahead keeps a bare "من"/"لـ" from also matching "من
+    // حساب"/"لـ حساب"/"...بطاقة" ("from/to account"/"...card") lines, which
+    // are a *different* field and would otherwise win first simply for
+    // appearing earlier. "لـ" is the recipient label on Alinma's plain
+    // "حوالة صادرة محلية" template (e.g. "لـ BARQ SAFE AND DEPOSIT CLIENT
+    // MONEY") — without it, that transfer's merchant/self-transfer status
+    // could never be determined at all.
     private val merchantLineRegex = Regex(
-        """^(?:من البائع|إلى المستفيد|المستفيد|من(?!\s*(?:حساب|بطاقة))|from|to|at|الجهة)\s*[:：]?\s*(.+)$""",
+        """^(?:من البائع|إلى المستفيد|المستفيد|من(?!\s*(?:حساب|بطاقة))|لـ(?!\s*(?:حساب|بطاقة))|from|to|at|الجهة)\s*[:：]?\s*(.+)$""",
         RegexOption.IGNORE_CASE
     )
     private fun extractMerchantFromLines(body: String): String? {

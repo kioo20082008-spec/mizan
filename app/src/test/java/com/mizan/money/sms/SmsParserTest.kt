@@ -165,6 +165,32 @@ class SmsParserTest {
     }
 
     @Test
+    fun `an outgoing Alinma-to-Barq transfer is EXPENSE and self-flagged, not misfiled as income`() {
+        // Regression test for a real bug: Barq's own holding-account name for
+        // wallet top-ups is literally "BARQ SAFE AND DEPOSIT CLIENT MONEY" —
+        // the word "deposit" inside that name was previously in incomeWords,
+        // so this *outgoing* transfer was misclassified as INCOME. It also
+        // uses "لـ" (not "إلى المستفيد") as its recipient-field label, which
+        // wasn't recognized at all, so isSelfTransfer silently stayed false too.
+        val sms = "حوالة صادرة محلية\nمبلغ 600 SAR\nرسوم: 0.58 SAR\nلـ BARQ SAFE AND DEPOSIT CLIENT MONEY\nلحساب *5157\nفي 26-09-03 15:44"
+        val parsed = SmsParser.parse("alinma", sms, 10_250L)
+
+        assertNotNull(parsed)
+        assertEquals(TxType.EXPENSE, parsed!!.type)
+        assertTrue(parsed.isSelfTransfer)
+    }
+
+    @Test
+    fun `a "لـ حساب" line is not mistaken for the "لـ" recipient label`() {
+        val sms = "تم إيداع الراتب\nمبلغ SAR 7732.19\nلـ حساب **3000\nفي 06:24 26-08-27"
+        val parsed = SmsParser.parse("alinma", sms, 10_300L)
+
+        assertNotNull(parsed)
+        assertEquals(TxType.INCOME, parsed!!.type)
+        assertFalse(parsed.isSelfTransfer)
+    }
+
+    @Test
     fun `flags an outgoing transfer to the account holder's own name as a self transfer`() {
         val sms = "Incoming local transfer\nAmount: 1076.00 SAR\nFrom: WALEED HAMADALLAH\nBank: INMA BANK\n2025-07-01 00:50"
         val parsed = SmsParser.parse("barq app", sms, 10_500L)
