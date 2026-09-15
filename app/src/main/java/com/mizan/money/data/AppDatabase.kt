@@ -8,17 +8,20 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [TransactionEntity::class, BudgetEntity::class],
     version = 1,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun budgetDao(): BudgetDao
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
+        // No fallbackToDestructiveMigration: this holds a user's financial history,
+        // so a future schema change must ship a real Migration rather than silently
+        // wipe their data. exportSchema keeps the schema history to write one from.
         fun get(ctx: Context): AppDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(
                 ctx.applicationContext, AppDatabase::class.java, "mizan.db"
-            ).fallbackToDestructiveMigration().build().also { INSTANCE = it }
+            ).build().also { INSTANCE = it }
         }
     }
 }

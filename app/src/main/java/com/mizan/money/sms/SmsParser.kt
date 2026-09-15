@@ -1,12 +1,14 @@
 package com.mizan.money.sms
 
 import com.mizan.money.data.TxType
+import java.security.MessageDigest
 import java.util.Locale
 
 data class ParsedSms(
     val amount: Double, val currency: String, val merchant: String?,
     val cardLast4: String?, val bankName: String?, val type: TxType,
-    val timestamp: Long, val raw: String, val sender: String
+    val timestamp: Long, val raw: String, val sender: String,
+    val isSelfTransfer: Boolean
 )
 
 object SmsParser {
@@ -21,6 +23,12 @@ object SmsParser {
     private val otpWords = listOf(
         "otp","رمز التحقق","كود التحقق","رمز التأكيد","verification code",
         "do not share","لا تشارك"
+    )
+    // Wording banks use when money moves between the same customer's own
+    // accounts, as opposed to a transfer to someone else.
+    private val selfTransferWords = listOf(
+        "بين حساباتك","بين حسابيك","بين حساباتي","من حسابك الى حسابك",
+        "من حسابك إلى حسابك","تحويل داخلي","internal transfer","own account"
     )
     private val balanceWord = Regex(
         """(?:رصيد|الرصيد|رصيدك|balance|متاح|available)[^\d]{0,25}[\d,]+(?:\.\d{1,2})?""",
@@ -95,6 +103,12 @@ object SmsParser {
             low.contains("aed") || low.contains("درهم") -> "AED"
             else -> "SAR"
         }
-        return ParsedSms(amount, currency, merchant, last4, bankName, type, timestamp, body, sender)
+        val isSelfTransfer = selfTransferWords.any { low.contains(it) }
+        return ParsedSms(amount, currency, merchant, last4, bankName, type, timestamp, body, sender, isSelfTransfer)
+    }
+    fun hashFor(sender: String, timestamp: Long, body: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest("$sender|$timestamp|$body".toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
     }
 }

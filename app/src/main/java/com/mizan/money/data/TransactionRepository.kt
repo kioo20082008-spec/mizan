@@ -10,6 +10,7 @@ class TransactionRepository(
     fun budgets(): Flow<List<BudgetEntity>> = budgetDao.observeAll()
     suspend fun add(tx: TransactionEntity): Long = txDao.insert(tx)
     suspend fun addAll(list: List<TransactionEntity>) = txDao.insertAll(list)
+    suspend fun update(tx: TransactionEntity) = txDao.update(tx)
     suspend fun delete(tx: TransactionEntity) = txDao.delete(tx)
     suspend fun setBudget(monthKey: String, category: String, amount: Double) {
         if (amount <= 0) budgetDao.delete(monthKey, category)

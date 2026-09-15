@@ -1,7 +1,9 @@
 package com.mizan.money.advisor
 
+import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
+import java.util.Calendar
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
@@ -17,7 +19,13 @@ data class MonthSummary(
 object FinancialAdvisor {
     fun fmt(v: Double): String = String.format(Locale.US, "%,.2f", v)
     fun summarize(txs: List<TransactionEntity>, monthStart: Long, monthEnd: Long): MonthSummary {
-        val inMonth = txs.filter { it.timestamp in monthStart..monthEnd }
+        // Totals are only meaningful within one currency; scope to SAR (the app's
+        // primary currency) so a USD/EUR transaction doesn't get added in as-is.
+        // Self-transfers (money moved between the user's own accounts) are excluded
+        // too, since they're neither real income nor real spending.
+        val inMonth = txs.filter {
+            it.timestamp in monthStart..monthEnd && it.currency == "SAR" && !it.isSelfTransfer
+        }
         val expenses = inMonth.filter { it.type == TxType.EXPENSE }
         val incomes = inMonth.filter { it.type == TxType.INCOME }
         val spent = expenses.sumOf { it.amount }
@@ -61,6 +69,13 @@ object FinancialAdvisor {
                     Level.WARN)
             }
         }
+        summary.categoryTotals.firstOrNull { it.category == CASH_WITHDRAWAL_CATEGORY }?.let { cash ->
+            if (cash.share >= 0.15 && summary.spent > 0) {
+                list += Advice("سحوبات نقدية ملحوظة 💵",
+                    "سحبت ${fmt(cash.amount)} ر.س نقداً، أي ${(cash.share * 100).toInt()}% من مصاريفك. المصروفات النقدية لا يمكن تتبع تفاصيلها تلقائياً من رسائل البنك — حاول تدوين أين تُصرف.",
+                    Level.INFO)
+            }
+        }
         if (summary.spent > 0) {
             list += Advice("معدل صرفك اليومي 📊",
                 "تصرف بمعدل ${fmt(summary.dailyAvg)} ر.س يومياً. لو استمريت فستنفق ~${fmt(summary.dailyAvg * 30)} ر.س شهرياً.",
@@ -91,14 +106,48 @@ object FinancialAdvisor {
                 if (rate >= 0.2) "ادخار ممتاز 🏆" else "راجع نسبة الادخار",
                 msg,
                 if (rate >= 0.2) Level.GOOD else if (rate >= 0) Level.INFO else Level.DANGER)
+        }
+        val salary = detectSalary(allTx)
+        if (salary != null) {
+            list += Advice("رصدنا راتبك الشهري 💼",
+                "بناءً على تكرار الإيداعات خلال الأشهر الماضية، دخلك الثابت الشهري تقريباً ${fmt(salary)} ر.س.",
+                Level.INFO)
+        }
+        // Prefer the detected recurring salary as the planning base (more stable
+        // than one month's raw income, and still useful before payday hits).
+        val planningIncome = salary ?: summary.income.takeIf { it > 0 }
+        if (planningIncome != null) {
             list += Advice("قاعدة 50 / 30 / 20 💡",
-                "من دخل ${fmt(summary.income)} ر.س: ${fmt(summary.income * 0.5)} للاحتياجات، ${fmt(summary.income * 0.3)} للرغبات، ${fmt(summary.income * 0.2)} للادخار.",
+                "من دخل ${fmt(planningIncome)} ر.س: ${fmt(planningIncome * 0.5)} للاحتياجات، ${fmt(planningIncome * 0.3)} للرغبات، ${fmt(planningIncome * 0.2)} للادخار.",
                 Level.INFO)
         }
         return list
     }
+    // Salary is inferred, not tagged per-SMS: bank wording for a payroll deposit
+    // varies too much to match reliably, but a recurring similar-sized deposit
+    // once a month is a strong signal on its own.
+    private fun detectSalary(allTx: List<TransactionEntity>): Double? {
+        val incomes = allTx.filter { it.type == TxType.INCOME && it.currency == "SAR" && !it.isSelfTransfer }
+        if (incomes.isEmpty()) return null
+        fun monthKeyOf(ts: Long): Int {
+            val c = Calendar.getInstance().apply { timeInMillis = ts }
+            return c.get(Calendar.YEAR) * 100 + c.get(Calendar.MONTH)
+        }
+        // The largest deposit per calendar month, since salary is typically a
+        // person's biggest recurring credit — this filters out smaller one-off
+        // refunds landing in the same month.
+        val perMonth = incomes.groupBy { monthKeyOf(it.timestamp) }
+            .mapValues { (_, list) -> list.maxOf { it.amount } }
+        if (perMonth.size < 2) return null
+        val amounts = perMonth.values.toList()
+        val avg = amounts.average()
+        val consistentMonths = amounts.count { abs(it - avg) / avg < 0.15 }
+        return if (consistentMonths >= 2) avg else null
+    }
     private fun detectSubscriptions(allTx: List<TransactionEntity>): List<Pair<String, Double>> {
-        val recent = allTx.filter { it.type == TxType.EXPENSE && it.merchant != null }
+        // Exclude self-transfers so a recurring auto-transfer to a savings account
+        // doesn't get mistaken for a subscription.
+        val recent = allTx.filter { it.type == TxType.EXPENSE && it.merchant != null && !it.isSelfTransfer }
         val grouped = recent.groupBy { it.merchant!!.lowercase().trim() }
         return grouped.mapNotNull { (merchant, list) ->
             if (list.size < 2) return@mapNotNull null

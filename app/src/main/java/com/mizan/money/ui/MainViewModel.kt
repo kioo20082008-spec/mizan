@@ -3,25 +3,44 @@ package com.mizan.money.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.mizan.money.MoneyApp
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mizan.money.data.*
 import com.mizan.money.sms.InboxScanner
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
-class MainViewModel(app: Application) : AndroidViewModel(app) {
-    private val repo = (app as MoneyApp).repository
+// The repository is constructor-injected (see MainViewModel.factory()) instead of
+// cast out of Application inside the class, so this can be constructed with a
+// fake repository in tests or previews.
+class MainViewModel(app: Application, private val repo: TransactionRepository) : AndroidViewModel(app) {
     val transactions = repo.allTransactions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val budgets = repo.budgets().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning
+
     fun scanInbox() {
         viewModelScope.launch {
-            val ctx = getApplication<Application>()
-            val found = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
-            repo.addAll(found)
+            _isScanning.value = true
+            try {
+                val ctx = getApplication<Application>()
+                val found = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
+                repo.addAll(found)
+            } catch (e: Exception) {
+                // Reading the SMS provider can fail in device-specific ways (some
+                // OEM builds reject the query even with READ_SMS granted). An
+                // uncaught exception here would otherwise crash the whole app on
+                // launch, so degrade to "no transactions found" instead.
+            } finally {
+                _isScanning.value = false
+            }
         }
     }
     fun addManual(amount: Double, merchant: String, category: String, type: TxType) {
@@ -34,9 +53,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 timestamp = now, isManual = true))
         }
     }
+    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.update(tx) }
     fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx) }
     fun setBudget(monthKey: String, category: String, amount: Double) =
         viewModelScope.launch { repo.setBudget(monthKey, category, amount) }
+
+    companion object {
+        fun factory(app: Application, repo: TransactionRepository) = viewModelFactory {
+            initializer { MainViewModel(app, repo) }
+        }
+    }
 }
 
 object Dates {
