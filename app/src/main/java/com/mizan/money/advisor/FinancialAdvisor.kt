@@ -36,14 +36,20 @@ object FinancialAdvisor {
                 val sum = list.sumOf { it.amount }
                 CategoryTotal(cat, sum, if (spent > 0) sum / spent else 0.0)
             }.sortedByDescending { it.amount }
-        return MonthSummary(spent, income, income - spent, expenses.size, spent / daysPassed, byCat, expenses.maxByOrNull { it.amount })
+        // A single big irregular bill (rent, etc) posted on one day would
+        // otherwise dominate "average daily spend" — the user flags which
+        // transactions to leave out of this one figure; totals/budgets/category
+        // breakdowns above still include them, since that money is still spent.
+        val dailyAvgBasis = expenses.filter { !it.excludeFromDailyAvg }.sumOf { it.amount }
+        return MonthSummary(spent, income, income - spent, expenses.size, dailyAvgBasis / daysPassed, byCat, expenses.maxByOrNull { it.amount })
     }
     fun advise(summary: MonthSummary, monthlyBudget: Double, allTx: List<TransactionEntity>,
-               monthStart: Long, monthEnd: Long, now: Long = System.currentTimeMillis()): List<Advice> {
+               monthStart: Long, monthEnd: Long, now: Long = System.currentTimeMillis(),
+               manualSalary: Double = 0.0): List<Advice> {
         val list = mutableListOf<Advice>()
         if (monthlyBudget <= 0.0) {
-            list += Advice("حدّد ميزانيتك الشهرية 🎯",
-                "لم تحدد ميزانية بعد. اذهب لتبويب «الميزانية» واكتب المبلغ الذي تريد ألا تتجاوزه هذا الشهر.",
+            list += Advice("بانتظار دخل هذا الشهر 🎯",
+                "لم يصلك دخل بعد هذا الشهر، ولا راتب محفوظ نقدّر عليه. بمجرد وصول أول إيداع سنقدر نحسب استهلاكك من رصيدك الفعلي.",
                 Level.INFO)
         } else {
             val pct = summary.spent / monthlyBudget
@@ -113,15 +119,22 @@ object FinancialAdvisor {
                 msg,
                 if (rate >= 0.2) Level.GOOD else if (rate >= 0) Level.INFO else Level.DANGER)
         }
-        val salary = detectSalary(allTx)
+        // A user-entered salary always wins over the inferred one — detection
+        // needs 2+ months of consistent deposits and can be slow to pick up a
+        // new/changed salary, while the user just knows the number.
+        val salary = manualSalary.takeIf { it > 0 } ?: detectSalary(allTx)
         if (salary != null) {
-            list += Advice("رصدنا راتبك الشهري 💼",
-                "بناءً على تكرار الإيداعات خلال الأشهر الماضية، دخلك الثابت الشهري تقريباً ${fmt(salary)} ر.س.",
-                Level.INFO)
+            if (manualSalary > 0) {
+                list += Advice("راتبك الشهري 💼",
+                    "حسب ما أدخلته في الإعدادات، راتبك الشهري ${fmt(salary)} ر.س.",
+                    Level.INFO)
+            } else {
+                list += Advice("رصدنا راتبك الشهري 💼",
+                    "بناءً على تكرار الإيداعات خلال الأشهر الماضية، دخلك الثابت الشهري تقريباً ${fmt(salary)} ر.س.",
+                    Level.INFO)
+            }
         }
-        // Prefer the detected recurring salary as the planning base (more stable
-        // than one month's raw income, and still useful before payday hits).
-        val planningIncome = salary ?: summary.income.takeIf { it > 0 }
+        val planningIncome = resolveIncome(summary, salary)
         if (planningIncome != null) {
             list += Advice("قاعدة 50 / 30 / 20 💡",
                 "من دخل ${fmt(planningIncome)} ر.س: ${fmt(planningIncome * 0.5)} للاحتياجات، ${fmt(planningIncome * 0.3)} للرغبات، ${fmt(planningIncome * 0.2)} للادخار.",
@@ -129,6 +142,16 @@ object FinancialAdvisor {
         }
         return list
     }
+    // The basis used for "how much of my money have I used up" (budget-consumption
+    // card, over-budget advice): whatever actually posted as income this month, so
+    // it always agrees with the real remaining balance (income - spent) shown on
+    // the dashboard. Salary (manual or detected) is only a pre-payday stand-in —
+    // once real income lands this month, even a salary figure the user typed in
+    // is no longer a better estimate than what's actually in the account.
+    fun planningIncome(summary: MonthSummary, allTx: List<TransactionEntity>, manualSalary: Double = 0.0): Double? =
+        resolveIncome(summary, manualSalary.takeIf { it > 0 } ?: detectSalary(allTx))
+    private fun resolveIncome(summary: MonthSummary, salary: Double?): Double? =
+        summary.income.takeIf { it > 0 } ?: salary
     // Salary is inferred, not tagged per-SMS: bank wording for a payroll deposit
     // varies too much to match reliably, but a recurring similar-sized deposit
     // once a month is a strong signal on its own.
@@ -150,14 +173,27 @@ object FinancialAdvisor {
         val consistentMonths = amounts.count { abs(it - avg) / avg < 0.15 }
         return if (consistentMonths >= 2) avg else null
     }
+    private val merchantSuffixes = Regex("""\.(com|net|org)\b|\b(inc|llc|ltd|co)\.?\b""", RegexOption.IGNORE_CASE)
+    private fun normalizeMerchantName(raw: String): String =
+        merchantSuffixes.replace(raw.lowercase(Locale.ROOT), "")
+            .replace(Regex("""[^a-z0-9؀-ۿ]+"""), " ")
+            .trim()
     private fun detectSubscriptions(allTx: List<TransactionEntity>): List<Pair<String, Double>> {
-        // SAR-only (matches summarize/detectSalary) and excludes self-transfers, so
-        // a recurring auto-transfer to a savings account or a foreign-currency charge
-        // at a same-named merchant doesn't get mistaken for / mixed into a subscription.
+        // SAR-only (matches summarize/detectSalary), excludes self-transfers, and —
+        // importantly — only looks at transactions CategoryClassifier already put
+        // in "اشتراكات" (Netflix, Spotify, etc). Recurring-similar-amount alone is
+        // too weak a signal on its own: frequent food-delivery orders (HungerStation,
+        // Keeta) and fixed-installment BNPL charges (Tabby, Tamara) both recur with
+        // near-identical amounts too, but neither is a subscription.
         val recent = allTx.filter {
-            it.type == TxType.EXPENSE && it.merchant != null && it.currency == "SAR" && !it.isSelfTransfer
+            it.type == TxType.EXPENSE && it.merchant != null && it.currency == "SAR" &&
+                !it.isSelfTransfer && it.category == "اشتراكات"
         }
-        val grouped = recent.groupBy { it.merchant!!.lowercase().trim() }
+        // A bank's own merchant-name formatting varies charge to charge for the
+        // same subscription ("Netflix", "NETFLIX.COM", "Netflix Inc") — without
+        // normalizing, each variant groups separately and never reaches the 2+
+        // occurrences needed below, so the subscription goes undetected.
+        val grouped = recent.groupBy { normalizeMerchantName(it.merchant!!) }
         return grouped.mapNotNull { (merchant, list) ->
             if (list.size < 2) return@mapNotNull null
             val amounts = list.map { it.amount }

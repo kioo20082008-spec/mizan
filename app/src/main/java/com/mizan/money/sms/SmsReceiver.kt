@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
+import android.util.Log
 import com.mizan.money.MoneyApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,7 @@ class SmsReceiver : BroadcastReceiver() {
                 }
             } catch (e: Exception) {
                 // Never let a malformed SMS crash the app in the background.
+                Log.e("Mizan", "failed to process an incoming SMS", e)
             } finally { pending.finish() }
         }
     }

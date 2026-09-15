@@ -6,8 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -25,13 +27,18 @@ import androidx.compose.ui.unit.sp
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
-import com.mizan.money.sms.CategoryClassifier
 
 // ============ TRANSACTIONS ============
 @Composable
 fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
     val txs by vm.transactions.collectAsState()
-    var query by remember(initialQuery) { mutableStateOf(initialQuery ?: "") }
+    val categories by vm.categories.collectAsState()
+    var query by remember { mutableStateOf(initialQuery ?: "") }
+    // Re-applies initialQuery on every distinct value it takes, not just once at
+    // first composition — remember(initialQuery) alone would miss a same-value
+    // re-trigger for a screen instance that survives across it (e.g. inside a
+    // navigation backstack instead of being fully disposed on tab switch).
+    LaunchedEffect(initialQuery) { query = initialQuery ?: "" }
     var selected by remember { mutableStateOf<TransactionEntity?>(null) }
     var showAdd by remember { mutableStateOf(false) }
 
@@ -106,6 +113,7 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
     selected?.let { current ->
         TxDetailDialog(
             tx = current,
+            categories = categories,
             onDismiss = { selected = null },
             onDelete = { vm.delete(current); selected = null },
             onSave = { updated -> vm.update(updated); selected = null }
@@ -113,6 +121,7 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
     }
     if (showAdd) {
         AddDialog(
+            categories = categories,
             onDismiss = { showAdd = false },
             onSave = { a, m, c, t -> vm.addManual(a, m, c, t); showAdd = false }
         )
@@ -122,6 +131,7 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
 @Composable
 private fun TxDetailDialog(
     tx: TransactionEntity,
+    categories: List<String>,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
     onSave: (TransactionEntity) -> Unit
@@ -132,6 +142,7 @@ private fun TxDetailDialog(
     var category by remember(tx.id) { mutableStateOf(tx.category) }
     var type by remember(tx.id) { mutableStateOf(tx.type) }
     var isSelfTransfer by remember(tx.id) { mutableStateOf(tx.isSelfTransfer) }
+    var excludeFromDailyAvg by remember(tx.id) { mutableStateOf(tx.excludeFromDailyAvg) }
     var confirmingDelete by remember(tx.id) { mutableStateOf(false) }
 
     if (confirmingDelete) {
@@ -159,7 +170,11 @@ private fun TxDetailDialog(
         title = { Text(if (editing) "تعديل العملية" else "تفاصيل العملية", style = H2) },
         text = {
             if (editing) {
-                Column {
+                // Without a scroll wrapper, a long category list (custom
+                // categories keep growing) overflows the dialog's fixed height
+                // and anything past the fold — including a category just
+                // added — is rendered but unreachable/invisible.
+                Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                     SegmentedToggle(
                         options = listOf("مصروف" to Danger, "دخل" to Success),
                         selectedIndex = if (type == TxType.EXPENSE) 0 else 1,
@@ -208,12 +223,31 @@ private fun TxDetailDialog(
                             colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
                         )
                     }
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(RadiusSm))
+                            .background(PaperOuter)
+                            .clickable { excludeFromDailyAvg = !excludeFromDailyAvg }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("استثنِ من معدل الصرف اليومي", style = Body.copy(fontWeight = FontWeight.Medium))
+                            Text("لمصروف كبير غير يومي مثل الإيجار — يبقى محسوباً في الإجمالي والميزانية", style = Eyebrow.copy(fontSize = 11.sp))
+                        }
+                        Switch(
+                            checked = excludeFromDailyAvg,
+                            onCheckedChange = { excludeFromDailyAvg = it },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                        )
+                    }
                     if (!isSelfTransfer) {
                         Spacer(Modifier.height(10.dp))
                         Text("التصنيف", style = Eyebrow)
                         Spacer(Modifier.height(6.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            CategoryClassifier.categories.chunked(2).forEach { row ->
+                            categories.chunked(2).forEach { row ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     row.forEach { c ->
                                         Box(
@@ -240,7 +274,7 @@ private fun TxDetailDialog(
                     }
                 }
             } else {
-                Column {
+                Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconBadge(Icons.Default.AccountBalance, InkSoft, PaperOuter, size = 32.dp, iconSize = 16.dp)
                         Spacer(Modifier.width(8.dp))
@@ -270,6 +304,15 @@ private fun TxDetailDialog(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+                        if (tx.excludeFromDailyAvg) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "مستثناة من معدل الصرف اليومي",
+                                style = Eyebrow.copy(fontSize = 11.sp),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                     Spacer(Modifier.height(16.dp))
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
@@ -292,7 +335,10 @@ private fun TxDetailDialog(
             if (editing) {
                 TextButton(onClick = {
                     amount.toDoubleOrNull()?.let {
-                        onSave(tx.copy(amount = it, merchant = merchant.ifBlank { null }, category = category, type = type, isSelfTransfer = isSelfTransfer))
+                        onSave(tx.copy(
+                            amount = it, merchant = merchant.ifBlank { null }, category = category, type = type,
+                            isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg
+                        ))
                     }
                 }) { Text("حفظ", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
             } else {
@@ -312,10 +358,10 @@ private fun TxDetailDialog(
 }
 
 @Composable
-private fun AddDialog(onDismiss: () -> Unit, onSave: (Double, String, String, TxType) -> Unit) {
+private fun AddDialog(categories: List<String>, onDismiss: () -> Unit, onSave: (Double, String, String, TxType) -> Unit) {
     var amount by remember { mutableStateOf("") }
     var merchant by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf(CategoryClassifier.categories.first()) }
+    var category by remember { mutableStateOf(categories.first()) }
     var type by remember { mutableStateOf(TxType.EXPENSE) }
 
     AlertDialog(
@@ -324,7 +370,7 @@ private fun AddDialog(onDismiss: () -> Unit, onSave: (Double, String, String, Tx
         shape = RoundedCornerShape(RadiusXl),
         title = { Text("إضافة عملية يدوية", style = H2) },
         text = {
-            Column {
+            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                 SegmentedToggle(
                     options = listOf("مصروف" to Danger, "دخل" to Success),
                     selectedIndex = if (type == TxType.EXPENSE) 0 else 1,
@@ -351,7 +397,7 @@ private fun AddDialog(onDismiss: () -> Unit, onSave: (Double, String, String, Tx
                 Text("التصنيف", style = Eyebrow)
                 Spacer(Modifier.height(6.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    CategoryClassifier.categories.chunked(2).forEach { row ->
+                    categories.chunked(2).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             row.forEach { c ->
                                 Box(

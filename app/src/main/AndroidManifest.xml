@@ -5,6 +5,7 @@
     <application
         android:name=".MoneyApp"
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
         android:label="ميزان"
         android:supportsRtl="true"
         android:theme="@style/Theme.Mizan">

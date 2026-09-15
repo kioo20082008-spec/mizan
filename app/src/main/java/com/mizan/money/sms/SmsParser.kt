@@ -29,6 +29,17 @@ fun ParsedSms.toEntity(): TransactionEntity {
 }
 
 object SmsParser {
+    // Restricted, per explicit request, to only the two banks/wallets this
+    // app's user actually holds accounts with. Any other sender — Tabby,
+    // Tamara, a utility company's own bill-reminder SMS, etc — is rejected
+    // outright regardless of what its text looks like, since those senders
+    // can mention an amount and a purchase/payment word too without ever
+    // being the bank's own confirmation that money actually moved.
+    private val allowedSenders = listOf("alinma", "الإنماء", "barq", "برق")
+    private fun isAllowedSender(sender: String): Boolean {
+        val s = sender.lowercase(Locale.ROOT)
+        return allowedSenders.any { s.contains(it) }
+    }
     // Free-text expense/income keywords (single-sentence SMS from banks like
     // Rajhi), plus the header phrases used by banks that instead send a
     // structured multi-line "label: value" SMS (e.g. Alinma, Barq): each field
@@ -41,9 +52,16 @@ object SmsParser {
         "debit transfer","outgoing local transfer","barq wallet transfer",
         "حوالة صادرة","خصم نهائي","سداد","إشعار خصم","الجهة","الخدمة"
     )
+    // Bare English "deposit" deliberately excluded: Barq's own internal
+    // holding-account name for wallet top-ups is literally "BARQ SAFE AND
+    // DEPOSIT CLIENT MONEY", so it would misclassify an *outgoing* transfer to
+    // that account (a self-transfer, type EXPENSE) as INCOME purely because
+    // its own recipient name happens to contain the word "deposit". "credit"/
+    // "money added"/Arabic "إيداع" already cover every real deposit template
+    // seen, without that collision risk.
     private val incomeWords = listOf(
         "إيداع","ايداع","أضيف","اضيف","راتب","حوالة واردة","استرداد","مرتجع",
-        "deposit","credit","salary","refund","received",
+        "credit","salary","refund","received",
         "credit transfer","incoming local transfer","حوالة داخلية واردة",
         "money added","تم قيد مبلغ","reversal","reverse transaction",
         "reversed local transfer","حوالة عكسية"
@@ -60,10 +78,10 @@ object SmsParser {
         // legitimate transfer confirmation ("إلى المستفيد: <name>").
         "تم إضافة مستفيد","تم تفعيل مستفيد","new benef",
         "rejected transaction","ya hala","welcome back",
-        "logged in","عزيزي العميل","عميلنا العزيز","dear customer","dear barq customer",
-        "hi waleed","هلا وليد","حجز مبلغ","رصيد البطاقة","لإتمام عملية الشراء",
+        "logged in","dear barq customer",
+        "حجز مبلغ","رصيد البطاقة","لإتمام عملية الشراء",
         "الرمز السري","الرقم السري","رمز شراء","qattah","successfully added to",
-        "نفيدكم","الاستعلام عن","تم تغيير الرقم","تم تغير الرقم"
+        "الاستعلام عن","تم تغيير الرقم","تم تغير الرقم"
     )
     // Wording banks use when money moves between the same customer's own
     // accounts, as opposed to a transfer to someone else.
@@ -73,18 +91,20 @@ object SmsParser {
     )
     // The account holder's own name, as it appears as the counterparty on
     // transfers between their own accounts at different banks/wallets (e.g.
-    // Alinma <-> Barq). Requires both first and last name so a relative
-    // sharing the family name (e.g. a brother) isn't mistaken for the owner.
-    // Barq's own internal holding account name for wallet top-ups is a
-    // reliable self-transfer signal on its own, regardless of bank — as is a
-    // bank purchase whose merchant is bare "Barq" (a card top-up of the
-    // user's own Barq wallet, not an actual purchase from a third party).
+    // Alinma <-> Barq). Set from Settings (MoneyApp.onCreate loads it before
+    // any SMS is ever parsed, MainViewModel.setOwnerName keeps it live) —
+    // never hardcoded, since this object is shared code, not per-user state.
+    // All tokens must be present so a relative sharing the family name (e.g.
+    // a brother) isn't mistaken for the owner. Barq's own internal holding
+    // account name for wallet top-ups is a reliable self-transfer signal on
+    // its own, regardless of bank — as is a bank purchase whose merchant is
+    // bare "Barq" (a card top-up of the user's own Barq wallet, not an
+    // actual purchase from a third party).
+    @Volatile var ownerNameTokens: List<String> = emptyList()
     private fun isSelfAccountName(name: String): Boolean {
         val n = name.lowercase(Locale.ROOT).trim()
         if (n.contains("barq safe and deposit client money") || n == "barq") return true
-        val hasFirst = n.contains("waleed") || n.contains("وليد")
-        val hasLast = n.contains("hamadallah") || n.contains("حمدالله") || n.contains("حمدال")
-        return hasFirst && hasLast
+        return ownerNameTokens.isNotEmpty() && ownerNameTokens.all { n.contains(it) }
     }
     private val balanceWord = Regex(
         """(?:رصيد|الرصيد|رصيدك|balance|متاح|available)[^\d]{0,80}[\d,]+(?:\.\d{1,2})?""",
@@ -116,11 +136,15 @@ object SmsParser {
     // Alinma's "من: Tabby" (merchant) reliably comes before an unrelated
     // "من حساب: **3000" (source account) elsewhere in the same message, but
     // a single whole-text regex can't tell those two "من" occurrences apart.
-    // The negative lookahead keeps a bare "من" from also matching "من حساب"/
-    // "من بطاقة" ("from account"/"from card") lines, which are a *different*
-    // field and would otherwise win first simply for appearing earlier.
+    // The negative lookahead keeps a bare "من"/"لـ" from also matching "من
+    // حساب"/"لـ حساب"/"...بطاقة" ("from/to account"/"...card") lines, which
+    // are a *different* field and would otherwise win first simply for
+    // appearing earlier. "لـ" is the recipient label on Alinma's plain
+    // "حوالة صادرة محلية" template (e.g. "لـ BARQ SAFE AND DEPOSIT CLIENT
+    // MONEY") — without it, that transfer's merchant/self-transfer status
+    // could never be determined at all.
     private val merchantLineRegex = Regex(
-        """^(?:من البائع|إلى المستفيد|المستفيد|من(?!\s*(?:حساب|بطاقة))|from|to|at|الجهة)\s*[:：]?\s*(.+)$""",
+        """^(?:من البائع|إلى المستفيد|المستفيد|من(?!\s*(?:حساب|بطاقة))|لـ(?!\s*(?:حساب|بطاقة))|from|to|at|الجهة)\s*[:：]?\s*(.+)$""",
         RegexOption.IGNORE_CASE
     )
     private fun extractMerchantFromLines(body: String): String? {
@@ -140,6 +164,7 @@ object SmsParser {
         "الرياض" to "بنك الرياض","riyad" to "بنك الرياض",
         "البلاد" to "بنك البلاد","albilad" to "بنك البلاد",
         "الإنماء" to "مصرف الإنماء","alinma" to "مصرف الإنماء",
+        "برق" to "Barq","barq" to "Barq",
         "سامبا" to "سامبا","samba" to "سامبا",
         "الجزيرة" to "بنك الجزيرة","aljazira" to "بنك الجزيرة",
         "stc pay" to "STC Pay","urpay" to "UrPay","d360" to "D360"
@@ -180,6 +205,7 @@ object SmsParser {
         return null
     }
     fun parse(sender: String, body: String, timestamp: Long): ParsedSms? {
+        if (!isAllowedSender(sender)) return null
         val n = normalizeDigits(body)
         val low = n.lowercase(Locale.ROOT)
         if (nonTransactionalWords.any { low.contains(it) }) return null

@@ -13,8 +13,12 @@ android {
         applicationId = "com.mizan.money"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // GITHUB_RUN_NUMBER increments on every workflow run (GitHub Actions sets
+        // it automatically), so every APK GitHub Actions builds gets a distinct,
+        // strictly increasing versionCode without needing full git history in CI.
+        val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = runNumber
+        versionName = "1.0.$runNumber"
     }
 
     signingConfigs {
