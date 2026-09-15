@@ -158,16 +158,14 @@ object SmsParser {
         return null
     }
     private val cardPattern = Regex("""(?:بطاقة|card|حساب|acct|account)\D{0,8}[*xX#]*\s*(\d{4})""", RegexOption.IGNORE_CASE)
+    // Only the banks isAllowedSender actually accepts senders from — an entry
+    // for a bank the app doesn't receive SMS from is more than dead weight: if
+    // its name were ever mentioned incidentally in an Alinma/Barq message body
+    // (e.g. "...to your account at Al Rajhi"), it would wrongly override the
+    // real sender-derived bank name.
     private val banks = mapOf(
-        "الراجحي" to "مصرف الراجحي","alrajhi" to "مصرف الراجحي",
-        "الأهلي" to "البنك الأهلي","الاهلي" to "البنك الأهلي","snb" to "البنك الأهلي",
-        "الرياض" to "بنك الرياض","riyad" to "بنك الرياض",
-        "البلاد" to "بنك البلاد","albilad" to "بنك البلاد",
         "الإنماء" to "مصرف الإنماء","alinma" to "مصرف الإنماء",
-        "برق" to "Barq","barq" to "Barq",
-        "سامبا" to "سامبا","samba" to "سامبا",
-        "الجزيرة" to "بنك الجزيرة","aljazira" to "بنك الجزيرة",
-        "stc pay" to "STC Pay","urpay" to "UrPay","d360" to "D360"
+        "برق" to "Barq","barq" to "Barq"
     )
     private fun normalizeDigits(input: String): String {
         var s = input
