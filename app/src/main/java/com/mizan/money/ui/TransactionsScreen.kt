@@ -6,8 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -163,7 +165,11 @@ private fun TxDetailDialog(
         title = { Text(if (editing) "تعديل العملية" else "تفاصيل العملية", style = H2) },
         text = {
             if (editing) {
-                Column {
+                // Without a scroll wrapper, a long category list (custom
+                // categories keep growing) overflows the dialog's fixed height
+                // and anything past the fold — including a category just
+                // added — is rendered but unreachable/invisible.
+                Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                     SegmentedToggle(
                         options = listOf("مصروف" to Danger, "دخل" to Success),
                         selectedIndex = if (type == TxType.EXPENSE) 0 else 1,
@@ -263,7 +269,7 @@ private fun TxDetailDialog(
                     }
                 }
             } else {
-                Column {
+                Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconBadge(Icons.Default.AccountBalance, InkSoft, PaperOuter, size = 32.dp, iconSize = 16.dp)
                         Spacer(Modifier.width(8.dp))
@@ -359,7 +365,7 @@ private fun AddDialog(categories: List<String>, onDismiss: () -> Unit, onSave: (
         shape = RoundedCornerShape(RadiusXl),
         title = { Text("إضافة عملية يدوية", style = H2) },
         text = {
-            Column {
+            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                 SegmentedToggle(
                     options = listOf("مصروف" to Danger, "دخل" to Success),
                     selectedIndex = if (type == TxType.EXPENSE) 0 else 1,
