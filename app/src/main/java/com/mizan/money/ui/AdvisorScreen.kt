@@ -30,8 +30,20 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
     val budget = budgets.firstOrNull {
         it.monthKey == Dates.monthKey(offset) && it.category == TOTAL_BUDGET
     }?.limitAmount ?: 0.0
+    // DANGER-level advice (over budget, spending more than you earn) is the most
+    // urgent thing on this screen and must never be buried below WARN/GOOD/INFO
+    // cards that simply happened to be generated earlier in FinancialAdvisor's
+    // fixed pipeline order. Level's own declaration order isn't severity order,
+    // so this maps it explicitly instead of sorting by ordinal.
+    fun severity(level: Level) = when (level) {
+        Level.DANGER -> 0
+        Level.WARN -> 1
+        Level.GOOD -> 2
+        Level.INFO -> 3
+    }
     val advice = remember(summary, budget, txs) {
         FinancialAdvisor.advise(summary, budget, txs, range.first, range.last)
+            .sortedBy { severity(it.level) }
     }
 
     LazyColumn(
@@ -60,7 +72,7 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
         if (advice.isEmpty()) {
             item { EmptyState("لا توجد نصائح بعد — أضف عمليات أو ميزانية لهذا الشهر") }
         } else {
-            items(advice) { a -> AdviceRow(a) }
+            items(advice, key = { it.title }) { a -> AdviceRow(a) }
         }
     }
 }
@@ -74,8 +86,8 @@ private fun AdviceRow(a: Advice) {
         Level.INFO   -> Indigo
     }
     val icon = when (a.level) {
-        Level.DANGER -> Icons.Default.Warning
-        Level.WARN   -> Icons.Default.Info
+        Level.DANGER -> Icons.Default.ErrorOutline
+        Level.WARN   -> Icons.Default.Warning
         Level.GOOD   -> Icons.Default.CheckCircle
         Level.INFO   -> Icons.Default.Lightbulb
     }
@@ -89,7 +101,11 @@ private fun AdviceRow(a: Advice) {
             Spacer(Modifier.width(14.dp))
             IconBadge(icon, color, color.copy(alpha = 0.12f), size = 44.dp)
             Spacer(Modifier.width(12.dp))
-            Column {
+            // Without weight(1f) this Column is measured against the Row's full
+            // width instead of what's left after the stripe/spacer/badge ahead of
+            // it, so a long advice body (e.g. the subscriptions list) overflows
+            // past the card's edge instead of wrapping.
+            Column(Modifier.weight(1f)) {
                 Text(a.title, style = H2.copy(fontSize = 14.sp))
                 Spacer(Modifier.height(6.dp))
                 Text(a.body, style = BodyMuted)

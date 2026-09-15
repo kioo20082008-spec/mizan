@@ -1,6 +1,7 @@
 package com.mizan.money.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
@@ -26,7 +27,15 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning
 
+    private val prefs = app.getSharedPreferences("mizan_prefs", Context.MODE_PRIVATE)
+    // Persisted (not just remembered in Compose state) so the expensive 120-day
+    // inbox scan runs once ever, not on every cold app launch — new SMS after
+    // that are picked up live by SmsReceiver instead.
+    fun hasCompletedInitialScan(): Boolean = prefs.getBoolean("initial_scan_done", false)
+    fun markInitialScanDone() = prefs.edit().putBoolean("initial_scan_done", true).apply()
+
     fun scanInbox() {
+        if (_isScanning.value) return
         viewModelScope.launch {
             _isScanning.value = true
             try {

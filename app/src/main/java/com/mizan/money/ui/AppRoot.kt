@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,16 +47,22 @@ fun AppRoot() {
     val app = ctx.applicationContext as MoneyApp
     val vm: MainViewModel = viewModel(factory = MainViewModel.factory(app, app.repository))
     var hasSms by remember { mutableStateOf(checkSms(ctx)) }
-    var scanned by remember { mutableStateOf(false) }
+    // Seeded from a persisted flag (not just false), so a returning user doesn't
+    // see the full-screen "analyzing your messages for the first time" loader —
+    // and pay the cost of a full 120-day re-scan — on every single app launch.
+    var scanned by remember { mutableStateOf(vm.hasCompletedInitialScan()) }
     var permissionAttempted by remember { mutableStateOf(false) }
-    val isScanning by vm.isScanning.collectAsState()
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { hasSms = checkSms(ctx); permissionAttempted = true }
 
     LaunchedEffect(hasSms) {
-        if (hasSms && !scanned) { scanned = true; vm.scanInbox() }
+        if (hasSms && !scanned) {
+            scanned = true
+            vm.markInitialScanDone()
+            vm.scanInbox()
+        }
     }
 
     MaterialTheme(
@@ -92,7 +99,12 @@ fun AppRoot() {
                                         .setData(Uri.fromParts("package", ctx.packageName, null))
                                 )
                             }
-                        ) else if (!scanned || isScanning) {
+                        ) else if (!scanned) {
+                            // Only the first-ever scan gets the full-screen loader.
+                            // A later rescan (from Settings) must not unmount the
+                            // whole app shell — RootScaffold shows its own inline
+                            // indicator for that via vm.isScanning instead, so tab/
+                            // month navigation state survives a routine rescan.
                             ScanningScreen()
                         } else {
                             RootScaffold(vm)
@@ -111,18 +123,28 @@ private fun checkSms(ctx: Context) =
 // ============ SCAFFOLD ============
 @Composable
 private fun RootScaffold(vm: MainViewModel) {
-    var tab by remember { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(0) }
     // Shared across tabs so paging the month on the dashboard also updates
     // what Budget/Advisor show, instead of them being stuck on the current month.
-    var monthOffset by remember { mutableIntStateOf(0) }
-    var showSettings by remember { mutableStateOf(false) }
+    var monthOffset by rememberSaveable { mutableIntStateOf(0) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    // Set when a Dashboard category chip is tapped, so Transactions opens
+    // pre-filtered to that category instead of just switching tabs blindly.
+    var categoryFilter by remember { mutableStateOf<String?>(null) }
+    val isScanning by vm.isScanning.collectAsState()
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             AppHeader(onSettingsClick = { showSettings = true })
+            if (isScanning) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(2.dp),
+                    color = Lime, trackColor = Color.Transparent
+                )
+            }
             Box(Modifier.weight(1f)) {
                 when (tab) {
-                    0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { tab = 1 })
-                    1 -> TransactionsScreen(vm)
+                    0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
+                    1 -> TransactionsScreen(vm, initialQuery = categoryFilter)
                     2 -> BudgetScreen(vm, monthOffset)
                     else -> AdvisorScreen(vm, monthOffset)
                 }
@@ -167,6 +189,7 @@ private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: (
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val txs by vm.transactions.collectAsState()
+    val isScanning by vm.isScanning.collectAsState()
     var showExportConfirm by remember { mutableStateOf(false) }
 
     if (showExportConfirm) {
@@ -207,14 +230,14 @@ private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: (
                     Modifier.fillMaxWidth()
                         .clip(RoundedCornerShape(RadiusMd))
                         .background(IndigoSoft)
-                        .clickable(onClick = onRescan)
+                        .clickable(enabled = !isScanning, onClick = onRescan)
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconBadge(Icons.Default.Sync, Indigo, White, size = 40.dp, iconSize = 18.dp)
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("إعادة مسح الرسائل", style = Body.copy(fontWeight = FontWeight.Bold))
+                        Text(if (isScanning) "جارٍ المسح..." else "إعادة مسح الرسائل", style = Body.copy(fontWeight = FontWeight.Bold))
                         Text("يبحث مجدداً عن عمليات في آخر 120 يوم", style = Eyebrow.copy(fontSize = 11.sp))
                     }
                 }

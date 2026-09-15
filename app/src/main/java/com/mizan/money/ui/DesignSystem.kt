@@ -185,6 +185,22 @@ fun catIcon(cat: String): ImageVector = when (cat) {
     else -> Icons.Default.Category
 }
 
+// Arabic-Indic digits (٠-٩) are common on Arabic-locale numeric keyboards and pass
+// Char.isDigit() fine, but String.toDoubleOrNull() only understands ASCII digits —
+// so a value typed with them looks accepted in the field but silently fails to
+// parse, and for a budget field that means the save is either a no-op or (since
+// the repo treats amount<=0 as "delete") silently wipes the saved budget.
+fun sanitizeAmountInput(raw: String): String {
+    var s = raw
+    val ar = "٠١٢٣٤٥٦٧٨٩"
+    val fa = "۰۱۲۳۴۵۶۷۸۹"
+    ar.forEachIndexed { i, c -> s = s.replace(c, ('0' + i)) }
+    fa.forEachIndexed { i, c -> s = s.replace(c, ('0' + i)) }
+    s = s.filter { it.isDigit() || it == '.' }
+    val firstDot = s.indexOf('.')
+    return if (firstDot == -1) s else s.substring(0, firstDot + 1) + s.substring(firstDot + 1).replace(".", "")
+}
+
 fun monthName(offset: Int): String {
     val c = java.util.Calendar.getInstance().apply { add(java.util.Calendar.MONTH, offset) }
     val names = listOf(
