@@ -33,7 +33,12 @@ import com.mizan.money.data.TxType
 fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
     val txs by vm.transactions.collectAsState()
     val categories by vm.categories.collectAsState()
-    var query by remember(initialQuery) { mutableStateOf(initialQuery ?: "") }
+    var query by remember { mutableStateOf(initialQuery ?: "") }
+    // Re-applies initialQuery on every distinct value it takes, not just once at
+    // first composition — remember(initialQuery) alone would miss a same-value
+    // re-trigger for a screen instance that survives across it (e.g. inside a
+    // navigation backstack instead of being fully disposed on tab switch).
+    LaunchedEffect(initialQuery) { query = initialQuery ?: "" }
     var selected by remember { mutableStateOf<TransactionEntity?>(null) }
     var showAdd by remember { mutableStateOf(false) }
 

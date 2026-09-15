@@ -173,6 +173,11 @@ object FinancialAdvisor {
         val consistentMonths = amounts.count { abs(it - avg) / avg < 0.15 }
         return if (consistentMonths >= 2) avg else null
     }
+    private val merchantSuffixes = Regex("""\.(com|net|org)\b|\b(inc|llc|ltd|co)\.?\b""", RegexOption.IGNORE_CASE)
+    private fun normalizeMerchantName(raw: String): String =
+        merchantSuffixes.replace(raw.lowercase(Locale.ROOT), "")
+            .replace(Regex("""[^a-z0-9؀-ۿ]+"""), " ")
+            .trim()
     private fun detectSubscriptions(allTx: List<TransactionEntity>): List<Pair<String, Double>> {
         // SAR-only (matches summarize/detectSalary), excludes self-transfers, and —
         // importantly — only looks at transactions CategoryClassifier already put
@@ -184,7 +189,11 @@ object FinancialAdvisor {
             it.type == TxType.EXPENSE && it.merchant != null && it.currency == "SAR" &&
                 !it.isSelfTransfer && it.category == "اشتراكات"
         }
-        val grouped = recent.groupBy { it.merchant!!.lowercase().trim() }
+        // A bank's own merchant-name formatting varies charge to charge for the
+        // same subscription ("Netflix", "NETFLIX.COM", "Netflix Inc") — without
+        // normalizing, each variant groups separately and never reaches the 2+
+        // occurrences needed below, so the subscription goes undetected.
+        val grouped = recent.groupBy { normalizeMerchantName(it.merchant!!) }
         return grouped.mapNotNull { (merchant, list) ->
             if (list.size < 2) return@mapNotNull null
             val amounts = list.map { it.amount }

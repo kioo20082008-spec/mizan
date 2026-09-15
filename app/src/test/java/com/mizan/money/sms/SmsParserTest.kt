@@ -1,14 +1,28 @@
 package com.mizan.money.sms
 
 import com.mizan.money.data.TxType
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class SmsParserTest {
+
+    // Owner name is no longer hardcoded in SmsParser (privacy/portability fix) —
+    // tests configure a stand-in identity the way MainViewModel/MoneyApp would
+    // from Settings, and reset it after so it can't leak into other test classes.
+    @Before
+    fun setOwnerName() {
+        SmsParser.ownerNameTokens = listOf("waleed", "hamadallah")
+    }
+    @After
+    fun clearOwnerName() {
+        SmsParser.ownerNameTokens = emptyList()
+    }
 
     @Test
     fun `parses an expense SMS with amount, bank, currency and merchant`() {

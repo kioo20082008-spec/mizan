@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.provider.Telephony
+import android.util.Log
 import com.mizan.money.data.TransactionEntity
 import java.util.concurrent.TimeUnit
 
@@ -28,6 +29,7 @@ object InboxScanner {
             )
         } catch (e: Exception) {
             // Some OEM builds reject this query even with READ_SMS granted.
+            Log.e("Mizan", "SMS inbox query failed", e)
             null
         }
         cursor?.use { c ->
@@ -45,6 +47,7 @@ object InboxScanner {
                     out += parsed.toEntity()
                 } catch (e: Exception) {
                     // Skip this one malformed row rather than losing the whole scan.
+                    Log.w("Mizan", "skipped one malformed SMS row during scan", e)
                 }
             }
         }

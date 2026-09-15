@@ -44,6 +44,11 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                 ?.limitAmount?.toBudgetInput() ?: ""
         )
     }
+    // Set while the user is actively typing in the total-budget field, so an
+    // unrelated write elsewhere (e.g. saving a per-category budget) doesn't
+    // resync this field mid-keystroke and wipe what they haven't saved yet —
+    // mirrors the same protection catInputs already has for editingCategory.
+    var editingTotal by remember(monthKey) { mutableStateOf(false) }
     // Seeded synchronously from the already-loaded `budgets` (not emptyMap()), so
     // switching months doesn't flash every category to "0" for a frame before the
     // effect below catches up.
@@ -66,8 +71,10 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
         // Previously only catInputs was resynced here, so saving the total budget
         // (or copying last month's) never refreshed the hero card's own number —
         // it stayed blank/stale until the user left and re-entered the screen.
-        totalInput = budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }
-            ?.limitAmount?.toBudgetInput() ?: ""
+        if (!editingTotal) {
+            totalInput = budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }
+                ?.limitAmount?.toBudgetInput() ?: ""
+        }
         catInputs = categories.associateWith { c ->
             // Skip the category currently being typed into — otherwise an unrelated
             // budget write elsewhere (e.g. saving the total) re-fires this effect
@@ -132,7 +139,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                     Spacer(Modifier.height(18.dp))
                     OutlinedTextField(
                         value = totalInput,
-                        onValueChange = { totalInput = sanitizeAmountInput(it) },
+                        onValueChange = { editingTotal = true; totalInput = sanitizeAmountInput(it) },
                         label = { Text("الحد الشهري") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
@@ -150,7 +157,10 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                     )
                     Spacer(Modifier.height(10.dp))
                     Button(
-                        onClick = { totalInput.toDoubleOrNull()?.let { vm.setBudget(monthKey, TOTAL_BUDGET, it) } },
+                        onClick = {
+                            totalInput.toDoubleOrNull()?.let { vm.setBudget(monthKey, TOTAL_BUDGET, it) }
+                            editingTotal = false
+                        },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         shape = RoundedCornerShape(RadiusSm),
                         colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Ink900)

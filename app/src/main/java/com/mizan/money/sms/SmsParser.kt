@@ -78,10 +78,10 @@ object SmsParser {
         // legitimate transfer confirmation ("إلى المستفيد: <name>").
         "تم إضافة مستفيد","تم تفعيل مستفيد","new benef",
         "rejected transaction","ya hala","welcome back",
-        "logged in","عزيزي العميل","عميلنا العزيز","dear customer","dear barq customer",
-        "hi waleed","هلا وليد","حجز مبلغ","رصيد البطاقة","لإتمام عملية الشراء",
+        "logged in","dear barq customer",
+        "حجز مبلغ","رصيد البطاقة","لإتمام عملية الشراء",
         "الرمز السري","الرقم السري","رمز شراء","qattah","successfully added to",
-        "نفيدكم","الاستعلام عن","تم تغيير الرقم","تم تغير الرقم"
+        "الاستعلام عن","تم تغيير الرقم","تم تغير الرقم"
     )
     // Wording banks use when money moves between the same customer's own
     // accounts, as opposed to a transfer to someone else.
@@ -91,18 +91,20 @@ object SmsParser {
     )
     // The account holder's own name, as it appears as the counterparty on
     // transfers between their own accounts at different banks/wallets (e.g.
-    // Alinma <-> Barq). Requires both first and last name so a relative
-    // sharing the family name (e.g. a brother) isn't mistaken for the owner.
-    // Barq's own internal holding account name for wallet top-ups is a
-    // reliable self-transfer signal on its own, regardless of bank — as is a
-    // bank purchase whose merchant is bare "Barq" (a card top-up of the
-    // user's own Barq wallet, not an actual purchase from a third party).
+    // Alinma <-> Barq). Set from Settings (MoneyApp.onCreate loads it before
+    // any SMS is ever parsed, MainViewModel.setOwnerName keeps it live) —
+    // never hardcoded, since this object is shared code, not per-user state.
+    // All tokens must be present so a relative sharing the family name (e.g.
+    // a brother) isn't mistaken for the owner. Barq's own internal holding
+    // account name for wallet top-ups is a reliable self-transfer signal on
+    // its own, regardless of bank — as is a bank purchase whose merchant is
+    // bare "Barq" (a card top-up of the user's own Barq wallet, not an
+    // actual purchase from a third party).
+    @Volatile var ownerNameTokens: List<String> = emptyList()
     private fun isSelfAccountName(name: String): Boolean {
         val n = name.lowercase(Locale.ROOT).trim()
         if (n.contains("barq safe and deposit client money") || n == "barq") return true
-        val hasFirst = n.contains("waleed") || n.contains("وليد")
-        val hasLast = n.contains("hamadallah") || n.contains("حمدالله") || n.contains("حمدال")
-        return hasFirst && hasLast
+        return ownerNameTokens.isNotEmpty() && ownerNameTokens.all { n.contains(it) }
     }
     private val balanceWord = Regex(
         """(?:رصيد|الرصيد|رصيدك|balance|متاح|available)[^\d]{0,80}[\d,]+(?:\.\d{1,2})?""",

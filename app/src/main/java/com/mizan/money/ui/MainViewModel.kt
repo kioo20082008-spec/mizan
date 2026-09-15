@@ -45,6 +45,21 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         _monthStartDay.value = clamped
     }
 
+    // The account holder's own name, used by SmsParser to recognize transfers
+    // between the user's own accounts at different banks (e.g. Alinma <-> Barq)
+    // by counterparty name. Not hardcoded in SmsParser itself — see MoneyApp,
+    // which loads this same pref key before any SMS is ever parsed.
+    private val _ownerName = MutableStateFlow(prefs.getString("owner_name", "") ?: "")
+    val ownerName: StateFlow<String> = _ownerName
+    fun setOwnerName(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) prefs.edit().remove("owner_name").apply()
+        else prefs.edit().putString("owner_name", trimmed).apply()
+        _ownerName.value = trimmed
+        com.mizan.money.sms.SmsParser.ownerNameTokens =
+            trimmed.lowercase().split(Regex("\\s+")).filter { it.isNotBlank() }
+    }
+
     // A user-entered salary figure, used as an override for the auto-detected
     // one in the financial advisor (recurring-deposit detection needs 2+ months
     // of history and can be wrong/slow to pick up a new salary).
@@ -94,6 +109,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 // OEM builds reject the query even with READ_SMS granted). An
                 // uncaught exception here would otherwise crash the whole app on
                 // launch, so degrade to "no transactions found" instead.
+                android.util.Log.e("Mizan", "inbox scan failed", e)
             } finally {
                 _isScanning.value = false
             }
@@ -105,7 +121,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
             repo.add(TransactionEntity(
                 amount = amount, merchant = merchant.ifBlank { null }, category = category,
                 type = type, rawSms = "إدخال يدوي",
-                smsHash = "manual-$now-${(0..99999).random()}",
+                smsHash = "manual-${java.util.UUID.randomUUID()}",
                 timestamp = now, isManual = true))
         }
     }
