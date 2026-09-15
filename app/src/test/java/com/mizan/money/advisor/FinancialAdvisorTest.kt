@@ -258,18 +258,34 @@ class FinancialAdvisorTest {
     }
 
     @Test
-    fun `planningIncome prefers manual salary over detected salary over this month's income`() {
+    fun `planningIncome prefers this month's real income over salary once it has posted`() {
+        // A salary figure (manual or detected) is only a pre-payday stand-in —
+        // once real money has actually posted this month, that real total wins
+        // even over a manually-typed salary, so the figure always agrees with
+        // the real remaining balance (income - spent).
         val history = listOf(
             tx(9000.0, TxType.INCOME, timestamp = JAN_2024_START + 1_000L),
             tx(9000.0, TxType.INCOME, timestamp = FEB_MARK)
         )
         val s = FinancialAdvisor.summarize(history, JAN_2024_START, JAN_2024_END)
+        assertEquals(9000.0, FinancialAdvisor.planningIncome(s, history, manualSalary = 12000.0)!!, 0.001)
 
-        assertEquals(12000.0, FinancialAdvisor.planningIncome(s, history, manualSalary = 12000.0)!!, 0.001)
-        assertEquals(9000.0, FinancialAdvisor.planningIncome(s, history, manualSalary = 0.0)!!, 0.001)
+        val onlyARefundPosted = listOf(tx(500.0, TxType.INCOME))
+        val s2 = FinancialAdvisor.summarize(onlyARefundPosted, JAN_2024_START, JAN_2024_END)
+        assertEquals(500.0, FinancialAdvisor.planningIncome(s2, onlyARefundPosted, manualSalary = 0.0)!!, 0.001)
+    }
 
-        val noHistory = listOf(tx(500.0, TxType.INCOME))
-        val s2 = FinancialAdvisor.summarize(noHistory, JAN_2024_START, JAN_2024_END)
-        assertEquals(500.0, FinancialAdvisor.planningIncome(s2, noHistory, manualSalary = 0.0)!!, 0.001)
+    @Test
+    fun `planningIncome falls back to manual then detected salary before any income posts`() {
+        val priorMonthsOnly = listOf(
+            tx(9000.0, TxType.INCOME, timestamp = FEB_MARK),
+            tx(9000.0, TxType.INCOME, timestamp = MAR_MARK)
+        )
+        // Nothing posted in January itself — before payday.
+        val s = FinancialAdvisor.summarize(priorMonthsOnly, JAN_2024_START, JAN_2024_END)
+
+        assertEquals(12000.0, FinancialAdvisor.planningIncome(s, priorMonthsOnly, manualSalary = 12000.0)!!, 0.001)
+        assertEquals(9000.0, FinancialAdvisor.planningIncome(s, priorMonthsOnly, manualSalary = 0.0)!!, 0.001)
+        assertEquals(null, FinancialAdvisor.planningIncome(s, emptyList(), manualSalary = 0.0))
     }
 }

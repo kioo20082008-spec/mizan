@@ -48,8 +48,8 @@ object FinancialAdvisor {
                manualSalary: Double = 0.0): List<Advice> {
         val list = mutableListOf<Advice>()
         if (monthlyBudget <= 0.0) {
-            list += Advice("حدّد ميزانيتك الشهرية 🎯",
-                "لم تحدد ميزانية بعد. اذهب لتبويب «الميزانية» واكتب المبلغ الذي تريد ألا تتجاوزه هذا الشهر.",
+            list += Advice("بانتظار دخل هذا الشهر 🎯",
+                "لم يصلك دخل بعد هذا الشهر، ولا راتب محفوظ نقدّر عليه. بمجرد وصول أول إيداع سنقدر نحسب استهلاكك من رصيدك الفعلي.",
                 Level.INFO)
         } else {
             val pct = summary.spent / monthlyBudget
@@ -142,14 +142,16 @@ object FinancialAdvisor {
         }
         return list
     }
-    // The best available estimate of the user's income for the month, in
-    // priority order: a manually entered salary, an auto-detected recurring
-    // one (more stable than one month's raw income, and still useful before
-    // payday hits), then whatever actually posted as income this month.
+    // The basis used for "how much of my money have I used up" (budget-consumption
+    // card, over-budget advice): whatever actually posted as income this month, so
+    // it always agrees with the real remaining balance (income - spent) shown on
+    // the dashboard. Salary (manual or detected) is only a pre-payday stand-in —
+    // once real income lands this month, even a salary figure the user typed in
+    // is no longer a better estimate than what's actually in the account.
     fun planningIncome(summary: MonthSummary, allTx: List<TransactionEntity>, manualSalary: Double = 0.0): Double? =
         resolveIncome(summary, manualSalary.takeIf { it > 0 } ?: detectSalary(allTx))
     private fun resolveIncome(summary: MonthSummary, salary: Double?): Double? =
-        salary ?: summary.income.takeIf { it > 0 }
+        summary.income.takeIf { it > 0 } ?: salary
     // Salary is inferred, not tagged per-SMS: bank wording for a payroll deposit
     // varies too much to match reliably, but a recurring similar-sized deposit
     // once a month is a strong signal on its own.
