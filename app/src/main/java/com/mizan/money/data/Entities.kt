@@ -24,7 +24,13 @@ data class TransactionEntity(
     // Money moved between the user's own accounts (bank SMS wording like
     // "بين حساباتك") isn't real income or spending, so it's tracked but kept
     // out of the totals in FinancialAdvisor.
-    val isSelfTransfer: Boolean = false
+    val isSelfTransfer: Boolean = false,
+    // Set once the user manually corrects this transaction (amount/category/
+    // self-transfer/etc). A later rescan re-derives every SMS-sourced
+    // transaction from the current parser so old parsing bugs get fixed
+    // retroactively instead of leaving stale/duplicate data behind forever —
+    // but it must never silently overwrite a fix the user already made.
+    val isEdited: Boolean = false
 )
 
 @Entity(tableName = "budgets", primaryKeys = ["monthKey", "category"])

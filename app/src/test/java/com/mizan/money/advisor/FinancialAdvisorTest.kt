@@ -189,9 +189,9 @@ class FinancialAdvisorTest {
     @Test
     fun `detectSubscriptions ignores non-SAR charges even at the same merchant`() {
         val allTx = listOf(
-            tx(35.0, merchant = "Netflix", currency = "SAR", timestamp = JAN_2024_START + 1_000L),
-            tx(35.0, merchant = "Netflix", currency = "SAR", timestamp = FEB_MARK),
-            tx(999.0, merchant = "Netflix", currency = "USD", timestamp = MAR_MARK)
+            tx(35.0, merchant = "Netflix", category = "اشتراكات", currency = "SAR", timestamp = JAN_2024_START + 1_000L),
+            tx(35.0, merchant = "Netflix", category = "اشتراكات", currency = "SAR", timestamp = FEB_MARK),
+            tx(999.0, merchant = "Netflix", category = "اشتراكات", currency = "USD", timestamp = MAR_MARK)
         )
         val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
@@ -216,10 +216,29 @@ class FinancialAdvisorTest {
     @Test
     fun `advise does not mistake a recurring self-transfer for a subscription`() {
         val savings = List(4) {
-            tx(1000.0, merchant = "حسابي التوفير", isSelfTransfer = true, timestamp = JAN_2024_START + it * 1_000L)
+            tx(1000.0, merchant = "حسابي التوفير", category = "اشتراكات", isSelfTransfer = true, timestamp = JAN_2024_START + it * 1_000L)
         }
         val s = FinancialAdvisor.summarize(savings, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = savings, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
+
+        assertFalse(advice.any { it.title.contains("اشتراكات") })
+    }
+
+    @Test
+    fun `detectSubscriptions ignores a recurring similar-amount food-delivery or installment merchant`() {
+        // Regression test: HungerStation/Tabby/Tamara recur with near-identical
+        // amounts too (delivery fees, fixed installments) but are food/shopping,
+        // not subscriptions — only a merchant CategoryClassifier already put in
+        // "اشتراكات" should ever be flagged.
+        val allTx = listOf(
+            tx(25.0, merchant = "HungerStation", category = "طعام وشراب", timestamp = JAN_2024_START + 1_000L),
+            tx(25.0, merchant = "HungerStation", category = "طعام وشراب", timestamp = FEB_MARK),
+            tx(25.0, merchant = "HungerStation", category = "طعام وشراب", timestamp = MAR_MARK),
+            tx(200.0, merchant = "Tabby", category = "تسوق", timestamp = JAN_2024_START + 2_000L),
+            tx(200.0, merchant = "Tabby", category = "تسوق", timestamp = FEB_MARK + 1_000L)
+        )
+        val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
+        val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
         assertFalse(advice.any { it.title.contains("اشتراكات") })
     }

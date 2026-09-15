@@ -161,11 +161,15 @@ object FinancialAdvisor {
         return if (consistentMonths >= 2) avg else null
     }
     private fun detectSubscriptions(allTx: List<TransactionEntity>): List<Pair<String, Double>> {
-        // SAR-only (matches summarize/detectSalary) and excludes self-transfers, so
-        // a recurring auto-transfer to a savings account or a foreign-currency charge
-        // at a same-named merchant doesn't get mistaken for / mixed into a subscription.
+        // SAR-only (matches summarize/detectSalary), excludes self-transfers, and —
+        // importantly — only looks at transactions CategoryClassifier already put
+        // in "اشتراكات" (Netflix, Spotify, etc). Recurring-similar-amount alone is
+        // too weak a signal on its own: frequent food-delivery orders (HungerStation,
+        // Keeta) and fixed-installment BNPL charges (Tabby, Tamara) both recur with
+        // near-identical amounts too, but neither is a subscription.
         val recent = allTx.filter {
-            it.type == TxType.EXPENSE && it.merchant != null && it.currency == "SAR" && !it.isSelfTransfer
+            it.type == TxType.EXPENSE && it.merchant != null && it.currency == "SAR" &&
+                !it.isSelfTransfer && it.category == "اشتراكات"
         }
         val grouped = recent.groupBy { it.merchant!!.lowercase().trim() }
         return grouped.mapNotNull { (merchant, list) ->

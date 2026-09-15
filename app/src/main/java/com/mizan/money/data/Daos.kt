@@ -17,6 +17,13 @@ interface TransactionDao {
     suspend fun delete(tx: TransactionEntity)
     @Query("SELECT COUNT(*) FROM transactions")
     suspend fun count(): Int
+    @Query("SELECT * FROM transactions WHERE smsHash = :hash LIMIT 1")
+    suspend fun findByHash(hash: String): TransactionEntity?
+    // Only ever removes an SMS-sourced, never-edited row: a manual entry has no
+    // corresponding hash to match, and an edited one is a deliberate user fix
+    // that a rescan must not silently discard.
+    @Query("DELETE FROM transactions WHERE smsHash = :hash AND isManual = 0 AND isEdited = 0")
+    suspend fun deleteStaleByHash(hash: String)
 }
 
 @Dao

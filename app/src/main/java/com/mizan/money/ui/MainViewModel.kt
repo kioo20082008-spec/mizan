@@ -63,8 +63,8 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
             _isScanning.value = true
             try {
                 val ctx = getApplication<Application>()
-                val found = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
-                repo.addAll(found)
+                val result = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
+                repo.reconcile(result.transactions, result.scannedHashes)
             } catch (e: Exception) {
                 // Reading the SMS provider can fail in device-specific ways (some
                 // OEM builds reject the query even with READ_SMS granted). An

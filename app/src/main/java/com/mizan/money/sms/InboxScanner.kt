@@ -7,10 +7,17 @@ import android.provider.Telephony
 import com.mizan.money.data.TransactionEntity
 import java.util.concurrent.TimeUnit
 
+// `scannedHashes` covers every SMS looked at in this scan, transactional or
+// not — the repository needs that full set (not just `transactions`) to tell
+// "never was a transaction" apart from "used to parse as one, and shouldn't
+// anymore" so it can clean up a stale row left by an old parser bug.
+data class ScanResult(val transactions: List<TransactionEntity>, val scannedHashes: Set<String>)
+
 object InboxScanner {
     private val URI_INBOX: Uri = Uri.parse("content://sms/inbox")
-    fun readTransactions(context: Context, sinceDays: Int = 120): List<TransactionEntity> {
+    fun readTransactions(context: Context, sinceDays: Int = 120): ScanResult {
         val out = mutableListOf<TransactionEntity>()
+        val seenHashes = mutableSetOf<String>()
         val since = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(sinceDays.toLong())
         val resolver: ContentResolver = context.contentResolver
         val cursor = try {
@@ -33,6 +40,7 @@ object InboxScanner {
                     val sender = c.getString(iAddr) ?: ""
                     val body = c.getString(iBody) ?: continue
                     val date = c.getLong(iDate)
+                    seenHashes += SmsParser.hashFor(sender, date, body)
                     val parsed = SmsParser.parse(sender, body, date) ?: continue
                     out += parsed.toEntity()
                 } catch (e: Exception) {
@@ -40,6 +48,6 @@ object InboxScanner {
                 }
             }
         }
-        return out
+        return ScanResult(out, seenHashes)
     }
 }
