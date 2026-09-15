@@ -27,10 +27,11 @@ import com.mizan.money.sms.CategoryClassifier
 @Composable
 fun BudgetScreen(vm: MainViewModel, offset: Int) {
     val budgets by vm.budgets.collectAsState()
-    val monthKey = Dates.monthKey(offset)
+    val startDay by vm.monthStartDay.collectAsState()
+    val monthKey = Dates.monthKey(offset, startDay)
     val txs by vm.transactions.collectAsState()
-    val range = remember(offset) { Dates.monthRange(offset) }
-    val summary = remember(txs, offset) { FinancialAdvisor.summarize(txs, range.first, range.last) }
+    val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
+    val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
 
     fun Double.toBudgetInput() = if (this % 1.0 == 0.0) toInt().toString() else toString()
 
@@ -74,7 +75,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
     }
 
     val spentByCat = remember(summary) { summary.categoryTotals.associate { it.category to it.amount } }
-    val prevMonthKey = Dates.monthKey(offset - 1)
+    val prevMonthKey = Dates.monthKey(offset - 1, startDay)
     val hasPrevBudget = budgets.any { it.monthKey == prevMonthKey }
     val hasCurrentBudget = budgets.any { it.monthKey == monthKey }
 
@@ -84,7 +85,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Text("الميزانية والتصنيفات — ${monthName(offset)}", style = H1)
+            Text("الميزانية والتصنيفات — ${monthName(offset, startDay)}", style = H1)
             Text("راقب إنفاقك وقارنه بالحدود المحددة", style = Eyebrow)
         }
 

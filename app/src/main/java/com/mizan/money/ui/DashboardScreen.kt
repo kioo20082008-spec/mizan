@@ -40,11 +40,12 @@ fun DashboardScreen(
 ) {
     val txs by vm.transactions.collectAsState()
     val budgets by vm.budgets.collectAsState()
+    val startDay by vm.monthStartDay.collectAsState()
 
-    val range = remember(offset) { Dates.monthRange(offset) }
-    val summary = remember(txs, offset) { FinancialAdvisor.summarize(txs, range.first, range.last) }
+    val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
+    val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
     val budget = budgets.firstOrNull {
-        it.monthKey == Dates.monthKey(offset) && it.category == TOTAL_BUDGET
+        it.monthKey == Dates.monthKey(offset, startDay) && it.category == TOTAL_BUDGET
     }?.limitAmount ?: 0.0
     // "أحدث العمليات" must reflect the month being browsed — otherwise paging to
     // an older month still shows today's latest transactions as if they belonged
@@ -58,7 +59,7 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
-            BalanceCard(summary, offset, budget, onPrev = { onOffsetChange(offset - 1) }, onNext = { if (offset < 0) onOffsetChange(offset + 1) })
+            BalanceCard(summary, offset, startDay, budget, onPrev = { onOffsetChange(offset - 1) }, onNext = { if (offset < 0) onOffsetChange(offset + 1) })
         }
 
         if (budget > 0) {
@@ -107,7 +108,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun BalanceCard(s: MonthSummary, offset: Int, budget: Double, onPrev: () -> Unit, onNext: () -> Unit) {
+private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Double, onPrev: () -> Unit, onNext: () -> Unit) {
     Box(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(RadiusXl))
@@ -127,7 +128,7 @@ private fun BalanceCard(s: MonthSummary, offset: Int, budget: Double, onPrev: ()
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "الشهر السابق", tint = White, modifier = Modifier.size(16.dp))
                 }
                 Text(
-                    monthName(offset),
+                    monthName(offset, startDay),
                     style = Body.copy(color = White, fontWeight = FontWeight.Bold),
                     modifier = Modifier
                         .clip(RoundedCornerShape(Pill))

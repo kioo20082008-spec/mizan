@@ -201,8 +201,12 @@ fun sanitizeAmountInput(raw: String): String {
     return if (firstDot == -1) s else s.substring(0, firstDot + 1) + s.substring(firstDot + 1).replace(".", "")
 }
 
-fun monthName(offset: Int): String {
-    val c = java.util.Calendar.getInstance().apply { add(java.util.Calendar.MONTH, offset) }
+// Named after the month the cycle *starts* in — with a custom start day the
+// cycle can span two calendar months, so this can't just add `offset` months
+// to today; it has to read the same range DashboardScreen/BudgetScreen/
+// AdvisorScreen are actually showing.
+fun monthName(offset: Int, startDay: Int = 1): String {
+    val c = java.util.Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
     val names = listOf(
         "يناير","فبراير","مارس","أبريل","مايو","يونيو",
         "يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"

@@ -129,6 +129,27 @@ class FinancialAdvisorTest {
     }
 
     @Test
+    fun `a manually entered salary overrides the auto-detected one and uses different wording`() {
+        val allTx = listOf(
+            tx(9500.0, TxType.INCOME, timestamp = JAN_2024_START + 1_000L),
+            tx(9600.0, TxType.INCOME, timestamp = FEB_MARK)
+        )
+        val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
+        val advice = FinancialAdvisor.advise(
+            s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END,
+            manualSalary = 12000.0
+        )
+
+        val salaryAdvice = advice.first { it.title.contains("راتبك الشهري") }
+        assertFalse(salaryAdvice.title.contains("رصدنا"))
+        assertTrue(salaryAdvice.body.contains(FinancialAdvisor.fmt(12000.0)))
+        // 50/30/20 should plan off the manually entered figure too, not the
+        // auto-detected/summed one.
+        val plan = advice.first { it.title.contains("50 / 30 / 20") }
+        assertTrue(plan.body.contains(FinancialAdvisor.fmt(12000.0)))
+    }
+
+    @Test
     fun `detectSalary does not treat two wildly different monthly deposits as a salary`() {
         val allTx = listOf(
             tx(8000.0, TxType.INCOME, timestamp = JAN_2024_START + 1_000L),

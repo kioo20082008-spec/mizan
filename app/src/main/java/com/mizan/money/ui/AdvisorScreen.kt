@@ -25,10 +25,12 @@ import com.mizan.money.data.TOTAL_BUDGET
 fun AdvisorScreen(vm: MainViewModel, offset: Int) {
     val txs by vm.transactions.collectAsState()
     val budgets by vm.budgets.collectAsState()
-    val range = remember(offset) { Dates.monthRange(offset) }
-    val summary = remember(txs, offset) { FinancialAdvisor.summarize(txs, range.first, range.last) }
+    val startDay by vm.monthStartDay.collectAsState()
+    val manualSalary by vm.manualSalary.collectAsState()
+    val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
+    val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
     val budget = budgets.firstOrNull {
-        it.monthKey == Dates.monthKey(offset) && it.category == TOTAL_BUDGET
+        it.monthKey == Dates.monthKey(offset, startDay) && it.category == TOTAL_BUDGET
     }?.limitAmount ?: 0.0
     // DANGER-level advice (over budget, spending more than you earn) is the most
     // urgent thing on this screen and must never be buried below WARN/GOOD/INFO
@@ -41,8 +43,8 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
         Level.GOOD -> 2
         Level.INFO -> 3
     }
-    val advice = remember(summary, budget, txs) {
-        FinancialAdvisor.advise(summary, budget, txs, range.first, range.last)
+    val advice = remember(summary, budget, txs, manualSalary) {
+        FinancialAdvisor.advise(summary, budget, txs, range.first, range.last, manualSalary = manualSalary)
             .sortedBy { severity(it.level) }
     }
 

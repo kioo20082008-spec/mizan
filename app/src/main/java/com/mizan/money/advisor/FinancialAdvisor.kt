@@ -39,7 +39,8 @@ object FinancialAdvisor {
         return MonthSummary(spent, income, income - spent, expenses.size, spent / daysPassed, byCat, expenses.maxByOrNull { it.amount })
     }
     fun advise(summary: MonthSummary, monthlyBudget: Double, allTx: List<TransactionEntity>,
-               monthStart: Long, monthEnd: Long, now: Long = System.currentTimeMillis()): List<Advice> {
+               monthStart: Long, monthEnd: Long, now: Long = System.currentTimeMillis(),
+               manualSalary: Double = 0.0): List<Advice> {
         val list = mutableListOf<Advice>()
         if (monthlyBudget <= 0.0) {
             list += Advice("حدّد ميزانيتك الشهرية 🎯",
@@ -113,11 +114,20 @@ object FinancialAdvisor {
                 msg,
                 if (rate >= 0.2) Level.GOOD else if (rate >= 0) Level.INFO else Level.DANGER)
         }
-        val salary = detectSalary(allTx)
+        // A user-entered salary always wins over the inferred one — detection
+        // needs 2+ months of consistent deposits and can be slow to pick up a
+        // new/changed salary, while the user just knows the number.
+        val salary = manualSalary.takeIf { it > 0 } ?: detectSalary(allTx)
         if (salary != null) {
-            list += Advice("رصدنا راتبك الشهري 💼",
-                "بناءً على تكرار الإيداعات خلال الأشهر الماضية، دخلك الثابت الشهري تقريباً ${fmt(salary)} ر.س.",
-                Level.INFO)
+            if (manualSalary > 0) {
+                list += Advice("راتبك الشهري 💼",
+                    "حسب ما أدخلته في الإعدادات، راتبك الشهري ${fmt(salary)} ر.س.",
+                    Level.INFO)
+            } else {
+                list += Advice("رصدنا راتبك الشهري 💼",
+                    "بناءً على تكرار الإيداعات خلال الأشهر الماضية، دخلك الثابت الشهري تقريباً ${fmt(salary)} ر.س.",
+                    Level.INFO)
+            }
         }
         // Prefer the detected recurring salary as the planning base (more stable
         // than one month's raw income, and still useful before payday hits).

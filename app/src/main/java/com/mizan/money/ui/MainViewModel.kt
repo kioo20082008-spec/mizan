@@ -34,6 +34,29 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     fun hasCompletedInitialScan(): Boolean = prefs.getBoolean("initial_scan_done", false)
     fun markInitialScanDone() = prefs.edit().putBoolean("initial_scan_done", true).apply()
 
+    // Lets a user whose "month" doesn't start on the 1st (e.g. salary lands on
+    // the 29th) have every screen's monthly totals follow that cycle instead of
+    // the calendar month. Clamped to 1..28 so every calendar month can host it.
+    private val _monthStartDay = MutableStateFlow(prefs.getInt("month_start_day", 1))
+    val monthStartDay: StateFlow<Int> = _monthStartDay
+    fun setMonthStartDay(day: Int) {
+        val clamped = day.coerceIn(1, 28)
+        prefs.edit().putInt("month_start_day", clamped).apply()
+        _monthStartDay.value = clamped
+    }
+
+    // A user-entered salary figure, used as an override for the auto-detected
+    // one in the financial advisor (recurring-deposit detection needs 2+ months
+    // of history and can be wrong/slow to pick up a new salary).
+    private val _manualSalary = MutableStateFlow(prefs.getString("manual_salary", null)?.toDoubleOrNull() ?: 0.0)
+    val manualSalary: StateFlow<Double> = _manualSalary
+    fun setManualSalary(amount: Double) {
+        val v = amount.coerceAtLeast(0.0)
+        if (v <= 0.0) prefs.edit().remove("manual_salary").apply()
+        else prefs.edit().putString("manual_salary", v.toString()).apply()
+        _manualSalary.value = v
+    }
+
     fun scanInbox() {
         if (_isScanning.value) return
         viewModelScope.launch {
@@ -75,19 +98,37 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
 }
 
 object Dates {
-    fun monthKey(offset: Int = 0): String {
-        val c = Calendar.getInstance().apply { add(Calendar.MONTH, offset) }
-        return "%04d-%02d".format(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1)
-    }
-    fun monthRange(offset: Int = 0): LongRange {
-        val c = Calendar.getInstance().apply {
-            add(Calendar.MONTH, offset); set(Calendar.DAY_OF_MONTH, 1)
+    // With the default startDay=1 this reduces to plain calendar months (the
+    // "today < startDay" branch never triggers since a day-of-month is always
+    // >= 1), so existing callers/behavior are unchanged.
+    //
+    // Month arithmetic only ever runs on a calendar parked at DAY_OF_MONTH=1 —
+    // adding a month to e.g. "Jan 30" would silently roll over into March in a
+    // non-leap February (Calendar normalizes the overflow instead of clamping),
+    // corrupting the cycle end date. The real startDay is set only as the very
+    // last step, on a throwaway clone, once no more month arithmetic will run.
+    fun monthRange(offset: Int = 0, startDay: Int = 1): LongRange {
+        val todayDom = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+        val base = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            set(Calendar.DAY_OF_MONTH, 1)
         }
-        val start = c.timeInMillis
-        c.add(Calendar.MONTH, 1)
-        return start until c.timeInMillis
+        if (todayDom < startDay) base.add(Calendar.MONTH, -1)
+        base.add(Calendar.MONTH, offset)
+
+        val startCal = base.clone() as Calendar
+        startCal.set(Calendar.DAY_OF_MONTH, startDay.coerceAtMost(startCal.getActualMaximum(Calendar.DAY_OF_MONTH)))
+        val start = startCal.timeInMillis
+
+        val endBase = base.clone() as Calendar
+        endBase.add(Calendar.MONTH, 1) // still parked at day=1, so this is always safe
+        endBase.set(Calendar.DAY_OF_MONTH, startDay.coerceAtMost(endBase.getActualMaximum(Calendar.DAY_OF_MONTH)))
+        return start until endBase.timeInMillis
+    }
+    fun monthKey(offset: Int = 0, startDay: Int = 1): String {
+        val c = Calendar.getInstance().apply { timeInMillis = monthRange(offset, startDay).first }
+        return "%04d-%02d".format(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1)
     }
     fun dayLabel(ts: Long): String {
         val c = Calendar.getInstance().apply { timeInMillis = ts }
