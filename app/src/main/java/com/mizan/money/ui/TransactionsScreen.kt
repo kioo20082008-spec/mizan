@@ -56,10 +56,10 @@ fun TransactionsScreen(vm: MainViewModel) {
                     Text("مستخرجة تلقائياً من رسائل البنك", style = Eyebrow)
                 }
                 Box(
-                    Modifier.size(42.dp).clip(RoundedCornerShape(RadiusSm)).background(Ink900)
+                    Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Ink900)
                         .clickable { showAdd = true },
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.Add, "إضافة", tint = Lime, modifier = Modifier.size(22.dp)) }
+                ) { Icon(Icons.Default.Add, "إضافة عملية يدوية", tint = Lime, modifier = Modifier.size(22.dp)) }
             }
         }
         item {
@@ -141,7 +141,7 @@ private fun TxDetailDialog(
                     )
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(
-                        value = amount, onValueChange = { amount = it },
+                        value = amount, onValueChange = { amount = it.filter { ch -> ch.isDigit() || ch == '.' } },
                         label = { Text("المبلغ") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
@@ -278,7 +278,7 @@ private fun AddDialog(onDismiss: () -> Unit, onSave: (Double, String, String, Tx
                 )
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
-                    value = amount, onValueChange = { amount = it },
+                    value = amount, onValueChange = { amount = it.filter { ch -> ch.isDigit() || ch == '.' } },
                     label = { Text("المبلغ (ر.س)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),

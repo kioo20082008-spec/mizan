@@ -2,6 +2,7 @@ package com.mizan.money.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun PermissionScreen(onGrant: () -> Unit) {
+fun PermissionScreen(showSettingsLink: Boolean, onGrant: () -> Unit, onOpenSettings: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -73,6 +74,16 @@ fun PermissionScreen(onGrant: () -> Unit) {
             Text("ابدأ الآن", style = Body.copy(color = Lime, fontWeight = FontWeight.Bold, fontSize = 16.sp))
             Spacer(Modifier.width(8.dp))
             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(16.dp).graphicsLayer(rotationZ = 180f), tint = Lime)
+        }
+
+        if (showSettingsLink) {
+            Spacer(Modifier.height(14.dp))
+            Text(
+                "ما ظهر لك طلب الصلاحية؟ افتح إعدادات التطبيق ومنحها يدوياً",
+                style = Eyebrow.copy(color = Indigo, fontSize = 12.sp),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenSettings).padding(8.dp)
+            )
         }
     }
 }

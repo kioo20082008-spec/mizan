@@ -2,7 +2,10 @@ package com.mizan.money.ui
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
@@ -32,6 +35,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mizan.money.MoneyApp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // ============ ENTRY ============
 @Composable
@@ -41,11 +47,12 @@ fun AppRoot() {
     val vm: MainViewModel = viewModel(factory = MainViewModel.factory(app, app.repository))
     var hasSms by remember { mutableStateOf(checkSms(ctx)) }
     var scanned by remember { mutableStateOf(false) }
+    var permissionAttempted by remember { mutableStateOf(false) }
     val isScanning by vm.isScanning.collectAsState()
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { hasSms = checkSms(ctx) }
+    ) { hasSms = checkSms(ctx); permissionAttempted = true }
 
     LaunchedEffect(hasSms) {
         if (hasSms && !scanned) { scanned = true; vm.scanInbox() }
@@ -71,12 +78,21 @@ fun AppRoot() {
                         Modifier.fillMaxWidth().fillMaxHeight(),
                         color = Paper
                     ) {
-                        if (!hasSms) PermissionScreen {
-                            launcher.launch(arrayOf(
-                                Manifest.permission.READ_SMS,
-                                Manifest.permission.RECEIVE_SMS
-                            ))
-                        } else if (!scanned || isScanning) {
+                        if (!hasSms) PermissionScreen(
+                            showSettingsLink = permissionAttempted,
+                            onGrant = {
+                                launcher.launch(arrayOf(
+                                    Manifest.permission.READ_SMS,
+                                    Manifest.permission.RECEIVE_SMS
+                                ))
+                            },
+                            onOpenSettings = {
+                                ctx.startActivity(
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                        .setData(Uri.fromParts("package", ctx.packageName, null))
+                                )
+                            }
+                        ) else if (!scanned || isScanning) {
                             ScanningScreen()
                         } else {
                             RootScaffold(vm)
@@ -105,7 +121,7 @@ private fun RootScaffold(vm: MainViewModel) {
             AppHeader(onSettingsClick = { showSettings = true })
             Box(Modifier.weight(1f)) {
                 when (tab) {
-                    0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it })
+                    0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { tab = 1 })
                     1 -> TransactionsScreen(vm)
                     2 -> BudgetScreen(vm, monthOffset)
                     else -> AdvisorScreen(vm, monthOffset)
@@ -136,12 +152,12 @@ private fun AppHeader(onSettingsClick: () -> Unit) {
             Text("ميزان", style = H1)
         }
         Box(
-            Modifier.size(42.dp).clip(RoundedCornerShape(RadiusSm)).background(White)
+            Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(White)
                 .border(1.dp, Line, RoundedCornerShape(RadiusSm))
                 .clickable(onClick = onSettingsClick),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Outlined.Settings, null, Modifier.size(20.dp), tint = InkSoft)
+            Icon(Icons.Outlined.Settings, "الإعدادات", Modifier.size(20.dp), tint = InkSoft)
         }
     }
 }
@@ -149,7 +165,37 @@ private fun AppHeader(onSettingsClick: () -> Unit) {
 @Composable
 private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: () -> Unit) {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     val txs by vm.transactions.collectAsState()
+    var showExportConfirm by remember { mutableStateOf(false) }
+
+    if (showExportConfirm) {
+        AlertDialog(
+            onDismissRequest = { showExportConfirm = false },
+            containerColor = White,
+            shape = RoundedCornerShape(RadiusXl),
+            title = { Text("مشاركة بياناتك؟", style = H2) },
+            text = {
+                Text(
+                    "بيشارك ملف نصي فيه كل عملياتك: المبالغ، أسماء البنوك، آخر 4 أرقام من البطاقة، ونص رسائل SMS الأصلية كاملة. اختر بنفسك وين ترسله من قائمة المشاركة التالية.",
+                    style = BodyMuted
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showExportConfirm = false
+                    scope.launch(Dispatchers.IO) {
+                        val file = writeSmsExportFile(ctx, txs)
+                        withContext(Dispatchers.Main) { shareExportFile(ctx, file) }
+                    }
+                }) { Text("مشاركة", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExportConfirm = false }) { Text("إلغاء", style = Body.copy(color = InkSoft)) }
+            }
+        )
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = White,
@@ -178,7 +224,7 @@ private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: (
                         .clip(RoundedCornerShape(RadiusMd))
                         .background(PaperOuter)
                         .clickable(enabled = txs.isNotEmpty()) {
-                            exportRawSmsForDebugging(ctx, txs)
+                            showExportConfirm = true
                         }
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically

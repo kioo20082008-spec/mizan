@@ -57,7 +57,11 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
                 }
             }
         }
-        items(advice) { a -> AdviceRow(a) }
+        if (advice.isEmpty()) {
+            item { EmptyState("لا توجد نصائح بعد — أضف عمليات أو ميزانية لهذا الشهر") }
+        } else {
+            items(advice) { a -> AdviceRow(a) }
+        }
     }
 }
 

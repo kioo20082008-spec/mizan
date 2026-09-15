@@ -1,5 +1,7 @@
 package com.mizan.money.sms
 
+import com.mizan.money.data.SELF_TRANSFER_CATEGORY
+import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
 import java.security.MessageDigest
 import java.util.Locale
@@ -10,6 +12,21 @@ data class ParsedSms(
     val timestamp: Long, val raw: String, val sender: String,
     val isSelfTransfer: Boolean
 )
+
+// Shared by InboxScanner (full inbox scan) and SmsReceiver (live incoming SMS) so
+// the category/merchant/hash decisions can't drift out of sync between the two.
+fun ParsedSms.toEntity(): TransactionEntity {
+    val category = if (isSelfTransfer) SELF_TRANSFER_CATEGORY
+        else CategoryClassifier.classify(merchant, raw)
+    return TransactionEntity(
+        amount = amount, currency = currency,
+        merchant = merchant ?: bankName ?: sender,
+        category = category,
+        type = type, bankName = bankName, cardLast4 = cardLast4,
+        rawSms = raw, smsHash = SmsParser.hashFor(sender, timestamp, raw),
+        timestamp = timestamp, isManual = false, isSelfTransfer = isSelfTransfer
+    )
+}
 
 object SmsParser {
     private val expenseWords = listOf(
@@ -31,7 +48,7 @@ object SmsParser {
         "من حسابك إلى حسابك","تحويل داخلي","internal transfer","own account"
     )
     private val balanceWord = Regex(
-        """(?:رصيد|الرصيد|رصيدك|balance|متاح|available)[^\d]{0,25}[\d,]+(?:\.\d{1,2})?""",
+        """(?:رصيد|الرصيد|رصيدك|balance|متاح|available)[^\d]{0,80}[\d,]+(?:\.\d{1,2})?""",
         RegexOption.IGNORE_CASE
     )
     private val amountPatterns = listOf(
@@ -39,8 +56,16 @@ object SmsParser {
         Regex("""([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:SAR|SR|ر\.?س\.?|ريال|USD|دولار)""", RegexOption.IGNORE_CASE),
         Regex("""(?:SAR|SR|ر\.?س\.?|ريال)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)""", RegexOption.IGNORE_CASE)
     )
-    private val merchantPatterns = listOf(
-        Regex("""(?:لدى|عند|من|في متجر|التاجر|merchant|at)\s*[:：]?\s*([^\n\r,،؛|]{2,45})""", RegexOption.IGNORE_CASE)
+    // "من" ("from") is far too generic to trust as a merchant anchor — it almost
+    // always precedes "حسابك"/"بطاقتك" etc. rather than the actual merchant, and
+    // since Regex.find() always returns the leftmost match, putting it in the same
+    // alternation as the specific anchors below would win purely on position. So it
+    // only gets tried as a last resort, after every more specific anchor has failed.
+    private val merchantPatternsPrimary = listOf(
+        Regex("""(?:لدى|عند|في متجر|التاجر|merchant|at)\s*[:：]?\s*([^\n\r,،؛|]{2,45})""", RegexOption.IGNORE_CASE)
+    )
+    private val merchantPatternsFallback = listOf(
+        Regex("""(?:من)\s*[:：]?\s*([^\n\r,،؛|]{2,45})""", RegexOption.IGNORE_CASE)
     )
     private val cardPattern = Regex("""(?:بطاقة|card|حساب|acct|account)\D{0,8}[*xX#]*\s*(\d{4})""", RegexOption.IGNORE_CASE)
     private val banks = mapOf(
@@ -92,8 +117,10 @@ object SmsParser {
             incomeWords.any { low.contains(it) } -> TxType.INCOME
             else -> TxType.EXPENSE
         }
-        val merchant = merchantPatterns
-            .firstNotNullOfOrNull { it.find(n)?.groupValues?.get(1)?.trim() }
+        val merchant = (
+            merchantPatternsPrimary.firstNotNullOfOrNull { it.find(n)?.groupValues?.get(1)?.trim() }
+                ?: merchantPatternsFallback.firstNotNullOfOrNull { it.find(n)?.groupValues?.get(1)?.trim() }
+            )
             ?.trim(' ', '.', '-', ':')
             ?.takeIf { it.length in 2..45 }
         val last4 = cardPattern.find(n)?.groupValues?.get(1)

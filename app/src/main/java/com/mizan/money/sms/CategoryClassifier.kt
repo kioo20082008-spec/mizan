@@ -11,15 +11,20 @@ object CategoryClassifier {
     private val rules: List<Pair<String, List<String>>> = listOf(
         "بقالة" to listOf("بنده","كارفور","العثيم","الدانوب","تميمي","لولو","نستو","panda","carrefour","othaim","danube","tamimi","lulu","hyper"),
         "طعام وشراب" to listOf("ستاربكس","كودو","هرفي","ماكدونالدز","الطازج","البيك","كنتاكي","بيتزا","مطعم","كافيه","قهوة","دونات","دانكن","starbucks","mcdonald","kudu","herfy","pizza","kfc","dunkin","cafe","restaurant"),
-        "وقود" to listOf("أديل","الدريس","بترومين","نفط","ساسكو","بترو","aldrees","petromin","sasco","adnoc","total","aramco"),
+        // "total" (the fuel brand) deliberately excluded: it's a substring of the
+        // near-universal English bank-SMS phrase "Total Amount", so keeping it here
+        // would miscategorize most English-language receipts as fuel purchases.
+        "وقود" to listOf("أديل","الدريس","بترومين","نفط","ساسكو","بترو","aldrees","petromin","sasco","adnoc","aramco"),
         "مواصلات" to listOf("أوبر","كريم","ليمو","تاكسي","مترو","حافلات","uber","careem","taxi","metro","saptco","bolt"),
+        // Checked before اتصالات so "STC Pay" (a wallet/transfer, not a phone bill)
+        // isn't shadowed by اتصالات's bare "stc" keyword matching first.
+        "تحويلات" to listOf("تحويل","حوالة","transfer","remittance","western union","stc pay","urpay","محفظة"),
         "اتصالات" to listOf("stc","موبايلي","زين","الاتصالات","سلام","mobily","zain","virgin","lebara"),
         "اشتراكات" to listOf("نتفلكس","netflix","شاهد","shahid","spotify","سبوتيفاي","أنغامي","anghami","youtube","icloud","google one","adobe","chatgpt","openai","microsoft","subscription","اشتراك"),
         "صحة" to listOf("صيدلية","النهدي","الدواء","مستشفى","عيادة","مختبر","طبي","nahdi","pharmacy","hospital","clinic","dawaa","seha"),
         "تسوق" to listOf("أمازون","نون","جرير","إكسترا","شي إن","نمشي","amazon","noon","jarir","extra","shein","namshi","ikea","hm","zara","centrepoint","home box","ساكو","saco"),
         "فواتير" to listOf("كهرباء","المياه","الغاز","شركة الكهرباء","sec","marafiq","water","electricity","فاتورة","bill","إيجار","ايجار","rent"),
         "تعليم" to listOf("جامعة","مدرسة","كورس","دورة","udemy","coursera","university","school","tuition"),
-        "تحويلات" to listOf("تحويل","حوالة","transfer","remittance","western union","stc pay","urpay","محفظة"),
         // Checked last: only a bare ATM withdrawal with no identifiable merchant
         // should land here, never override a restaurant/grocery/etc. match above.
         CASH_WITHDRAWAL_CATEGORY to listOf("سحب نقدي","صراف آلي","ماكينة صراف","atm","cash withdrawal")

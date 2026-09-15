@@ -12,6 +12,10 @@ class SmsParserTest {
 
     @Test
     fun `parses an expense SMS with amount, bank, currency and merchant`() {
+        // "من حسابك" appears before "لدى ستاربكس" — regression test for the
+        // merchant regex correctly preferring the specific "لدى" anchor over the
+        // generic, earlier-occurring "من" (which would otherwise capture
+        // "حسابك في الراجحي لدى ستاربكس فرع العليا" instead of just the merchant).
         val sms = "عميلنا العزيز، تم خصم مبلغ 125.50 ريال من حسابك في الراجحي لدى ستاربكس فرع العليا"
         val parsed = SmsParser.parse("ALRAJHIBANK", sms, 1_000L)
 
@@ -20,7 +24,16 @@ class SmsParserTest {
         assertEquals("SAR", parsed.currency)
         assertEquals(TxType.EXPENSE, parsed.type)
         assertEquals("مصرف الراجحي", parsed.bankName)
-        assertTrue(parsed.merchant?.contains("ستاربكس") == true)
+        assertEquals("ستاربكس فرع العليا", parsed.merchant)
+    }
+
+    @Test
+    fun `falls back to the "من" anchor only when no more specific anchor is present`() {
+        val sms = "تم خصم مبلغ 60.00 ريال من محفظتك الرقمية"
+        val parsed = SmsParser.parse("BANK", sms, 1_500L)
+
+        assertNotNull(parsed)
+        assertEquals("محفظتك الرقمية", parsed!!.merchant)
     }
 
     @Test

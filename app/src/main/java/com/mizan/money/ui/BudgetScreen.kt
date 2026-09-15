@@ -38,10 +38,21 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                 ?.limitAmount?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: ""
         )
     }
-    var catInputs by remember(monthKey) { mutableStateOf<Map<String, String>>(emptyMap()) }
+    // Seeded synchronously from the already-loaded `budgets` (not emptyMap()), so
+    // switching months doesn't flash every category to "0" for a frame before the
+    // effect below catches up.
+    var catInputs by remember(monthKey) {
+        mutableStateOf(
+            CategoryClassifier.categories.associateWith { c ->
+                budgets.firstOrNull { it.monthKey == monthKey && it.category == c }
+                    ?.limitAmount?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: ""
+            }
+        )
+    }
     // Only one category's editor is open at a time, so the list stays scannable
-    // instead of showing 13 always-open input rows.
-    var editingCategory by remember { mutableStateOf<String?>(null) }
+    // instead of showing 13 always-open input rows. Keyed by month so switching
+    // months doesn't leave a stale category's editor expanded.
+    var editingCategory by remember(monthKey) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(budgets, monthKey) {
         catInputs = CategoryClassifier.categories.associateWith { c ->
@@ -187,7 +198,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                         )
                         Spacer(Modifier.width(8.dp))
                         Box(
-                            Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
+                            Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
                                 .clickable {
                                     (catInputs[cat]?.toDoubleOrNull() ?: 0.0).let { vm.setBudget(monthKey, cat, it) }
                                     editingCategory = null

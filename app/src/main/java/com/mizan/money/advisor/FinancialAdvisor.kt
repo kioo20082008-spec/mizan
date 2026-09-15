@@ -48,17 +48,23 @@ object FinancialAdvisor {
         } else {
             val pct = summary.spent / monthlyBudget
             val remaining = monthlyBudget - summary.spent
-            val daysLeft = max(1, ((monthEnd - now) / 86_400_000L).toInt())
-            val safeDaily = max(0.0, remaining / daysLeft)
+            // A "per day" pace is meaningless once the month being viewed has
+            // already ended — guard it instead of dividing the whole remaining
+            // budget by a clamped 1 day and presenting that as today's pace.
+            val isPastMonth = now > monthEnd
+            val daysLeft = if (isPastMonth) 0 else max(1, ((monthEnd - now) / 86_400_000L).toInt())
+            val safeDaily = if (isPastMonth) 0.0 else max(0.0, remaining / daysLeft)
             when {
                 pct >= 1.0 -> list += Advice("تجاوزت الميزانية ⚠️",
                     "صرفت ${fmt(summary.spent)} من أصل ${fmt(monthlyBudget)} ر.س (${(pct * 100).toInt()}%). تجاوزك ${fmt(summary.spent - monthlyBudget)} ر.س.",
                     Level.DANGER)
                 pct >= 0.8 -> list += Advice("اقتربت من الحد 🟠",
-                    "استهلكت ${(pct * 100).toInt()}% من ميزانيتك. المتبقي ${fmt(remaining)} ر.س لـ $daysLeft يوم، بمعدل ${fmt(safeDaily)} ر.س يومياً.",
+                    if (isPastMonth) "استهلكت ${(pct * 100).toInt()}% من ميزانية ذلك الشهر، بمتبقي ${fmt(remaining)} ر.س."
+                    else "استهلكت ${(pct * 100).toInt()}% من ميزانيتك. المتبقي ${fmt(remaining)} ر.س لـ $daysLeft يوم، بمعدل ${fmt(safeDaily)} ر.س يومياً.",
                     Level.WARN)
                 else -> list += Advice("أنت في المسار الصحيح ✅",
-                    "صرفت ${(pct * 100).toInt()}% من ميزانيتك. المتبقي ${fmt(remaining)} ر.س، ويمكنك صرف ${fmt(safeDaily)} ر.س يومياً.",
+                    if (isPastMonth) "صرفت ${(pct * 100).toInt()}% من ميزانية ذلك الشهر."
+                    else "صرفت ${(pct * 100).toInt()}% من ميزانيتك. المتبقي ${fmt(remaining)} ر.س، ويمكنك صرف ${fmt(safeDaily)} ر.س يومياً.",
                     Level.GOOD)
             }
         }
@@ -145,9 +151,12 @@ object FinancialAdvisor {
         return if (consistentMonths >= 2) avg else null
     }
     private fun detectSubscriptions(allTx: List<TransactionEntity>): List<Pair<String, Double>> {
-        // Exclude self-transfers so a recurring auto-transfer to a savings account
-        // doesn't get mistaken for a subscription.
-        val recent = allTx.filter { it.type == TxType.EXPENSE && it.merchant != null && !it.isSelfTransfer }
+        // SAR-only (matches summarize/detectSalary) and excludes self-transfers, so
+        // a recurring auto-transfer to a savings account or a foreign-currency charge
+        // at a same-named merchant doesn't get mistaken for / mixed into a subscription.
+        val recent = allTx.filter {
+            it.type == TxType.EXPENSE && it.merchant != null && it.currency == "SAR" && !it.isSelfTransfer
+        }
         val grouped = recent.groupBy { it.merchant!!.lowercase().trim() }
         return grouped.mapNotNull { (merchant, list) ->
             if (list.size < 2) return@mapNotNull null
