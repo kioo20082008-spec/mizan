@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.advisor.MonthSummary
-import com.mizan.money.data.TOTAL_BUDGET
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -39,14 +38,17 @@ fun DashboardScreen(
     onNavigateToTransactions: (String?) -> Unit
 ) {
     val txs by vm.transactions.collectAsState()
-    val budgets by vm.budgets.collectAsState()
+    val manualSalary by vm.manualSalary.collectAsState()
     val startDay by vm.monthStartDay.collectAsState()
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
-    val budget = budgets.firstOrNull {
-        it.monthKey == Dates.monthKey(offset, startDay) && it.category == TOTAL_BUDGET
-    }?.limitAmount ?: 0.0
+    // "استهلاك ميزانية الشهر" is driven by what you actually earned this month
+    // (or your configured/detected salary before payday), not a manually-typed
+    // budget ceiling — so it never needs separate upkeep to stay meaningful.
+    val planningIncome = remember(summary, txs, manualSalary) {
+        FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0
+    }
     // "أحدث العمليات" must reflect the month being browsed — otherwise paging to
     // an older month still shows today's latest transactions as if they belonged
     // to it, while every other card on this screen (balance, budget, categories)
@@ -59,11 +61,11 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
-            BalanceCard(summary, offset, startDay, budget, onPrev = { onOffsetChange(offset - 1) }, onNext = { if (offset < 0) onOffsetChange(offset + 1) })
+            BalanceCard(summary, offset, startDay, planningIncome, onPrev = { onOffsetChange(offset - 1) }, onNext = { if (offset < 0) onOffsetChange(offset + 1) })
         }
 
-        if (budget > 0) {
-            item { BudgetStatusCard(budget, summary.spent) }
+        if (planningIncome > 0) {
+            item { BudgetStatusCard(planningIncome, summary.spent, title = "استهلاك دخل الشهر", capLabel = "الدخل") }
         }
 
         if (summary.categoryTotals.isNotEmpty()) {
@@ -156,11 +158,13 @@ private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Dou
 
             Spacer(Modifier.height(24.dp))
             // "تجاوزت ميزانيتك" (exceeded your budget) must actually compare spend
-            // to a configured budget — driving it off s.net (income - spent) alone
-            // falsely flags anyone with no budget set, or whose income just hasn't
-            // posted yet this month, as "over budget" when neither is true.
+            // to your (income-based) budget. Once that budget is known, compare
+            // against IT — not against s.net, which would otherwise false-alarm
+            // before payday (income hasn't posted yet this month even though
+            // spending against the *expected* income is perfectly fine). The
+            // net-based fallback only applies when there's no income signal at all.
             val isOverBudget = budget > 0 && s.spent > budget
-            val isNegativeNet = s.net < 0
+            val isNegativeNet = budget <= 0 && s.net < 0
             val isPastMonth = offset < 0
             val label = when {
                 isOverBudget -> "تجاوزت ميزانيتك هذا الشهر"
@@ -212,14 +216,14 @@ private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Dou
 }
 
 @Composable
-private fun BudgetStatusCard(budget: Double, spent: Double) {
+private fun BudgetStatusCard(budget: Double, spent: Double, title: String = "استهلاك ميزانية الشهر", capLabel: String = "السقف") {
     val pct = (spent / budget).coerceIn(0.0, 1.0).toFloat()
     val anim by animateFloatAsState(pct, tween(800), label = "b")
     val overBudget = spent > budget
 
     SoftCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("استهلاك ميزانية الشهر", style = H2, modifier = Modifier.weight(1f))
+            Text(title, style = H2, modifier = Modifier.weight(1f))
             Text(
                 "${(spent / budget * 100).roundToInt()}٪",
                 style = Body.copy(color = if (overBudget) Danger else Indigo, fontWeight = FontWeight.Bold),
@@ -249,7 +253,7 @@ private fun BudgetStatusCard(budget: Double, spent: Double) {
         Row(Modifier.fillMaxWidth()) {
             Text("صرفت: ${FinancialAdvisor.fmt(spent)} ${currencyLabel("SAR")}", style = BodyMuted.copy(fontSize = 12.sp))
             Spacer(Modifier.weight(1f))
-            Text("السقف: ${FinancialAdvisor.fmt(budget)} ${currencyLabel("SAR")}", style = BodyMuted.copy(fontSize = 12.sp))
+            Text("$capLabel: ${FinancialAdvisor.fmt(budget)} ${currencyLabel("SAR")}", style = BodyMuted.copy(fontSize = 12.sp))
         }
     }
 }

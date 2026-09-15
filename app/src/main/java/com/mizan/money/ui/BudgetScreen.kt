@@ -21,12 +21,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.TOTAL_BUDGET
-import com.mizan.money.sms.CategoryClassifier
 
 // ============ BUDGET ============
 @Composable
 fun BudgetScreen(vm: MainViewModel, offset: Int) {
     val budgets by vm.budgets.collectAsState()
+    val categories by vm.categories.collectAsState()
     val startDay by vm.monthStartDay.collectAsState()
     val monthKey = Dates.monthKey(offset, startDay)
     val txs by vm.transactions.collectAsState()
@@ -46,7 +46,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
     // effect below catches up.
     var catInputs by remember(monthKey) {
         mutableStateOf(
-            CategoryClassifier.categories.associateWith { c ->
+            categories.associateWith { c ->
                 budgets.firstOrNull { it.monthKey == monthKey && it.category == c }
                     ?.limitAmount?.toBudgetInput() ?: ""
             }
@@ -57,13 +57,13 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
     // months doesn't leave a stale category's editor expanded.
     var editingCategory by remember(monthKey) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(budgets, monthKey) {
+    LaunchedEffect(budgets, monthKey, categories) {
         // Previously only catInputs was resynced here, so saving the total budget
         // (or copying last month's) never refreshed the hero card's own number —
         // it stayed blank/stale until the user left and re-entered the screen.
         totalInput = budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }
             ?.limitAmount?.toBudgetInput() ?: ""
-        catInputs = CategoryClassifier.categories.associateWith { c ->
+        catInputs = categories.associateWith { c ->
             // Skip the category currently being typed into — otherwise an unrelated
             // budget write elsewhere (e.g. saving the total) re-fires this effect
             // and clobbers the in-progress, not-yet-saved keystrokes with what's
@@ -158,7 +158,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
             Text("الميزانية لكل تصنيف", style = H2, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
         }
 
-        items(CategoryClassifier.categories) { cat ->
+        items(categories) { cat ->
             val spentInCat = spentByCat[cat] ?: 0.0
             val limit = catInputs[cat]?.toDoubleOrNull() ?: 0.0
             val pct = if (limit > 0) (spentInCat / limit).coerceIn(0.0, 1.0).toFloat() else 0f

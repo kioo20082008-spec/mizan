@@ -57,6 +57,30 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         _manualSalary.value = v
     }
 
+    // User-managed category list — seeded from CategoryClassifier's defaults,
+    // then freely add/delete from Settings. Stored as a delimited string
+    // (order matters for display) rather than one bool per default category,
+    // since a custom addition needs to persist the same way a kept default does.
+    private fun loadCategories(): List<String> =
+        prefs.getString("categories", null)
+            ?.split(CATEGORY_DELIM)?.filter { it.isNotBlank() }
+            ?: com.mizan.money.sms.CategoryClassifier.categories
+    private val _categories = MutableStateFlow(loadCategories())
+    val categories: StateFlow<List<String>> = _categories
+    private fun saveCategories(list: List<String>) {
+        prefs.edit().putString("categories", list.joinToString(CATEGORY_DELIM)).apply()
+        _categories.value = list
+    }
+    fun addCategory(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank() || _categories.value.contains(trimmed)) return
+        saveCategories(_categories.value + trimmed)
+    }
+    fun deleteCategory(name: String) {
+        if (name == "أخرى") return // always keep a fallback category to classify into
+        saveCategories(_categories.value.filter { it != name })
+    }
+
     fun scanInbox() {
         if (_isScanning.value) return
         viewModelScope.launch {
@@ -91,6 +115,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         viewModelScope.launch { repo.setBudget(monthKey, category, amount) }
 
     companion object {
+        private const val CATEGORY_DELIM = "|||"
         fun factory(app: Application, repo: TransactionRepository) = viewModelFactory {
             initializer { MainViewModel(app, repo) }
         }

@@ -30,7 +30,13 @@ data class TransactionEntity(
     // transaction from the current parser so old parsing bugs get fixed
     // retroactively instead of leaving stale/duplicate data behind forever —
     // but it must never silently overwrite a fix the user already made.
-    val isEdited: Boolean = false
+    val isEdited: Boolean = false,
+    // A large irregular/fixed bill (rent, once-a-month laundry, etc) posted on
+    // a single day badly skews "average daily spending" — dividing it by days-
+    // passed makes a normal month look like a spending spike. The user flags
+    // these themselves; they still count in totals/budgets, just not this one
+    // pace calculation.
+    val excludeFromDailyAvg: Boolean = false
 )
 
 @Entity(tableName = "budgets", primaryKeys = ["monthKey", "category"])

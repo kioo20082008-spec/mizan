@@ -20,11 +20,12 @@ private fun tx(
     currency: String = "SAR",
     merchant: String? = "Test",
     timestamp: Long = JAN_2024_START + 1_000L,
-    isSelfTransfer: Boolean = false
+    isSelfTransfer: Boolean = false,
+    excludeFromDailyAvg: Boolean = false
 ): TransactionEntity = TransactionEntity(
     amount = amount, currency = currency, merchant = merchant, category = category,
     type = type, rawSms = "", smsHash = "h-${System.nanoTime()}-${(0..999999).random()}",
-    timestamp = timestamp, isSelfTransfer = isSelfTransfer
+    timestamp = timestamp, isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg
 )
 
 class FinancialAdvisorTest {
@@ -241,5 +242,34 @@ class FinancialAdvisorTest {
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
         assertFalse(advice.any { it.title.contains("اشتراكات") })
+    }
+
+    @Test
+    fun `summarize excludes flagged transactions from dailyAvg but still counts them in spent`() {
+        val txs = listOf(
+            tx(100.0, excludeFromDailyAvg = false),
+            tx(3000.0, category = "فواتير", excludeFromDailyAvg = true) // e.g. rent
+        )
+        val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
+
+        assertEquals(3100.0, s.spent, 0.001) // rent still counts toward real spending/budget
+        val daysPassed = ((JAN_2024_END.coerceAtMost(System.currentTimeMillis()) - JAN_2024_START) / 86_400_000L).toInt() + 1
+        assertEquals(100.0 / daysPassed.coerceAtLeast(1), s.dailyAvg, 0.01) // but not the daily pace
+    }
+
+    @Test
+    fun `planningIncome prefers manual salary over detected salary over this month's income`() {
+        val history = listOf(
+            tx(9000.0, TxType.INCOME, timestamp = JAN_2024_START + 1_000L),
+            tx(9000.0, TxType.INCOME, timestamp = FEB_MARK)
+        )
+        val s = FinancialAdvisor.summarize(history, JAN_2024_START, JAN_2024_END)
+
+        assertEquals(12000.0, FinancialAdvisor.planningIncome(s, history, manualSalary = 12000.0)!!, 0.001)
+        assertEquals(9000.0, FinancialAdvisor.planningIncome(s, history, manualSalary = 0.0)!!, 0.001)
+
+        val noHistory = listOf(tx(500.0, TxType.INCOME))
+        val s2 = FinancialAdvisor.summarize(noHistory, JAN_2024_START, JAN_2024_END)
+        assertEquals(500.0, FinancialAdvisor.planningIncome(s2, noHistory, manualSalary = 0.0)!!, 0.001)
     }
 }

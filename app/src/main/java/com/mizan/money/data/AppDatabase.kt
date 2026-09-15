@@ -9,7 +9,7 @@ import androidx.room.migration.Migration
 
 @Database(
     entities = [TransactionEntity::class, BudgetEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,6 +23,11 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE transactions ADD COLUMN isEdited INTEGER NOT NULL DEFAULT 0")
             }
         }
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN excludeFromDailyAvg INTEGER NOT NULL DEFAULT 0")
+            }
+        }
 
         // No fallbackToDestructiveMigration: this holds a user's financial history,
         // so a future schema change must ship a real Migration rather than silently
@@ -30,7 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
         fun get(ctx: Context): AppDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(
                 ctx.applicationContext, AppDatabase::class.java, "mizan.db"
-            ).addMigrations(MIGRATION_1_2).build().also { INSTANCE = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
         }
     }
 }

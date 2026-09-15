@@ -196,6 +196,8 @@ private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: (
     val isScanning by vm.isScanning.collectAsState()
     val startDay by vm.monthStartDay.collectAsState()
     val manualSalary by vm.manualSalary.collectAsState()
+    val categories by vm.categories.collectAsState()
+    var newCategoryInput by remember { mutableStateOf("") }
     var salaryInput by remember(manualSalary) {
         mutableStateOf(
             manualSalary.takeIf { it > 0 }
@@ -328,6 +330,46 @@ private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: (
                     IconButton(onClick = { vm.setMonthStartDay(startDay + 1) }, enabled = startDay < 28) {
                         Icon(Icons.Default.Add, "زيادة", tint = if (startDay < 28) Indigo else InkFaint)
                     }
+                }
+                Spacer(Modifier.height(18.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                Spacer(Modifier.height(18.dp))
+                Text("التصنيفات", style = Body.copy(fontWeight = FontWeight.Bold))
+                Spacer(Modifier.height(4.dp))
+                Text("أضف تصنيفات خاصة بك أو احذف ما لا تحتاجه.", style = Eyebrow)
+                Spacer(Modifier.height(10.dp))
+                categories.forEach { cat ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconBadge(catIcon(cat), catColor(cat), catColorSoft(cat), size = 32.dp, iconSize = 15.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text(cat, style = Body, modifier = Modifier.weight(1f))
+                        if (cat != "أخرى") {
+                            IconButton(onClick = { vm.deleteCategory(cat) }, modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.Default.Close, "حذف $cat", Modifier.size(16.dp), tint = Danger)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newCategoryInput,
+                        onValueChange = { newCategoryInput = it },
+                        placeholder = { Text("تصنيف جديد", style = Eyebrow) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(RadiusSm),
+                        textStyle = Body
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
+                            .clickable { vm.addCategory(newCategoryInput); newCategoryInput = "" },
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Default.Add, "إضافة", tint = White, modifier = Modifier.size(20.dp)) }
                 }
                 Spacer(Modifier.height(18.dp))
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))

@@ -36,7 +36,12 @@ object FinancialAdvisor {
                 val sum = list.sumOf { it.amount }
                 CategoryTotal(cat, sum, if (spent > 0) sum / spent else 0.0)
             }.sortedByDescending { it.amount }
-        return MonthSummary(spent, income, income - spent, expenses.size, spent / daysPassed, byCat, expenses.maxByOrNull { it.amount })
+        // A single big irregular bill (rent, etc) posted on one day would
+        // otherwise dominate "average daily spend" — the user flags which
+        // transactions to leave out of this one figure; totals/budgets/category
+        // breakdowns above still include them, since that money is still spent.
+        val dailyAvgBasis = expenses.filter { !it.excludeFromDailyAvg }.sumOf { it.amount }
+        return MonthSummary(spent, income, income - spent, expenses.size, dailyAvgBasis / daysPassed, byCat, expenses.maxByOrNull { it.amount })
     }
     fun advise(summary: MonthSummary, monthlyBudget: Double, allTx: List<TransactionEntity>,
                monthStart: Long, monthEnd: Long, now: Long = System.currentTimeMillis(),
@@ -129,9 +134,7 @@ object FinancialAdvisor {
                     Level.INFO)
             }
         }
-        // Prefer the detected recurring salary as the planning base (more stable
-        // than one month's raw income, and still useful before payday hits).
-        val planningIncome = salary ?: summary.income.takeIf { it > 0 }
+        val planningIncome = resolveIncome(summary, salary)
         if (planningIncome != null) {
             list += Advice("قاعدة 50 / 30 / 20 💡",
                 "من دخل ${fmt(planningIncome)} ر.س: ${fmt(planningIncome * 0.5)} للاحتياجات، ${fmt(planningIncome * 0.3)} للرغبات، ${fmt(planningIncome * 0.2)} للادخار.",
@@ -139,6 +142,14 @@ object FinancialAdvisor {
         }
         return list
     }
+    // The best available estimate of the user's income for the month, in
+    // priority order: a manually entered salary, an auto-detected recurring
+    // one (more stable than one month's raw income, and still useful before
+    // payday hits), then whatever actually posted as income this month.
+    fun planningIncome(summary: MonthSummary, allTx: List<TransactionEntity>, manualSalary: Double = 0.0): Double? =
+        resolveIncome(summary, manualSalary.takeIf { it > 0 } ?: detectSalary(allTx))
+    private fun resolveIncome(summary: MonthSummary, salary: Double?): Double? =
+        salary ?: summary.income.takeIf { it > 0 }
     // Salary is inferred, not tagged per-SMS: bank wording for a payroll deposit
     // varies too much to match reliably, but a recurring similar-sized deposit
     // once a month is a strong signal on its own.
