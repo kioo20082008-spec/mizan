@@ -1,11 +1,11 @@
 package com.mizan.money.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -16,11 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.TOTAL_BUDGET
+import kotlin.math.roundToInt
 
 // ============ BUDGET ============
 @Composable
@@ -56,6 +58,8 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
     // instead of showing 13 always-open input rows. Keyed by month so switching
     // months doesn't leave a stale category's editor expanded.
     var editingCategory by remember(monthKey) { mutableStateOf<String?>(null) }
+    var addingCategory by remember { mutableStateOf(false) }
+    var newCategoryInput by remember { mutableStateOf("") }
 
     LaunchedEffect(budgets, monthKey, categories) {
         // Previously only catInputs was resynced here, so saving the total budget
@@ -155,72 +159,145 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
         }
 
         item {
-            Text("الميزانية لكل تصنيف", style = H2, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
+                Text("الميزانية لكل تصنيف", style = H2, modifier = Modifier.weight(1f))
+                Text(
+                    if (addingCategory) "إلغاء" else "+ تصنيف",
+                    style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold),
+                    modifier = Modifier
+                        .clickable { addingCategory = !addingCategory; newCategoryInput = "" }
+                        .padding(6.dp)
+                )
+            }
         }
 
-        items(categories) { cat ->
-            val spentInCat = spentByCat[cat] ?: 0.0
-            val limit = catInputs[cat]?.toDoubleOrNull() ?: 0.0
-            val pct = if (limit > 0) (spentInCat / limit).coerceIn(0.0, 1.0).toFloat() else 0f
-            val isOver = limit > 0 && spentInCat > limit
-            val isEditing = editingCategory == cat
-
-            SoftCard(Modifier.clickable { editingCategory = if (isEditing) null else cat }) {
+        if (addingCategory) {
+            item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(catIcon(cat), catColor(cat), catColorSoft(cat), size = 40.dp, iconSize = 18.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(cat, style = H2.copy(fontSize = 14.sp))
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            if (limit > 0) "${FinancialAdvisor.fmt(spentInCat)} / ${FinancialAdvisor.fmt(limit)} ر.س"
-                            else "${FinancialAdvisor.fmt(spentInCat)} ر.س — بدون حد",
-                            style = Eyebrow.copy(fontSize = 11.sp, color = if (isOver) Danger else InkFaint, fontWeight = if (isOver) FontWeight.Bold else FontWeight.Normal)
-                        )
-                    }
-                    Icon(
-                        if (isEditing) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        null, tint = InkFaint
+                    OutlinedTextField(
+                        value = newCategoryInput,
+                        onValueChange = { newCategoryInput = it },
+                        placeholder = { Text("اسم التصنيف", style = Eyebrow) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(RadiusSm),
+                        textStyle = Body,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
+                            vm.addCategory(newCategoryInput); newCategoryInput = ""; addingCategory = false
+                        })
                     )
-                }
-                if (limit > 0) {
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.width(8.dp))
                     Box(
-                        Modifier.fillMaxWidth().height(8.dp)
-                            .clip(RoundedCornerShape(Pill))
-                            .background(PaperOuter)
-                    ) {
-                        Box(
-                            Modifier.fillMaxWidth(pct).fillMaxHeight()
-                                .clip(RoundedCornerShape(Pill))
-                                .background(if (isOver) Danger else catColor(cat))
-                        )
-                    }
+                        Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
+                            .clickable { vm.addCategory(newCategoryInput); newCategoryInput = ""; addingCategory = false },
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Default.Check, "إضافة", tint = White, modifier = Modifier.size(18.dp)) }
                 }
-                if (isEditing) {
-                    Spacer(Modifier.height(14.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = catInputs[cat] ?: "",
-                            onValueChange = { v ->
-                                catInputs = catInputs + (cat to sanitizeAmountInput(v))
-                            },
-                            placeholder = { Text("0", style = Eyebrow) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            shape = RoundedCornerShape(RadiusSm),
-                            textStyle = Body
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Box(
-                            Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
-                                .clickable {
-                                    (catInputs[cat]?.toDoubleOrNull() ?: 0.0).let { vm.setBudget(monthKey, cat, it) }
-                                    editingCategory = null
-                                },
-                            contentAlignment = Alignment.Center
-                        ) { Icon(Icons.Default.Check, "حفظ", tint = White, modifier = Modifier.size(20.dp)) }
+            }
+        }
+
+        // One flat bordered list instead of a separately-shadowed card per
+        // category — with 13+ categories the per-card shadow/border/18dp
+        // padding added up to a lot of scrolling for not much information.
+        item {
+            Column(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(RadiusLg))
+                    .background(White)
+                    .border(1.dp, Line, RoundedCornerShape(RadiusLg))
+            ) {
+                categories.forEachIndexed { index, cat ->
+                    val spentInCat = spentByCat[cat] ?: 0.0
+                    val limit = catInputs[cat]?.toDoubleOrNull() ?: 0.0
+                    val pct = if (limit > 0) (spentInCat / limit).coerceIn(0.0, 1.0).toFloat() else 0f
+                    val isOver = limit > 0 && spentInCat > limit
+                    val isEditing = editingCategory == cat
+
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .clickable { editingCategory = if (isEditing) null else cat }
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            IconBadge(catIcon(cat), catColor(cat), catColorSoft(cat), size = 32.dp, iconSize = 15.dp)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(cat, style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
+                                Text(
+                                    if (limit > 0) "${FinancialAdvisor.fmt(spentInCat)} / ${FinancialAdvisor.fmt(limit)} ر.س"
+                                    else "${FinancialAdvisor.fmt(spentInCat)} ر.س — بدون حد",
+                                    style = Eyebrow.copy(fontSize = 10.sp, color = if (isOver) Danger else InkFaint, fontWeight = if (isOver) FontWeight.Bold else FontWeight.Normal)
+                                )
+                            }
+                            if (limit > 0) {
+                                Text(
+                                    "${(pct * 100).roundToInt()}٪",
+                                    style = Eyebrow.copy(fontSize = 10.sp, color = if (isOver) Danger else Indigo, fontWeight = FontWeight.Bold)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                            }
+                            Icon(
+                                if (isEditing) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                null, Modifier.size(18.dp), tint = InkFaint
+                            )
+                        }
+                        if (limit > 0) {
+                            Spacer(Modifier.height(6.dp))
+                            Box(
+                                Modifier.fillMaxWidth().height(4.dp)
+                                    .clip(RoundedCornerShape(Pill))
+                                    .background(PaperOuter)
+                            ) {
+                                Box(
+                                    Modifier.fillMaxWidth(pct).fillMaxHeight()
+                                        .clip(RoundedCornerShape(Pill))
+                                        .background(if (isOver) Danger else catColor(cat))
+                                )
+                            }
+                        }
+                        if (isEditing) {
+                            Spacer(Modifier.height(10.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                OutlinedTextField(
+                                    value = catInputs[cat] ?: "",
+                                    onValueChange = { v ->
+                                        catInputs = catInputs + (cat to sanitizeAmountInput(v))
+                                    },
+                                    placeholder = { Text("0", style = Eyebrow) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(RadiusSm),
+                                    textStyle = Body
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Box(
+                                    Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
+                                        .clickable {
+                                            (catInputs[cat]?.toDoubleOrNull() ?: 0.0).let { vm.setBudget(monthKey, cat, it) }
+                                            editingCategory = null
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) { Icon(Icons.Default.Check, "حفظ", tint = White, modifier = Modifier.size(18.dp)) }
+                                if (cat != "أخرى") {
+                                    Spacer(Modifier.width(8.dp))
+                                    Box(
+                                        Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Danger.copy(alpha = 0.1f))
+                                            .clickable {
+                                                vm.deleteCategory(cat)
+                                                editingCategory = null
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) { Icon(Icons.Default.Delete, "حذف $cat", tint = Danger, modifier = Modifier.size(18.dp)) }
+                                }
+                            }
+                        }
+                    }
+                    if (index < categories.lastIndex) {
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                        }
                     }
                 }
             }

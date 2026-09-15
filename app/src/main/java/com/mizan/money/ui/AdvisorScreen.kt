@@ -1,9 +1,9 @@
 package com.mizan.money.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.advisor.Advice
@@ -54,27 +55,44 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Box(
+            Row(
                 Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(RadiusXl))
+                    .clip(RoundedCornerShape(RadiusLg))
                     .background(Brush.linearGradient(listOf(Ink800, Ink900)))
-                    .padding(22.dp)
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Default.Lightbulb, Lime, White.copy(alpha = 0.08f), size = 56.dp, iconSize = 28.dp, radius = RadiusMd)
-                    Spacer(Modifier.width(14.dp))
-                    Column {
-                        Text("المستشار المالي", style = H2.copy(color = White, fontSize = 17.sp))
-                        Spacer(Modifier.height(4.dp))
-                        Text("تحليل ذكي ومحلي لنمط إنفاقك", style = BodyMuted.copy(color = OnInkSoft))
-                    }
+                IconBadge(Icons.Default.Lightbulb, Lime, White.copy(alpha = 0.08f), size = 40.dp, iconSize = 20.dp, radius = RadiusSm)
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("المستشار المالي", style = H2.copy(color = White, fontSize = 15.sp))
+                    Text("تحليل ذكي ومحلي لنمط إنفاقك", style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
                 }
             }
         }
         if (advice.isEmpty()) {
             item { EmptyState("لا توجد نصائح بعد — أضف عمليات أو ميزانية لهذا الشهر") }
         } else {
-            items(advice, key = { it.title }) { a -> AdviceRow(a) }
+            // One flat bordered list instead of a separately-shadowed card per
+            // tip: several tips at once (the common case) added up to a lot of
+            // scrolling for text-only content.
+            item {
+                Column(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(RadiusLg))
+                        .background(White)
+                        .border(1.dp, Line, RoundedCornerShape(RadiusLg))
+                ) {
+                    advice.forEachIndexed { index, a ->
+                        AdviceRow(a)
+                        if (index < advice.lastIndex) {
+                            Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                                Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -93,25 +111,25 @@ private fun AdviceRow(a: Advice) {
         Level.GOOD   -> Icons.Default.CheckCircle
         Level.INFO   -> Icons.Default.Lightbulb
     }
-    SoftCard {
-        Row(Modifier.height(IntrinsicSize.Min)) {
-            Box(
-                Modifier.width(4.dp).fillMaxHeight()
-                    .clip(RoundedCornerShape(Pill))
-                    .background(color)
-            )
-            Spacer(Modifier.width(14.dp))
-            IconBadge(icon, color, color.copy(alpha = 0.12f), size = 44.dp)
-            Spacer(Modifier.width(12.dp))
-            // Without weight(1f) this Column is measured against the Row's full
-            // width instead of what's left after the stripe/spacer/badge ahead of
-            // it, so a long advice body (e.g. the subscriptions list) overflows
-            // past the card's edge instead of wrapping.
-            Column(Modifier.weight(1f)) {
-                Text(a.title, style = H2.copy(fontSize = 14.sp))
-                Spacer(Modifier.height(6.dp))
-                Text(a.body, style = BodyMuted)
-            }
+    Row(
+        Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Box(
+            Modifier.width(3.dp).fillMaxHeight()
+                .clip(RoundedCornerShape(Pill))
+                .background(color)
+        )
+        Spacer(Modifier.width(12.dp))
+        IconBadge(icon, color, color.copy(alpha = 0.12f), size = 36.dp, iconSize = 17.dp)
+        Spacer(Modifier.width(10.dp))
+        // Without weight(1f) this Column is measured against the Row's full
+        // width instead of what's left after the stripe/spacer/badge ahead of
+        // it, so a long advice body (e.g. the subscriptions list) overflows
+        // past the card's edge instead of wrapping.
+        Column(Modifier.weight(1f)) {
+            Text(a.title, style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
+            Spacer(Modifier.height(4.dp))
+            Text(a.body, style = Eyebrow.copy(fontSize = 11.sp, color = InkSoft))
         }
     }
 }
