@@ -36,7 +36,7 @@ import kotlin.math.roundToInt
 fun PlanningScreen(vm: MainViewModel, offset: Int) {
     var subTab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.padding(horizontal = 20.dp, top = 4.dp, bottom = 10.dp)) {
+        Column(Modifier.padding(start = 20.dp, top = 4.dp, end = 20.dp, bottom = 10.dp)) {
             Text("التخطيط المالي", style = H1)
             Spacer(Modifier.height(10.dp))
             TabSwitcher(listOf("الميزانية", "الأهداف", "الديون"), subTab) { subTab = it }

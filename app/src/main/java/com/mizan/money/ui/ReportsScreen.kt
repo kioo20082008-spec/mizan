@@ -36,7 +36,7 @@ import kotlinx.coroutines.withContext
 fun InsightsScreen(vm: MainViewModel, offset: Int) {
     var subTab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.padding(horizontal = 20.dp, top = 4.dp, bottom = 10.dp)) {
+        Column(Modifier.padding(start = 20.dp, top = 4.dp, end = 20.dp, bottom = 10.dp)) {
             Text("المستشار والتقارير", style = H1)
             Spacer(Modifier.height(10.dp))
             TabSwitcher(listOf("نصائح", "تقارير"), subTab) { subTab = it }
