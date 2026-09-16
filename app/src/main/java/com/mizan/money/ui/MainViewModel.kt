@@ -2,12 +2,15 @@ package com.mizan.money.ui
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
+import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mizan.money.data.*
 import com.mizan.money.sms.InboxScanner
+import com.mizan.money.widget.MizanWidget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -96,6 +99,16 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         saveCategories(_categories.value.filter { it != name })
     }
 
+    // Pushes the home-screen widget's own data reload — cheap to call after
+    // any write, and every write below is already rare/user-triggered rather
+    // than something that fires in a hot loop.
+    private fun refreshWidget() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try { MizanWidget().updateAll(getApplication<Application>()) }
+            catch (e: Exception) { Log.e("Mizan", "widget update failed", e) }
+        }
+    }
+
     fun scanInbox() {
         if (_isScanning.value) return
         viewModelScope.launch {
@@ -106,12 +119,13 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                     InboxScanner.readTransactions(ctx, sinceDays = 120, learnedRules = { m -> repo.learnedCategoryFor(m) })
                 }
                 repo.reconcile(result.transactions, result.scannedHashes)
+                refreshWidget()
             } catch (e: Exception) {
                 // Reading the SMS provider can fail in device-specific ways (some
                 // OEM builds reject the query even with READ_SMS granted). An
                 // uncaught exception here would otherwise crash the whole app on
                 // launch, so degrade to "no transactions found" instead.
-                android.util.Log.e("Mizan", "inbox scan failed", e)
+                Log.e("Mizan", "inbox scan failed", e)
             } finally {
                 _isScanning.value = false
             }
@@ -125,12 +139,13 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 type = type, rawSms = "إدخال يدوي",
                 smsHash = "manual-${java.util.UUID.randomUUID()}",
                 timestamp = now, isManual = true))
+            refreshWidget()
         }
     }
-    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.updateWithMerchantRule(tx) }
-    fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx) }
+    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.updateWithMerchantRule(tx); refreshWidget() }
+    fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx); refreshWidget() }
     fun setBudget(monthKey: String, category: String, amount: Double) =
-        viewModelScope.launch { repo.setBudget(monthKey, category, amount) }
+        viewModelScope.launch { repo.setBudget(monthKey, category, amount); refreshWidget() }
 
     companion object {
         private const val CATEGORY_DELIM = "|||"

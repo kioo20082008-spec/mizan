@@ -11,6 +11,13 @@ import kotlin.math.max
 enum class Level { INFO, GOOD, WARN, DANGER }
 data class Advice(val title: String, val body: String, val level: Level)
 data class CategoryTotal(val category: String, val amount: Double, val share: Double)
+data class BurnRate(
+    val dailyAvg: Double,
+    val projected: Double,
+    val daysInMonth: Int,
+    val daysPassed: Int,
+    val overUnder: Double // projected - budget: positive means heading for overspend
+)
 data class MonthSummary(
     val spent: Double,          // net of reimbursedPercent — real out-of-pocket cost, for stats/budgets
     val grossSpent: Double,     // before reimbursedPercent — what actually left the account, for balance
@@ -101,6 +108,28 @@ object FinancialAdvisor {
                     Level.GOOD)
             }
         }
+        // Trajectory card — placed right after budget advice since it's the
+        // "will I be okay by month-end?" companion to "am I okay right now?".
+        burnRate(summary, monthlyBudget, monthStart, monthEnd, now)?.let { burn ->
+            val delta = burn.overUnder
+            when {
+                delta > monthlyBudget * 0.05 -> list += Advice(
+                    "بهذه الوتيرة ستتجاوز دخلك ⚠️",
+                    "بمعدل صرفك الحالي (${fmt(burn.dailyAvg)} ر.س يومياً)، متوقع تنهي الشهر بـ ${fmt(burn.projected)} ر.س — أي ${fmt(delta)} ر.س أكثر من دخلك.",
+                    Level.DANGER
+                )
+                delta > -monthlyBudget * 0.05 -> list += Advice(
+                    "ستنتهي الشهر عند حد دخلك",
+                    "بمعدل صرفك الحالي، متوقع تنهي الشهر بـ ${fmt(burn.projected)} ر.س، أي عند حدود دخلك بالضبط.",
+                    Level.WARN
+                )
+                else -> list += Advice(
+                    "على هذه الوتيرة ستوفّر ${fmt(-delta)} ر.س",
+                    "بمعدل صرفك الحالي (${fmt(burn.dailyAvg)} ر.س يومياً)، متوقع تنهي الشهر بـ ${fmt(burn.projected)} ر.س، وستبقى ${fmt(-delta)} ر.س من دخلك.",
+                    Level.GOOD
+                )
+            }
+        }
         summary.categoryTotals.firstOrNull()?.let { top ->
             if (top.share >= 0.35 && summary.spent > 0) {
                 list += Advice("أكبر بند: ${top.category} 🔍",
@@ -185,6 +214,32 @@ object FinancialAdvisor {
         resolveIncome(summary, manualSalary.takeIf { it > 0 } ?: detectSalary(allTx))
     private fun resolveIncome(summary: MonthSummary, salary: Double?): Double? =
         summary.income.takeIf { it > 0 } ?: salary
+    // Trajectory: from the month-to-date daily average (which already excludes
+    // one-off bills the user flagged via excludeFromDailyAvg), project where
+    // this month is heading. Returns null before enough days have passed for
+    // the average to be meaningful, or when there's no budget/income to
+    // compare against (a projection with no target is just a number).
+    fun burnRate(
+        summary: MonthSummary,
+        budget: Double,
+        monthStart: Long,
+        monthEnd: Long,
+        now: Long = System.currentTimeMillis()
+    ): BurnRate? {
+        if (budget <= 0.0) return null
+        if (now > monthEnd) return null
+        val daysInMonth = ((monthEnd - monthStart) / 86_400_000L).toInt() + 1
+        val daysPassed = max(1, ((now.coerceAtMost(monthEnd) - monthStart) / 86_400_000L).toInt() + 1)
+        if (daysPassed < 3) return null
+        val projected = summary.dailyAvg * daysInMonth
+        return BurnRate(
+            dailyAvg = summary.dailyAvg,
+            projected = projected,
+            daysInMonth = daysInMonth,
+            daysPassed = daysPassed,
+            overUnder = projected - budget
+        )
+    }
     // Salary is inferred, not tagged per-SMS: bank wording for a payroll deposit
     // varies too much to match reliably, but a recurring similar-sized deposit
     // once a month is a strong signal on its own.

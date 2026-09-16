@@ -2,9 +2,15 @@ package com.mizan.money
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
+import androidx.glance.appwidget.updateAll
 import com.mizan.money.data.AppDatabase
 import com.mizan.money.data.TransactionRepository
 import com.mizan.money.sms.SmsParser
+import com.mizan.money.widget.MizanWidget
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 
 class MoneyApp : Application() {
@@ -23,5 +29,12 @@ class MoneyApp : Application() {
         val prefs = getSharedPreferences("mizan_prefs", Context.MODE_PRIVATE)
         SmsParser.ownerNameTokens = prefs.getString("owner_name", null)
             ?.lowercase()?.split(Regex("\\s+"))?.filter { it.isNotBlank() } ?: emptyList()
+
+        // Refresh the home-screen widget on app start so it reflects any change
+        // made while the widget's own (separate) process wasn't running.
+        CoroutineScope(Dispatchers.IO).launch {
+            try { MizanWidget().updateAll(this@MoneyApp) }
+            catch (e: Exception) { Log.e("Mizan", "widget update failed", e) }
+        }
     }
 }
