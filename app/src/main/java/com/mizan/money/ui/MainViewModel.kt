@@ -6,7 +6,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.*
+import com.mizan.money.notify.NotificationHelper
 import com.mizan.money.sms.InboxScanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +25,9 @@ import java.util.Calendar
 class MainViewModel(app: Application, private val repo: TransactionRepository) : AndroidViewModel(app) {
     val transactions = repo.allTransactions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val budgets = repo.budgets().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val goals = repo.goals().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val debts = repo.debts().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val recurringItems = repo.recurringItems().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning
@@ -72,6 +77,16 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         _manualSalary.value = v
     }
 
+    // Master switch for both notification types (budget alerts, bill reminders),
+    // surfaced as a single toggle in Settings — NotificationHelper checks this
+    // same key before showing anything, including from the background worker.
+    private val _notificationsEnabled = MutableStateFlow(prefs.getBoolean("notifications_enabled", true))
+    val notificationsEnabled: StateFlow<Boolean> = _notificationsEnabled
+    fun setNotificationsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("notifications_enabled", enabled).apply()
+        _notificationsEnabled.value = enabled
+    }
+
     // User-managed category list — seeded from CategoryClassifier's defaults,
     // then freely add/delete from Settings. Stored as a delimited string
     // (order matters for display) rather than one bool per default category,
@@ -104,6 +119,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 val ctx = getApplication<Application>()
                 val result = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
                 repo.reconcile(result.transactions, result.scannedHashes)
+                checkBudgetThreshold()
             } catch (e: Exception) {
                 // Reading the SMS provider can fail in device-specific ways (some
                 // OEM builds reject the query even with READ_SMS granted). An
@@ -123,12 +139,112 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 type = type, rawSms = "إدخال يدوي",
                 smsHash = "manual-${java.util.UUID.randomUUID()}",
                 timestamp = now, isManual = true))
+            checkBudgetThreshold()
         }
     }
-    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.update(tx) }
+    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.update(tx); checkBudgetThreshold() }
     fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx) }
     fun setBudget(monthKey: String, category: String, amount: Double) =
         viewModelScope.launch { repo.setBudget(monthKey, category, amount) }
+
+    // Fires a local notification the first time this month's spend crosses 80%
+    // then 100% of the effective budget (income-based, or the manually-set total
+    // — same resolution BudgetStatusCard/AdvisorScreen already use). The
+    // per-month "already notified at X%" marker is keyed by monthKey so it
+    // naturally resets itself once a new month starts, without any cleanup code.
+    private suspend fun checkBudgetThreshold() {
+        val startDay = _monthStartDay.value
+        val range = Dates.monthRange(0, startDay)
+        val txs = transactions.value
+        val summary = FinancialAdvisor.summarize(txs, range.first, range.last)
+        val monthKey = Dates.monthKey(0, startDay)
+        val manualBudget = budgets.value
+            .firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }
+            ?.limitAmount?.takeIf { it > 0 }
+        val budget = manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, _manualSalary.value) ?: 0.0)
+        if (budget <= 0) return
+        val pct = summary.spent / budget
+        val prefKey = "budget_notified_pct_$monthKey"
+        val lastNotified = prefs.getFloat(prefKey, 0f)
+        val threshold = when {
+            pct >= 1.0 && lastNotified < 1.0f -> 1.0f
+            pct >= 0.8 && lastNotified < 0.8f -> 0.8f
+            else -> null
+        } ?: return
+        prefs.edit().putFloat(prefKey, threshold).apply()
+        val ctx = getApplication<Application>()
+        val title = if (threshold >= 1.0f) "تجاوزت ميزانيتك ⚠️" else "اقتربت من حد ميزانيتك 🟠"
+        val body = "صرفت ${FinancialAdvisor.fmt(summary.spent)} من أصل ${FinancialAdvisor.fmt(budget)} ر.س (${(pct * 100).toInt()}٪)."
+        NotificationHelper.notifyBudget(ctx, 1001, title, body)
+    }
+
+    // ---- Savings goals ----
+    fun addGoal(name: String, targetAmount: Double, months: Int?) = viewModelScope.launch {
+        val targetDate = months?.takeIf { it > 0 }?.let {
+            System.currentTimeMillis() + it.toLong() * 30L * 86_400_000L
+        }
+        repo.addGoal(GoalEntity(name = name, targetAmount = targetAmount, targetDate = targetDate))
+    }
+    fun contributeToGoal(goal: GoalEntity, amount: Double) = viewModelScope.launch {
+        repo.updateGoal(goal.copy(currentAmount = goal.currentAmount + amount))
+    }
+    fun deleteGoal(goal: GoalEntity) = viewModelScope.launch { repo.deleteGoal(goal) }
+
+    // ---- Debts / installments ----
+    fun addDebt(name: String, type: DebtType, totalAmount: Double, remainingAmount: Double, installmentAmount: Double, daysUntilNext: Int?) =
+        viewModelScope.launch {
+            val nextDue = daysUntilNext?.takeIf { it > 0 }?.let {
+                System.currentTimeMillis() + it.toLong() * 86_400_000L
+            }
+            repo.addDebt(DebtEntity(
+                name = name, type = type, totalAmount = totalAmount,
+                remainingAmount = remainingAmount, installmentAmount = installmentAmount, nextDueDate = nextDue
+            ))
+        }
+    fun logDebtPayment(debt: DebtEntity, amount: Double) = viewModelScope.launch {
+        val newRemaining = (debt.remainingAmount - amount).coerceAtLeast(0.0)
+        // Rolls the next due date forward by ~a month on payment, rather than
+        // leaving a now-stale date — good enough for a monthly installment
+        // without needing a full recurrence-rule engine.
+        val newDue = debt.nextDueDate?.let { it + 30L * 86_400_000L }
+        repo.updateDebt(debt.copy(remainingAmount = newRemaining, nextDueDate = newDue))
+    }
+    fun deleteDebt(debt: DebtEntity) = viewModelScope.launch { repo.deleteDebt(debt) }
+
+    // Merchant names (lowercased) the user dismissed from the "track this as a
+    // debt?" suggestion banner — persisted so a dismissal survives app restarts
+    // instead of the same suggestion reappearing every time the screen reopens.
+    private val _dismissedBnpl = MutableStateFlow(
+        prefs.getStringSet("dismissed_bnpl_suggestions", emptySet()) ?: emptySet()
+    )
+    val dismissedBnplSuggestions: StateFlow<Set<String>> = _dismissedBnpl
+    fun dismissBnplSuggestion(merchantLower: String) {
+        val updated = _dismissedBnpl.value + merchantLower.lowercase().trim()
+        prefs.edit().putStringSet("dismissed_bnpl_suggestions", updated).apply()
+        _dismissedBnpl.value = updated
+    }
+
+    // ---- Bill reminders (toggled from a transaction's own detail view) ----
+    fun setBillReminder(tx: TransactionEntity, enabled: Boolean) {
+        val merchant = tx.merchant?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        viewModelScope.launch {
+            val existing = recurringItems.value.firstOrNull { it.merchant.equals(merchant, ignoreCase = true) }
+            if (enabled) {
+                repo.upsertRecurringItem(
+                    RecurringItemEntity(
+                        id = existing?.id ?: 0,
+                        merchant = merchant,
+                        expectedAmount = tx.amount,
+                        expectedDayOfMonth = Dates.dayOfMonth(tx.timestamp),
+                        category = tx.category,
+                        reminderEnabled = true
+                    )
+                )
+            } else if (existing != null) {
+                repo.deleteRecurringItem(existing)
+            }
+        }
+    }
 
     companion object {
         private const val CATEGORY_DELIM = "|||"
@@ -175,4 +291,5 @@ object Dates {
         val c = Calendar.getInstance().apply { timeInMillis = ts }
         return "%04d/%02d/%02d".format(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
     }
+    fun dayOfMonth(ts: Long): Int = Calendar.getInstance().apply { timeInMillis = ts }.get(Calendar.DAY_OF_MONTH)
 }

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -190,8 +191,12 @@ private fun RootScaffold(vm: MainViewModel) {
                 when (tab) {
                     0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
                     1 -> TransactionsScreen(vm, initialQuery = categoryFilter)
-                    2 -> BudgetScreen(vm, monthOffset)
-                    else -> AdvisorScreen(vm, monthOffset)
+                    // Budget/Goals/Debts and Advisor/Reports are each folded behind
+                    // their own internal segmented control (see PlanningScreen /
+                    // InsightsScreen) instead of getting their own bottom-nav icons —
+                    // the tab count stays at 4 no matter how many features are added.
+                    2 -> PlanningScreen(vm, monthOffset)
+                    else -> InsightsScreen(vm, monthOffset)
                 }
             }
         }
@@ -238,6 +243,10 @@ private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: (
     val startDay by vm.monthStartDay.collectAsState()
     val manualSalary by vm.manualSalary.collectAsState()
     val ownerName by vm.ownerName.collectAsState()
+    val notificationsEnabled by vm.notificationsEnabled.collectAsState()
+    val notifPermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> vm.setNotificationsEnabled(granted) }
     var salaryInput by remember(manualSalary) {
         mutableStateOf(
             manualSalary.takeIf { it > 0 }
@@ -402,6 +411,27 @@ private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: (
                 Spacer(Modifier.height(18.dp))
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("الإشعارات", style = Body.copy(fontWeight = FontWeight.Bold))
+                        Spacer(Modifier.height(4.dp))
+                        Text("تنبيه عند تجاوز الميزانية أو اقتراب موعد فاتورة", style = Eyebrow)
+                    }
+                    Switch(
+                        checked = notificationsEnabled,
+                        onCheckedChange = { turningOn ->
+                            if (turningOn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                vm.setNotificationsEnabled(turningOn)
+                            }
+                        },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                    )
+                }
+                Spacer(Modifier.height(18.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                Spacer(Modifier.height(18.dp))
                 Text("ميزان", style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(4.dp))
                 Text("جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي إلا إذا اخترت تصديرها ومشاركتها بنفسك.", style = Eyebrow)
@@ -419,7 +449,7 @@ private fun BottomNav(selected: Int, modifier: Modifier = Modifier, onSelect: (I
     val items = listOf(
         Triple("الرئيسية",  Icons.Filled.Home,        0),
         Triple("العمليات",  Icons.Filled.ReceiptLong, 1),
-        Triple("الميزانية", Icons.Filled.AccountBalanceWallet, 2),
+        Triple("التخطيط",   Icons.Filled.AccountBalanceWallet, 2),
         Triple("المستشار",  Icons.Filled.PieChart,    3)
     )
     Box(modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)) {

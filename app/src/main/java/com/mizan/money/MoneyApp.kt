@@ -4,12 +4,19 @@ import android.app.Application
 import android.content.Context
 import com.mizan.money.data.AppDatabase
 import com.mizan.money.data.TransactionRepository
+import com.mizan.money.notify.BillReminderWorker
+import com.mizan.money.notify.NotificationHelper
 import com.mizan.money.sms.SmsParser
 import java.io.File
 
 class MoneyApp : Application() {
     val db by lazy { AppDatabase.get(this) }
-    val repository by lazy { TransactionRepository(db.transactionDao(), db.budgetDao()) }
+    val repository by lazy {
+        TransactionRepository(
+            db.transactionDao(), db.budgetDao(),
+            db.goalDao(), db.debtDao(), db.recurringItemDao()
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -23,5 +30,10 @@ class MoneyApp : Application() {
         val prefs = getSharedPreferences("mizan_prefs", Context.MODE_PRIVATE)
         SmsParser.ownerNameTokens = prefs.getString("owner_name", null)
             ?.lowercase()?.split(Regex("\\s+"))?.filter { it.isNotBlank() } ?: emptyList()
+
+        NotificationHelper.ensureChannels(this)
+        // enqueueUniquePeriodicWork(..., KEEP, ...) makes this a no-op if the
+        // daily check is already scheduled from a previous launch.
+        BillReminderWorker.schedule(this)
     }
 }

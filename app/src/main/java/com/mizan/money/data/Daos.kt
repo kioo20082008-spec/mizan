@@ -35,3 +35,42 @@ interface BudgetDao {
     @Query("DELETE FROM budgets WHERE monthKey = :monthKey AND category = :category")
     suspend fun delete(monthKey: String, category: String)
 }
+
+@Dao
+interface GoalDao {
+    @Query("SELECT * FROM goals WHERE isArchived = 0 ORDER BY createdAt DESC")
+    fun observeAll(): Flow<List<GoalEntity>>
+    @Insert
+    suspend fun insert(g: GoalEntity): Long
+    @Update
+    suspend fun update(g: GoalEntity)
+    @Delete
+    suspend fun delete(g: GoalEntity)
+}
+
+@Dao
+interface DebtDao {
+    @Query("SELECT * FROM debts WHERE isArchived = 0 ORDER BY createdAt DESC")
+    fun observeAll(): Flow<List<DebtEntity>>
+    @Insert
+    suspend fun insert(d: DebtEntity): Long
+    @Update
+    suspend fun update(d: DebtEntity)
+    @Delete
+    suspend fun delete(d: DebtEntity)
+}
+
+@Dao
+interface RecurringItemDao {
+    @Query("SELECT * FROM recurring_items ORDER BY expectedDayOfMonth ASC")
+    fun observeAll(): Flow<List<RecurringItemEntity>>
+    // Used by the background worker, which isn't allowed to collect a Flow.
+    @Query("SELECT * FROM recurring_items WHERE reminderEnabled = 1")
+    suspend fun getEnabledOnce(): List<RecurringItemEntity>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(r: RecurringItemEntity): Long
+    @Update
+    suspend fun update(r: RecurringItemEntity)
+    @Delete
+    suspend fun delete(r: RecurringItemEntity)
+}

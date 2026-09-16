@@ -26,7 +26,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.advisor.MonthSummary
+import com.mizan.money.data.RecurringItemEntity
 import com.mizan.money.data.TOTAL_BUDGET
+import java.util.Calendar
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -42,6 +44,12 @@ fun DashboardScreen(
     val manualSalary by vm.manualSalary.collectAsState()
     val startDay by vm.monthStartDay.collectAsState()
     val budgets by vm.budgets.collectAsState()
+    val recurringItems by vm.recurringItems.collectAsState()
+    // Only ever computed from reminders the user opted into (see the "ذكّرني
+    // بهذي شهرياً" toggle on a transaction's detail view) — this card simply
+    // doesn't exist for a user who never used that feature, so it never
+    // subtracts from the plain "balance + categories + recent" dashboard.
+    val upcomingBills = remember(recurringItems) { upcomingBillsWithinDays(recurringItems, 5) }
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
@@ -79,6 +87,20 @@ fun DashboardScreen(
                     BudgetStatusCard(planningIncome, summary.spent)
                 } else {
                     BudgetStatusCard(planningIncome, summary.spent, title = "استهلاك دخل الشهر", capLabel = "الدخل")
+                }
+            }
+        }
+
+        if (upcomingBills.isNotEmpty()) {
+            item {
+                Text("فواتير قادمة", style = H2, modifier = Modifier.padding(horizontal = 4.dp))
+            }
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    items(upcomingBills) { bill -> UpcomingBillChip(bill) }
                 }
             }
         }
@@ -297,5 +319,46 @@ private fun CategoryChip(cat: com.mizan.money.advisor.CategoryTotal, onClick: ()
                     .clip(RoundedCornerShape(Pill)).background(catColor(cat.category))
             )
         }
+    }
+}
+
+// ============ UPCOMING BILLS ============
+private data class UpcomingBill(val item: RecurringItemEntity, val daysUntil: Int)
+
+private fun upcomingBillsWithinDays(items: List<RecurringItemEntity>, window: Int): List<UpcomingBill> {
+    val today = Calendar.getInstance()
+    val todayDay = today.get(Calendar.DAY_OF_MONTH)
+    val daysInMonth = today.getActualMaximum(Calendar.DAY_OF_MONTH)
+    return items.filter { it.reminderEnabled }.mapNotNull { item ->
+        // Same wraparound handling as BillReminderWorker: a due day earlier in
+        // the calendar than today means it's coming up next month, not overdue.
+        val daysUntil = if (item.expectedDayOfMonth >= todayDay) {
+            item.expectedDayOfMonth - todayDay
+        } else {
+            (daysInMonth - todayDay) + item.expectedDayOfMonth
+        }
+        if (daysUntil <= window) UpcomingBill(item, daysUntil) else null
+    }.sortedBy { it.daysUntil }
+}
+
+@Composable
+private fun UpcomingBillChip(bill: UpcomingBill) {
+    Column(
+        Modifier.width(136.dp)
+            .clip(RoundedCornerShape(RadiusMd))
+            .background(White)
+            .border(1.dp, Line, RoundedCornerShape(RadiusMd))
+            .padding(14.dp)
+    ) {
+        IconBadge(catIcon(bill.item.category), Amber, Amber.copy(alpha = 0.12f), size = 40.dp, iconSize = 18.dp)
+        Spacer(Modifier.height(10.dp))
+        Text(bill.item.merchant, style = H2.copy(fontSize = 13.sp), maxLines = 1)
+        Spacer(Modifier.height(2.dp))
+        Text("~${FinancialAdvisor.fmt(bill.item.expectedAmount)} ${currencyLabel("SAR")}", style = NumBold.copy(fontSize = 12.sp))
+        Spacer(Modifier.height(6.dp))
+        Text(
+            if (bill.daysUntil == 0) "اليوم" else "خلال ${bill.daysUntil} يوم",
+            style = Eyebrow.copy(fontSize = 10.sp, color = if (bill.daysUntil <= 1) Danger else InkFaint, fontWeight = FontWeight.Bold)
+        )
     }
 }

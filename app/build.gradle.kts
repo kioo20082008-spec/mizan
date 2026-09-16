@@ -61,5 +61,8 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
+    // Daily background check for upcoming bill reminders (BillReminderWorker) —
+    // WorkManager survives process death/reboot, unlike a plain coroutine/alarm.
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
     testImplementation("junit:junit:4.13.2")
 }

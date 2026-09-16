@@ -100,6 +100,40 @@ fun SoftCard(
     )
 }
 
+// Generic pill-style tab switcher — used to fold related sub-screens (Budget /
+// Goals / Debts, Advisor / Reports) under one bottom-nav slot instead of
+// growing the bottom nav itself, so the app gains features without gaining tabs.
+@Composable
+fun TabSwitcher(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(RadiusMd))
+            .background(PaperOuter)
+            .padding(4.dp)
+    ) {
+        items.forEachIndexed { i, label ->
+            val isSel = i == selected
+            Box(
+                Modifier.weight(1f)
+                    .clip(RoundedCornerShape(RadiusSm))
+                    .background(if (isSel) White else Color.Transparent)
+                    .clickable { onSelect(i) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    label,
+                    style = Eyebrow.copy(
+                        fontSize = 12.sp,
+                        color = if (isSel) Indigo else InkSoft,
+                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.SemiBold
+                    )
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun EmptyState(text: String) {
     Column(

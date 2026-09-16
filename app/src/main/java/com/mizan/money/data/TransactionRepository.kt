@@ -4,7 +4,10 @@ import kotlinx.coroutines.flow.Flow
 
 class TransactionRepository(
     private val txDao: TransactionDao,
-    private val budgetDao: BudgetDao
+    private val budgetDao: BudgetDao,
+    private val goalDao: GoalDao,
+    private val debtDao: DebtDao,
+    private val recurringDao: RecurringItemDao
 ) {
     fun allTransactions(): Flow<List<TransactionEntity>> = txDao.observeAll()
     fun budgets(): Flow<List<BudgetEntity>> = budgetDao.observeAll()
@@ -36,4 +39,23 @@ class TransactionRepository(
         if (amount <= 0) budgetDao.delete(monthKey, category)
         else budgetDao.upsert(BudgetEntity(monthKey, category, amount))
     }
+
+    // ---- Goals ----
+    fun goals(): Flow<List<GoalEntity>> = goalDao.observeAll()
+    suspend fun addGoal(g: GoalEntity): Long = goalDao.insert(g)
+    suspend fun updateGoal(g: GoalEntity) = goalDao.update(g)
+    suspend fun deleteGoal(g: GoalEntity) = goalDao.delete(g)
+
+    // ---- Debts / installments ----
+    fun debts(): Flow<List<DebtEntity>> = debtDao.observeAll()
+    suspend fun addDebt(d: DebtEntity): Long = debtDao.insert(d)
+    suspend fun updateDebt(d: DebtEntity) = debtDao.update(d)
+    suspend fun deleteDebt(d: DebtEntity) = debtDao.delete(d)
+
+    // ---- Bill reminders ----
+    fun recurringItems(): Flow<List<RecurringItemEntity>> = recurringDao.observeAll()
+    suspend fun recurringItemsDueSoon(): List<RecurringItemEntity> = recurringDao.getEnabledOnce()
+    suspend fun upsertRecurringItem(r: RecurringItemEntity): Long = recurringDao.insert(r)
+    suspend fun updateRecurringItem(r: RecurringItemEntity) = recurringDao.update(r)
+    suspend fun deleteRecurringItem(r: RecurringItemEntity) = recurringDao.delete(r)
 }

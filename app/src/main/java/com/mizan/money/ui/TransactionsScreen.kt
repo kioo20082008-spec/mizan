@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.advisor.FinancialAdvisor
+import com.mizan.money.data.RecurringItemEntity
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
 
@@ -33,6 +34,7 @@ import com.mizan.money.data.TxType
 fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
     val txs by vm.transactions.collectAsState()
     val categories by vm.categories.collectAsState()
+    val recurringItems by vm.recurringItems.collectAsState()
     var query by remember { mutableStateOf(initialQuery ?: "") }
     // Re-applies initialQuery on every distinct value it takes, not just once at
     // first composition — remember(initialQuery) alone would miss a same-value
@@ -114,9 +116,10 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
         TxDetailDialog(
             tx = current,
             categories = categories,
+            recurringItems = recurringItems,
             onDismiss = { selected = null },
             onDelete = { vm.delete(current); selected = null },
-            onSave = { updated -> vm.update(updated); selected = null }
+            onSave = { updated, billReminder -> vm.update(updated); vm.setBillReminder(updated, billReminder); selected = null }
         )
     }
     if (showAdd) {
@@ -132,9 +135,10 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
 private fun TxDetailDialog(
     tx: TransactionEntity,
     categories: List<String>,
+    recurringItems: List<RecurringItemEntity>,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
-    onSave: (TransactionEntity) -> Unit
+    onSave: (TransactionEntity, Boolean) -> Unit
 ) {
     var editing by remember(tx.id) { mutableStateOf(false) }
     var amount by remember(tx.id) { mutableStateOf("%.2f".format(tx.amount)) }
@@ -144,6 +148,14 @@ private fun TxDetailDialog(
     var isSelfTransfer by remember(tx.id) { mutableStateOf(tx.isSelfTransfer) }
     var excludeFromDailyAvg by remember(tx.id) { mutableStateOf(tx.excludeFromDailyAvg) }
     var confirmingDelete by remember(tx.id) { mutableStateOf(false) }
+    // Seeded from whatever recurring-reminder row already matches this
+    // merchant, so reopening an already-flagged transaction shows the switch
+    // already on instead of always defaulting to off.
+    val hasExistingReminder = remember(tx.id, tx.merchant, recurringItems) {
+        val m = tx.merchant?.trim()
+        m != null && recurringItems.any { it.merchant.equals(m, ignoreCase = true) }
+    }
+    var billReminder by remember(tx.id, hasExistingReminder) { mutableStateOf(hasExistingReminder) }
 
     if (confirmingDelete) {
         AlertDialog(
@@ -242,6 +254,30 @@ private fun TxDetailDialog(
                             colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
                         )
                     }
+                    // Only offered when there's a merchant name to key the reminder
+                    // on — a self-transfer or a cash withdrawal has nothing
+                    // meaningful to remind about next month.
+                    if (!isSelfTransfer && merchant.isNotBlank()) {
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(RadiusSm))
+                                .background(PaperOuter)
+                                .clickable { billReminder = !billReminder }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("ذكّرني بهذي شهرياً", style = Body.copy(fontWeight = FontWeight.Medium))
+                                Text("تنبيه قبل الموعد المتوقع بأيام قليلة", style = Eyebrow.copy(fontSize = 11.sp))
+                            }
+                            Switch(
+                                checked = billReminder,
+                                onCheckedChange = { billReminder = it },
+                                colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                            )
+                        }
+                    }
                     if (!isSelfTransfer) {
                         Spacer(Modifier.height(10.dp))
                         Text("التصنيف", style = Eyebrow)
@@ -335,10 +371,13 @@ private fun TxDetailDialog(
             if (editing) {
                 TextButton(onClick = {
                     amount.toDoubleOrNull()?.let {
-                        onSave(tx.copy(
-                            amount = it, merchant = merchant.ifBlank { null }, category = category, type = type,
-                            isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg
-                        ))
+                        onSave(
+                            tx.copy(
+                                amount = it, merchant = merchant.ifBlank { null }, category = category, type = type,
+                                isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg
+                            ),
+                            billReminder
+                        )
                     }
                 }) { Text("حفظ", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
             } else {
