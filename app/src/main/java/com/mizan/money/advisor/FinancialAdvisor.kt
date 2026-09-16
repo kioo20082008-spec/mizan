@@ -16,6 +16,11 @@ data class MonthSummary(
     val dailyAvg: Double, val categoryTotals: List<CategoryTotal>, val largest: TransactionEntity?
 )
 
+// The actual out-of-pocket cost after subtracting whatever a housemate/friend
+// paid back for a shared expense — coerced to 0 in case the user typos a
+// reimbursed amount larger than the expense itself.
+private fun TransactionEntity.netSpend(): Double = (amount - reimbursedAmount).coerceAtLeast(0.0)
+
 object FinancialAdvisor {
     fun fmt(v: Double): String = String.format(Locale.US, "%,.2f", v)
     fun summarize(txs: List<TransactionEntity>, monthStart: Long, monthEnd: Long): MonthSummary {
@@ -27,21 +32,25 @@ object FinancialAdvisor {
             it.timestamp in monthStart..monthEnd && it.currency == "SAR" && !it.isSelfTransfer
         }
         val expenses = inMonth.filter { it.type == TxType.EXPENSE }
-        val incomes = inMonth.filter { it.type == TxType.INCOME }
-        val spent = expenses.sumOf { it.amount }
+        // A reimbursement (money coming back for a shared expense) isn't real
+        // income — it's already netted out of the expense side via netSpend(),
+        // so counting it here too would both shrink spending AND inflate income
+        // for the same shared purchase.
+        val incomes = inMonth.filter { it.type == TxType.INCOME && !it.isReimbursement }
+        val spent = expenses.sumOf { it.netSpend() }
         val income = incomes.sumOf { it.amount }
         val daysPassed = max(1, ((System.currentTimeMillis().coerceAtMost(monthEnd) - monthStart) / 86_400_000L).toInt() + 1)
         val byCat = expenses.groupBy { it.category }
             .map { (cat, list) ->
-                val sum = list.sumOf { it.amount }
+                val sum = list.sumOf { it.netSpend() }
                 CategoryTotal(cat, sum, if (spent > 0) sum / spent else 0.0)
             }.sortedByDescending { it.amount }
         // A single big irregular bill (rent, etc) posted on one day would
         // otherwise dominate "average daily spend" — the user flags which
         // transactions to leave out of this one figure; totals/budgets/category
         // breakdowns above still include them, since that money is still spent.
-        val dailyAvgBasis = expenses.filter { !it.excludeFromDailyAvg }.sumOf { it.amount }
-        return MonthSummary(spent, income, income - spent, expenses.size, dailyAvgBasis / daysPassed, byCat, expenses.maxByOrNull { it.amount })
+        val dailyAvgBasis = expenses.filter { !it.excludeFromDailyAvg }.sumOf { it.netSpend() }
+        return MonthSummary(spent, income, income - spent, expenses.size, dailyAvgBasis / daysPassed, byCat, expenses.maxByOrNull { it.netSpend() })
     }
     fun advise(summary: MonthSummary, monthlyBudget: Double, allTx: List<TransactionEntity>,
                monthStart: Long, monthEnd: Long, now: Long = System.currentTimeMillis(),
@@ -134,10 +143,16 @@ object FinancialAdvisor {
                     Level.INFO)
             }
         }
-        val planningIncome = resolveIncome(summary, salary)
-        if (planningIncome != null) {
+        // 50/30/20 is a planning rule for regular income, so it deliberately
+        // prefers the stable salary figure over "whatever posted this month"
+        // (unlike planningIncome/resolveIncome, which track the real remaining
+        // balance and so correctly prefer actual income) — a one-off bonus or
+        // gift landing this month isn't something that makes sense to carve
+        // into needs/wants/savings percentages the way a regular paycheck is.
+        val ruleBasis = salary ?: summary.income.takeIf { it > 0 }
+        if (ruleBasis != null) {
             list += Advice("قاعدة 50 / 30 / 20 💡",
-                "من دخل ${fmt(planningIncome)} ر.س: ${fmt(planningIncome * 0.5)} للاحتياجات، ${fmt(planningIncome * 0.3)} للرغبات، ${fmt(planningIncome * 0.2)} للادخار.",
+                "من دخل ${fmt(ruleBasis)} ر.س: ${fmt(ruleBasis * 0.5)} للاحتياجات، ${fmt(ruleBasis * 0.3)} للرغبات، ${fmt(ruleBasis * 0.2)} للادخار.",
                 Level.INFO)
         }
         return list

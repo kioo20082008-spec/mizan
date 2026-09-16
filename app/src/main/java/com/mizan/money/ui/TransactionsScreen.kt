@@ -145,6 +145,15 @@ private fun TxDetailDialog(
     var type by remember(tx.id) { mutableStateOf(tx.type) }
     var isSelfTransfer by remember(tx.id) { mutableStateOf(tx.isSelfTransfer) }
     var excludeFromDailyAvg by remember(tx.id) { mutableStateOf(tx.excludeFromDailyAvg) }
+    var isReimbursement by remember(tx.id) { mutableStateOf(tx.isReimbursement) }
+    var reimbursedInput by remember(tx.id) {
+        mutableStateOf(
+            if (tx.reimbursedAmount > 0) {
+                if (tx.reimbursedAmount % 1.0 == 0.0) tx.reimbursedAmount.toInt().toString()
+                else tx.reimbursedAmount.toString()
+            } else ""
+        )
+    }
     var confirmingDelete by remember(tx.id) { mutableStateOf(false) }
 
     if (confirmingDelete) {
@@ -244,6 +253,45 @@ private fun TxDetailDialog(
                             colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
                         )
                     }
+                    if (type == TxType.EXPENSE && !isSelfTransfer) {
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = reimbursedInput,
+                            onValueChange = { reimbursedInput = sanitizeAmountInput(it) },
+                            label = { Text("مسترد من شريك/صديق (اختياري)") },
+                            placeholder = { Text("0", style = Eyebrow) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(RadiusSm),
+                            textStyle = Body
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "لو شاركت أحد في هذا المصروف واسترددت جزءاً منه، اكتب المبلغ هنا — يُخصم من مصاريفك.",
+                            style = Eyebrow.copy(fontSize = 10.sp)
+                        )
+                    }
+                    if (type == TxType.INCOME) {
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(RadiusSm))
+                                .background(PaperOuter)
+                                .clickable { isReimbursement = !isReimbursement }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("استرداد مصروف، ليس دخل", style = Body.copy(fontWeight = FontWeight.Medium))
+                                Text("لا يُحتسب ضمن دخلك — للأموال التي ترجع لك من مصاريف مشتركة", style = Eyebrow.copy(fontSize = 11.sp))
+                            }
+                            Switch(
+                                checked = isReimbursement,
+                                onCheckedChange = { isReimbursement = it },
+                                colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                            )
+                        }
+                    }
                     if (!isSelfTransfer) {
                         Spacer(Modifier.height(10.dp))
                         Text("التصنيف", style = Eyebrow)
@@ -315,6 +363,24 @@ private fun TxDetailDialog(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+                        if (tx.reimbursedAmount > 0) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "مسترد: ${FinancialAdvisor.fmt(tx.reimbursedAmount)} ر.س — الصافي ${FinancialAdvisor.fmt(tx.amount - tx.reimbursedAmount)} ر.س",
+                                style = Eyebrow.copy(fontSize = 11.sp),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        if (tx.isReimbursement) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "استرداد مصروف — لا يُحتسب كدخل",
+                                style = Eyebrow.copy(fontSize = 11.sp),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                     Spacer(Modifier.height(16.dp))
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
@@ -344,7 +410,9 @@ private fun TxDetailDialog(
                     amount.toDoubleOrNull()?.let {
                         onSave(tx.copy(
                             amount = it, merchant = merchant.ifBlank { null }, category = category, type = type,
-                            isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg
+                            isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg,
+                            reimbursedAmount = reimbursedInput.toDoubleOrNull() ?: 0.0,
+                            isReimbursement = isReimbursement
                         ))
                     }
                 }) { Text("حفظ", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }

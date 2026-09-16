@@ -36,7 +36,15 @@ data class TransactionEntity(
     // passed makes a normal month look like a spending spike. The user flags
     // these themselves; they still count in totals/budgets, just not this one
     // pace calculation.
-    val excludeFromDailyAvg: Boolean = false
+    val excludeFromDailyAvg: Boolean = false,
+    // For an expense: how much of it a housemate/friend paid back (a shared
+    // grocery run, a split bill). Subtracted from what counts as real spending —
+    // bought for 200, got 100 back, actual spend is 100.
+    val reimbursedAmount: Double = 0.0,
+    // For an income: this is money coming back for an earlier shared expense,
+    // not real income — excluded from income totals so it doesn't inflate the
+    // budget ceiling or get divided up by the 50/30/20 rule like a paycheck would.
+    val isReimbursement: Boolean = false
 )
 
 @Entity(tableName = "budgets", primaryKeys = ["monthKey", "category"])

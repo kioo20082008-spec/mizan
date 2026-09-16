@@ -21,11 +21,14 @@ private fun tx(
     merchant: String? = "Test",
     timestamp: Long = JAN_2024_START + 1_000L,
     isSelfTransfer: Boolean = false,
-    excludeFromDailyAvg: Boolean = false
+    excludeFromDailyAvg: Boolean = false,
+    reimbursedAmount: Double = 0.0,
+    isReimbursement: Boolean = false
 ): TransactionEntity = TransactionEntity(
     amount = amount, currency = currency, merchant = merchant, category = category,
     type = type, rawSms = "", smsHash = "h-${System.nanoTime()}-${(0..999999).random()}",
-    timestamp = timestamp, isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg
+    timestamp = timestamp, isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg,
+    reimbursedAmount = reimbursedAmount, isReimbursement = isReimbursement
 )
 
 class FinancialAdvisorTest {
@@ -287,5 +290,47 @@ class FinancialAdvisorTest {
         assertEquals(12000.0, FinancialAdvisor.planningIncome(s, priorMonthsOnly, manualSalary = 12000.0)!!, 0.001)
         assertEquals(9000.0, FinancialAdvisor.planningIncome(s, priorMonthsOnly, manualSalary = 0.0)!!, 0.001)
         assertEquals(null, FinancialAdvisor.planningIncome(s, emptyList(), manualSalary = 0.0))
+    }
+
+    @Test
+    fun `summarize nets a reimbursed amount out of spending and category totals`() {
+        val txs = listOf(
+            tx(200.0, category = "بقالة", reimbursedAmount = 100.0),
+            tx(50.0, category = "طعام وشراب")
+        )
+        val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
+
+        assertEquals(150.0, s.spent, 0.001) // 200 - 100 reimbursed, plus 50
+        val groceries = s.categoryTotals.first { it.category == "بقالة" }
+        assertEquals(100.0, groceries.amount, 0.001)
+    }
+
+    @Test
+    fun `summarize excludes a reimbursement from income`() {
+        val txs = listOf(
+            tx(100.0, TxType.INCOME, isReimbursement = true),
+            tx(2000.0, TxType.INCOME)
+        )
+        val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
+
+        assertEquals(2000.0, s.income, 0.001)
+    }
+
+    @Test
+    fun `50-30-20 advice uses the manual salary even when actual income posted is higher`() {
+        // Unlike planningIncome (which deliberately prefers real posted income for
+        // tracking the remaining balance), the 50/30/20 rule prefers the stable
+        // salary figure — a one-off bonus this month shouldn't get carved into
+        // needs/wants/savings thirds the way a regular paycheck is.
+        val txs = listOf(tx(9000.0, TxType.INCOME))
+        val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
+        assertEquals(9000.0, s.income, 0.001)
+
+        val advice = FinancialAdvisor.advise(
+            s, monthlyBudget = 0.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END,
+            manualSalary = 6000.0
+        )
+        assertTrue(advice.any { it.title.contains("50 / 30 / 20") && it.body.contains(FinancialAdvisor.fmt(6000.0)) })
+        assertFalse(advice.any { it.title.contains("50 / 30 / 20") && it.body.contains(FinancialAdvisor.fmt(9000.0)) })
     }
 }
