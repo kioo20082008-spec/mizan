@@ -175,25 +175,28 @@ private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Dou
             Spacer(Modifier.height(24.dp))
             // "تجاوزت ميزانيتك" (exceeded your budget) must actually compare spend
             // to your (income-based) budget. Once that budget is known, compare
-            // against IT — not against s.net, which would otherwise false-alarm
+            // against IT — not against s.balance, which would otherwise false-alarm
             // before payday (income hasn't posted yet this month even though
             // spending against the *expected* income is perfectly fine). The
-            // net-based fallback only applies when there's no income signal at all.
+            // balance-based fallback only applies when there's no income signal at
+            // all. The hero figure itself is the real cash available — income plus
+            // whatever a housemate/friend paid back, minus what actually left the
+            // account (not the net-of-reimbursement spend figure budgets use).
             val isOverBudget = budget > 0 && s.spent > budget
-            val isNegativeNet = budget <= 0 && s.net < 0
+            val isNegativeBalance = budget <= 0 && s.balance < 0
             val isPastMonth = offset < 0
             val label = when {
                 isOverBudget -> "تجاوزت ميزانيتك هذا الشهر"
-                isNegativeNet -> "صرفت أكثر مما دخلت هذا الشهر"
+                isNegativeBalance -> "صرفت أكثر مما دخلت هذا الشهر"
                 isPastMonth -> "صافي الشهر"
                 else -> "الرصيد المتبقي المتاح"
             }
-            val isDanger = isOverBudget || isNegativeNet
+            val isDanger = isOverBudget || isNegativeBalance
             Text(label, style = Body.copy(color = OnInkSoft))
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    (if (isNegativeNet) "-" else "") + FinancialAdvisor.fmt(abs(s.net)),
+                    (if (isNegativeBalance) "-" else "") + FinancialAdvisor.fmt(abs(s.balance)),
                     style = Display.copy(color = if (isDanger) Danger else Lime)
                 )
                 Spacer(Modifier.width(6.dp))

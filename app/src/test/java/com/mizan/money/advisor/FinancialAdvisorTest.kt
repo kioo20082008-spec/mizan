@@ -22,13 +22,13 @@ private fun tx(
     timestamp: Long = JAN_2024_START + 1_000L,
     isSelfTransfer: Boolean = false,
     excludeFromDailyAvg: Boolean = false,
-    reimbursedAmount: Double = 0.0,
+    reimbursedPercent: Int = 0,
     isReimbursement: Boolean = false
 ): TransactionEntity = TransactionEntity(
     amount = amount, currency = currency, merchant = merchant, category = category,
     type = type, rawSms = "", smsHash = "h-${System.nanoTime()}-${(0..999999).random()}",
     timestamp = timestamp, isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg,
-    reimbursedAmount = reimbursedAmount, isReimbursement = isReimbursement
+    reimbursedPercent = reimbursedPercent, isReimbursement = isReimbursement
 )
 
 class FinancialAdvisorTest {
@@ -293,20 +293,21 @@ class FinancialAdvisorTest {
     }
 
     @Test
-    fun `summarize nets a reimbursed amount out of spending and category totals`() {
+    fun `summarize nets a reimbursed percentage out of spending and category totals`() {
         val txs = listOf(
-            tx(200.0, category = "بقالة", reimbursedAmount = 100.0),
+            tx(200.0, category = "بقالة", reimbursedPercent = 50), // half back = 100 net
             tx(50.0, category = "طعام وشراب")
         )
         val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
 
-        assertEquals(150.0, s.spent, 0.001) // 200 - 100 reimbursed, plus 50
+        assertEquals(150.0, s.spent, 0.001) // 100 net groceries + 50
+        assertEquals(250.0, s.grossSpent, 0.001) // the full 200 + 50 actually left the account
         val groceries = s.categoryTotals.first { it.category == "بقالة" }
         assertEquals(100.0, groceries.amount, 0.001)
     }
 
     @Test
-    fun `summarize excludes a reimbursement from income`() {
+    fun `summarize excludes a reimbursement from income but counts it toward balance`() {
         val txs = listOf(
             tx(100.0, TxType.INCOME, isReimbursement = true),
             tx(2000.0, TxType.INCOME)
@@ -314,6 +315,25 @@ class FinancialAdvisorTest {
         val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
 
         assertEquals(2000.0, s.income, 0.001)
+        assertEquals(100.0, s.reimbursements, 0.001)
+    }
+
+    @Test
+    fun `balance reflects real cash available, not just income minus net spend`() {
+        // Salary 7732, a 200 grocery run half-reimbursed by a housemate, and
+        // their 100 payback landing as separate income. Real cash on hand is
+        // 7732 + 100 - 200 = 7632 — not 7732 (ignoring what left the account
+        // for groceries) and not 7532 (double-subtracting the reimbursed half).
+        val txs = listOf(
+            tx(7732.0, TxType.INCOME),
+            tx(200.0, category = "بقالة", reimbursedPercent = 50),
+            tx(100.0, TxType.INCOME, isReimbursement = true)
+        )
+        val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
+
+        assertEquals(100.0, s.spent, 0.001)
+        assertEquals(7732.0, s.income, 0.001)
+        assertEquals(7632.0, s.balance, 0.001)
     }
 
     @Test

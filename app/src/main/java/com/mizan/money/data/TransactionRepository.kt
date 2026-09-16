@@ -1,11 +1,24 @@
 package com.mizan.money.data
 
+import android.content.Context
 import kotlinx.coroutines.flow.Flow
 
 class TransactionRepository(
+    ctx: Context,
     private val txDao: TransactionDao,
     private val budgetDao: BudgetDao
 ) {
+    // A merchant->category correction the user makes once is applied to every
+    // transaction from that merchant, past (updateWithMerchantRule) and future
+    // (learnedCategoryFor, consulted by InboxScanner/SmsReceiver on import).
+    // Plain SharedPreferences rather than a Room table: this is a small,
+    // single-user key-value lookup, not data the app needs to query/join/list.
+    private val rulesPrefs = ctx.getSharedPreferences("mizan_merchant_rules", Context.MODE_PRIVATE)
+
+    fun learnedCategoryFor(merchant: String?): String? {
+        if (merchant.isNullOrBlank()) return null
+        return rulesPrefs.getString("m_$merchant", null)
+    }
     fun allTransactions(): Flow<List<TransactionEntity>> = txDao.observeAll()
     fun budgets(): Flow<List<BudgetEntity>> = budgetDao.observeAll()
     suspend fun add(tx: TransactionEntity): Long = txDao.insert(tx)
@@ -31,6 +44,18 @@ class TransactionRepository(
     }
 
     suspend fun update(tx: TransactionEntity) = txDao.update(tx.copy(isEdited = true))
+    // A user correcting a transaction's category is treated as a standing rule
+    // for that merchant, not a one-off fix: applied to every other transaction
+    // from the same merchant right now, and remembered for every future one
+    // InboxScanner/SmsReceiver import (see learnedCategoryFor).
+    suspend fun updateWithMerchantRule(tx: TransactionEntity) {
+        val merchant = tx.merchant
+        if (!merchant.isNullOrBlank() && tx.category != SELF_TRANSFER_CATEGORY) {
+            rulesPrefs.edit().putString("m_$merchant", tx.category).apply()
+            txDao.updateCategoryByMerchant(merchant, tx.category)
+        }
+        update(tx)
+    }
     suspend fun delete(tx: TransactionEntity) = txDao.delete(tx)
     suspend fun setBudget(monthKey: String, category: String, amount: Double) {
         if (amount <= 0) budgetDao.delete(monthKey, category)

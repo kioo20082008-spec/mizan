@@ -37,10 +37,11 @@ data class TransactionEntity(
     // these themselves; they still count in totals/budgets, just not this one
     // pace calculation.
     val excludeFromDailyAvg: Boolean = false,
-    // For an expense: how much of it a housemate/friend paid back (a shared
-    // grocery run, a split bill). Subtracted from what counts as real spending —
-    // bought for 200, got 100 back, actual spend is 100.
-    val reimbursedAmount: Double = 0.0,
+    // For an expense: what percentage of it a housemate/friend paid back (a
+    // shared grocery run, a split bill), 0-100. A percentage survives an edit
+    // to the amount itself better than a fixed sum would (bought for 200,
+    // split 50/50 — still 50% reimbursed if the amount later gets corrected).
+    val reimbursedPercent: Int = 0,
     // For an income: this is money coming back for an earlier shared expense,
     // not real income — excluded from income totals so it doesn't inflate the
     // budget ceiling or get divided up by the 50/30/20 rule like a paycheck would.

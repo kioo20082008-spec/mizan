@@ -9,7 +9,7 @@ import java.io.File
 
 class MoneyApp : Application() {
     val db by lazy { AppDatabase.get(this) }
-    val repository by lazy { TransactionRepository(db.transactionDao(), db.budgetDao()) }
+    val repository by lazy { TransactionRepository(this, db.transactionDao(), db.budgetDao()) }
 
     override fun onCreate() {
         super.onCreate()

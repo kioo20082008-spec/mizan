@@ -102,7 +102,9 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
             _isScanning.value = true
             try {
                 val ctx = getApplication<Application>()
-                val result = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
+                val result = withContext(Dispatchers.IO) {
+                    InboxScanner.readTransactions(ctx, sinceDays = 120, learnedRules = { m -> repo.learnedCategoryFor(m) })
+                }
                 repo.reconcile(result.transactions, result.scannedHashes)
             } catch (e: Exception) {
                 // Reading the SMS provider can fail in device-specific ways (some
@@ -125,7 +127,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 timestamp = now, isManual = true))
         }
     }
-    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.update(tx) }
+    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.updateWithMerchantRule(tx) }
     fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx) }
     fun setBudget(monthKey: String, category: String, amount: Double) =
         viewModelScope.launch { repo.setBudget(monthKey, category, amount) }

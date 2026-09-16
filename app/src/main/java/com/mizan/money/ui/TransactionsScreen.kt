@@ -146,12 +146,9 @@ private fun TxDetailDialog(
     var isSelfTransfer by remember(tx.id) { mutableStateOf(tx.isSelfTransfer) }
     var excludeFromDailyAvg by remember(tx.id) { mutableStateOf(tx.excludeFromDailyAvg) }
     var isReimbursement by remember(tx.id) { mutableStateOf(tx.isReimbursement) }
-    var reimbursedInput by remember(tx.id) {
+    var reimbursedPercentInput by remember(tx.id) {
         mutableStateOf(
-            if (tx.reimbursedAmount > 0) {
-                if (tx.reimbursedAmount % 1.0 == 0.0) tx.reimbursedAmount.toInt().toString()
-                else tx.reimbursedAmount.toString()
-            } else ""
+            if (tx.reimbursedPercent > 0) tx.reimbursedPercent.toString() else ""
         )
     }
     var confirmingDelete by remember(tx.id) { mutableStateOf(false) }
@@ -255,20 +252,42 @@ private fun TxDetailDialog(
                     }
                     if (type == TxType.EXPENSE && !isSelfTransfer) {
                         Spacer(Modifier.height(10.dp))
+                        Text("نسبة المسترد من شريك/صديق (اختياري)", style = Eyebrow)
+                        Spacer(Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(25, 50, 75, 100).forEach { pct ->
+                                val isSel = reimbursedPercentInput == pct.toString()
+                                Box(
+                                    Modifier.weight(1f)
+                                        .clip(RoundedCornerShape(RadiusSm))
+                                        .background(if (isSel) IndigoSoft else PaperOuter)
+                                        .clickable { reimbursedPercentInput = if (isSel) "" else pct.toString() }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "$pct%",
+                                        style = Body.copy(
+                                            color = if (isSel) Indigo else InkSoft,
+                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
                         OutlinedTextField(
-                            value = reimbursedInput,
-                            onValueChange = { reimbursedInput = sanitizeAmountInput(it) },
-                            label = { Text("مسترد من شريك/صديق (اختياري)") },
-                            placeholder = { Text("0", style = Eyebrow) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            value = reimbursedPercentInput,
+                            onValueChange = { v ->
+                                val digits = v.filter { it.isDigit() }.take(3)
+                                reimbursedPercentInput = if (digits.isEmpty()) "" else digits.toInt().coerceIn(0, 100).toString()
+                            },
+                            label = { Text("أو اكتب نسبة مخصصة (%)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
                             shape = RoundedCornerShape(RadiusSm),
                             textStyle = Body
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "لو شاركت أحد في هذا المصروف واسترددت جزءاً منه، اكتب المبلغ هنا — يُخصم من مصاريفك.",
-                            style = Eyebrow.copy(fontSize = 10.sp)
                         )
                     }
                     if (type == TxType.INCOME) {
@@ -363,10 +382,11 @@ private fun TxDetailDialog(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
-                        if (tx.reimbursedAmount > 0) {
+                        if (tx.reimbursedPercent > 0) {
                             Spacer(Modifier.height(6.dp))
+                            val net = tx.amount * (100 - tx.reimbursedPercent) / 100.0
                             Text(
-                                "مسترد: ${FinancialAdvisor.fmt(tx.reimbursedAmount)} ر.س — الصافي ${FinancialAdvisor.fmt(tx.amount - tx.reimbursedAmount)} ر.س",
+                                "مسترد ${tx.reimbursedPercent}% — الصافي ${FinancialAdvisor.fmt(net)} ر.س",
                                 style = Eyebrow.copy(fontSize = 11.sp),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
@@ -411,7 +431,7 @@ private fun TxDetailDialog(
                         onSave(tx.copy(
                             amount = it, merchant = merchant.ifBlank { null }, category = category, type = type,
                             isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg,
-                            reimbursedAmount = reimbursedInput.toDoubleOrNull() ?: 0.0,
+                            reimbursedPercent = reimbursedPercentInput.toIntOrNull()?.coerceIn(0, 100) ?: 0,
                             isReimbursement = isReimbursement
                         ))
                     }

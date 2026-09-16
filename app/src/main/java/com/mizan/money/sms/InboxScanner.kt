@@ -16,7 +16,11 @@ data class ScanResult(val transactions: List<TransactionEntity>, val scannedHash
 
 object InboxScanner {
     private val URI_INBOX: Uri = Uri.parse("content://sms/inbox")
-    fun readTransactions(context: Context, sinceDays: Int = 120): ScanResult {
+    fun readTransactions(
+        context: Context,
+        sinceDays: Int = 120,
+        learnedRules: (String?) -> String? = { null }
+    ): ScanResult {
         val out = mutableListOf<TransactionEntity>()
         val seenHashes = mutableSetOf<String>()
         val since = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(sinceDays.toLong())
@@ -44,7 +48,9 @@ object InboxScanner {
                     val date = c.getLong(iDate)
                     seenHashes += SmsParser.hashFor(sender, date, body)
                     val parsed = SmsParser.parse(sender, body, date) ?: continue
-                    out += parsed.toEntity()
+                    val entity = parsed.toEntity()
+                    val learned = learnedRules(entity.merchant)
+                    out += if (learned != null) entity.copy(category = learned) else entity
                 } catch (e: Exception) {
                     // Skip this one malformed row rather than losing the whole scan.
                     Log.w("Mizan", "skipped one malformed SMS row during scan", e)

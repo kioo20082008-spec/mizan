@@ -12,14 +12,23 @@ enum class Level { INFO, GOOD, WARN, DANGER }
 data class Advice(val title: String, val body: String, val level: Level)
 data class CategoryTotal(val category: String, val amount: Double, val share: Double)
 data class MonthSummary(
-    val spent: Double, val income: Double, val net: Double, val count: Int,
+    val spent: Double,          // net of reimbursedPercent — real out-of-pocket cost, for stats/budgets
+    val grossSpent: Double,     // before reimbursedPercent — what actually left the account, for balance
+    val income: Double,         // real income only (excludes reimbursements)
+    val reimbursements: Double, // money that came back for a shared expense (isReimbursement = true)
+    val net: Double,            // income - spent — the accounting net, unrelated to cash on hand
+    val balance: Double,        // income + reimbursements - grossSpent — actual cash available
+    val count: Int,
     val dailyAvg: Double, val categoryTotals: List<CategoryTotal>, val largest: TransactionEntity?
 )
 
-// The actual out-of-pocket cost after subtracting whatever a housemate/friend
-// paid back for a shared expense — coerced to 0 in case the user typos a
-// reimbursed amount larger than the expense itself.
-private fun TransactionEntity.netSpend(): Double = (amount - reimbursedAmount).coerceAtLeast(0.0)
+// The actual out-of-pocket cost after subtracting the percentage a housemate/
+// friend paid back for a shared expense — coerced to 0 in case reimbursedPercent
+// somehow exceeds 100.
+private fun TransactionEntity.netSpend(): Double {
+    val pct = reimbursedPercent.coerceIn(0, 100)
+    return (amount * (100 - pct) / 100.0).coerceAtLeast(0.0)
+}
 
 object FinancialAdvisor {
     fun fmt(v: Double): String = String.format(Locale.US, "%,.2f", v)
@@ -35,10 +44,14 @@ object FinancialAdvisor {
         // A reimbursement (money coming back for a shared expense) isn't real
         // income — it's already netted out of the expense side via netSpend(),
         // so counting it here too would both shrink spending AND inflate income
-        // for the same shared purchase.
-        val incomes = inMonth.filter { it.type == TxType.INCOME && !it.isReimbursement }
+        // for the same shared purchase. It's still real cash though, so it
+        // counts separately toward `balance`.
+        val realIncome = inMonth.filter { it.type == TxType.INCOME && !it.isReimbursement }
+        val reimbursements = inMonth.filter { it.type == TxType.INCOME && it.isReimbursement }
         val spent = expenses.sumOf { it.netSpend() }
-        val income = incomes.sumOf { it.amount }
+        val grossSpent = expenses.sumOf { it.amount }
+        val income = realIncome.sumOf { it.amount }
+        val reimb = reimbursements.sumOf { it.amount }
         val daysPassed = max(1, ((System.currentTimeMillis().coerceAtMost(monthEnd) - monthStart) / 86_400_000L).toInt() + 1)
         val byCat = expenses.groupBy { it.category }
             .map { (cat, list) ->
@@ -50,7 +63,12 @@ object FinancialAdvisor {
         // transactions to leave out of this one figure; totals/budgets/category
         // breakdowns above still include them, since that money is still spent.
         val dailyAvgBasis = expenses.filter { !it.excludeFromDailyAvg }.sumOf { it.netSpend() }
-        return MonthSummary(spent, income, income - spent, expenses.size, dailyAvgBasis / daysPassed, byCat, expenses.maxByOrNull { it.netSpend() })
+        return MonthSummary(
+            spent = spent, grossSpent = grossSpent, income = income, reimbursements = reimb,
+            net = income - spent, balance = income + reimb - grossSpent,
+            count = expenses.size, dailyAvg = dailyAvgBasis / daysPassed,
+            categoryTotals = byCat, largest = expenses.maxByOrNull { it.netSpend() }
+        )
     }
     fun advise(summary: MonthSummary, monthlyBudget: Double, allTx: List<TransactionEntity>,
                monthStart: Long, monthEnd: Long, now: Long = System.currentTimeMillis(),

@@ -23,7 +23,9 @@ class SmsReceiver : BroadcastReceiver() {
                     val body = msg.messageBody ?: continue
                     val ts = msg.timestampMillis
                     val parsed = SmsParser.parse(sender, body, ts) ?: continue
-                    app.repository.add(parsed.toEntity())
+                    val entity = parsed.toEntity()
+                    val learned = app.repository.learnedCategoryFor(entity.merchant)
+                    app.repository.add(if (learned != null) entity.copy(category = learned) else entity)
                 }
             } catch (e: Exception) {
                 // Never let a malformed SMS crash the app in the background.

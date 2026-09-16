@@ -24,6 +24,11 @@ interface TransactionDao {
     // that a rescan must not silently discard.
     @Query("DELETE FROM transactions WHERE smsHash = :hash AND isManual = 0 AND isEdited = 0")
     suspend fun deleteStaleByHash(hash: String)
+    // Correcting one transaction's category is a strong signal for every other
+    // transaction from the same merchant, past and future — see
+    // TransactionRepository.updateWithMerchantRule().
+    @Query("UPDATE transactions SET category = :category WHERE merchant = :merchant")
+    suspend fun updateCategoryByMerchant(merchant: String, category: String)
 }
 
 @Dao

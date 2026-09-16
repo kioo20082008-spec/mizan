@@ -9,7 +9,7 @@ import androidx.room.migration.Migration
 
 @Database(
     entities = [TransactionEntity::class, BudgetEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,6 +34,16 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE transactions ADD COLUMN isReimbursement INTEGER NOT NULL DEFAULT 0")
             }
         }
+        // Replaces the fixed-amount reimbursedAmount (added in v4, one build
+        // ago) with a percentage — a fixed sum stops making sense the moment the
+        // transaction's own amount is later corrected. The old column is left in
+        // place unused rather than dropped: SQLite's DROP COLUMN support is new
+        // enough that relying on it here isn't worth the risk to real user data.
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN reimbursedPercent INTEGER NOT NULL DEFAULT 0")
+            }
+        }
 
         // No fallbackToDestructiveMigration: this holds a user's financial history,
         // so a future schema change must ship a real Migration rather than silently
@@ -41,7 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
         fun get(ctx: Context): AppDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(
                 ctx.applicationContext, AppDatabase::class.java, "mizan.db"
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { INSTANCE = it }
         }
     }
 }
