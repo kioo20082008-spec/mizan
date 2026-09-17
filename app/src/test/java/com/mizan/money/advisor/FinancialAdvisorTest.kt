@@ -1,5 +1,6 @@
 package com.mizan.money.advisor
 
+import com.mizan.money.R
 import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
@@ -8,10 +9,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-private const val JAN_2024_START = 1_704_067_200_000L // 2024-01-01T00:00:00Z
-private const val JAN_2024_END = 1_706_745_599_999L   // 2024-01-31T23:59:59.999Z
-private val FEB_MARK = JAN_2024_START + 35L * 86_400_000L // safely inside February
-private val MAR_MARK = JAN_2024_START + 65L * 86_400_000L // safely inside March
+private const val JAN_2024_START = 1_704_067_200_000L
+private const val JAN_2024_END = 1_706_745_599_999L
+private val FEB_MARK = JAN_2024_START + 35L * 86_400_000L
+private val MAR_MARK = JAN_2024_START + 65L * 86_400_000L
 
 private fun tx(
     amount: Double,
@@ -81,7 +82,7 @@ class FinancialAdvisorTest {
         val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 1000.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END, now = JAN_2024_START + 5_000L)
 
-        assertTrue(advice.any { it.level == Level.DANGER })
+        assertTrue(advice.any { it.level == Level.DANGER && it.titleRes == R.string.adv_over_budget_title })
     }
 
     @Test
@@ -90,7 +91,7 @@ class FinancialAdvisorTest {
         val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
-        assertTrue(advice.any { it.level == Level.INFO && it.title.contains("ميزانيتك") })
+        assertTrue(advice.any { it.level == Level.INFO && it.titleRes == R.string.adv_waiting_income_title })
     }
 
     @Test
@@ -113,7 +114,7 @@ class FinancialAdvisorTest {
         val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
-        assertTrue(advice.any { it.title.contains("سحوبات نقدية") })
+        assertTrue(advice.any { it.titleRes == R.string.adv_cash_title })
     }
 
     @Test
@@ -126,7 +127,7 @@ class FinancialAdvisorTest {
         val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
-        assertTrue(advice.any { it.title.contains("راتبك الشهري") })
+        assertTrue(advice.any { it.titleRes == R.string.adv_salary_detected_title })
     }
 
     @Test
@@ -141,13 +142,10 @@ class FinancialAdvisorTest {
             manualSalary = 12000.0
         )
 
-        val salaryAdvice = advice.first { it.title.contains("راتبك الشهري") }
-        assertFalse(salaryAdvice.title.contains("رصدنا"))
-        assertTrue(salaryAdvice.body.contains(FinancialAdvisor.fmt(12000.0)))
-        // 50/30/20 should plan off the manually entered figure too, not the
-        // auto-detected/summed one.
-        val plan = advice.first { it.title.contains("50 / 30 / 20") }
-        assertTrue(plan.body.contains(FinancialAdvisor.fmt(12000.0)))
+        val salaryAdvice = advice.first { it.titleRes == R.string.adv_salary_manual_title }
+        assertTrue(salaryAdvice.bodyArgs.contains(FinancialAdvisor.fmt(12000.0)))
+        val plan = advice.first { it.titleRes == R.string.adv_5030_20_title }
+        assertTrue(plan.bodyArgs.contains(FinancialAdvisor.fmt(12000.0)))
     }
 
     @Test
@@ -159,7 +157,7 @@ class FinancialAdvisorTest {
         val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
-        assertFalse(advice.any { it.title.contains("راتبك الشهري") })
+        assertFalse(advice.any { it.titleRes == R.string.adv_salary_manual_title || it.titleRes == R.string.adv_salary_detected_title })
     }
 
     @Test
@@ -168,7 +166,7 @@ class FinancialAdvisorTest {
         val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
-        assertFalse(advice.any { it.title.contains("راتبك الشهري") })
+        assertFalse(advice.any { it.titleRes == R.string.adv_salary_manual_title || it.titleRes == R.string.adv_salary_detected_title })
     }
 
     @Test
@@ -176,7 +174,6 @@ class FinancialAdvisorTest {
         val history = listOf(
             tx(8000.0, TxType.INCOME, timestamp = JAN_2024_START + 1_000L),
             tx(8000.0, TxType.INCOME, timestamp = FEB_MARK)
-            // no income timestamped in March, simulating "before payday"
         )
         val marchStart = MAR_MARK - 5L * 86_400_000L
         val marchEnd = MAR_MARK + 25L * 86_400_000L
@@ -184,7 +181,7 @@ class FinancialAdvisorTest {
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = history, monthStart = marchStart, monthEnd = marchEnd)
 
         assertEquals(0.0, s.income, 0.001)
-        assertTrue(advice.any { it.title.contains("50 / 30 / 20") && it.body.contains(FinancialAdvisor.fmt(8000.0)) })
+        assertTrue(advice.any { it.titleRes == R.string.adv_5030_20_title && it.bodyArgs.contains(FinancialAdvisor.fmt(8000.0)) })
     }
 
     @Test
@@ -197,21 +194,23 @@ class FinancialAdvisorTest {
         val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
-        val subsAdvice = advice.firstOrNull { it.title.contains("اشتراكات") }
+        val subsAdvice = advice.firstOrNull { it.titleRes == R.string.adv_subscriptions_title }
         assertTrue(subsAdvice != null)
-        assertTrue(subsAdvice!!.body.contains(FinancialAdvisor.fmt(35.0)))
-        assertFalse(subsAdvice.body.contains(FinancialAdvisor.fmt(999.0)))
+        assertTrue(subsAdvice!!.bodyArgs.contains(FinancialAdvisor.fmt(35.0)))
+        assertFalse(subsAdvice.bodyArgs.contains(FinancialAdvisor.fmt(999.0)))
     }
 
     @Test
     fun `advise does not show a nonsensical one-day pace when viewing a past month`() {
         val txs = listOf(tx(850.0))
         val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
-        val farFuture = JAN_2024_END + 180L * 86_400_000L // 6 months after month end
+        val farFuture = JAN_2024_END + 180L * 86_400_000L
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 1000.0, allTx = txs, monthStart = JAN_2024_START, monthEnd = JAN_2024_END, now = farFuture)
 
-        val paceAdvice = advice.first { it.title.contains("اقتربت من الحد") }
-        assertFalse(paceAdvice.body.contains("لـ 1 يوم"))
+        val paceAdvice = advice.first { it.titleRes == R.string.adv_approaching_title }
+        // In a past month, the "future pace" body should never be used — only
+        // the compact past-month variant.
+        assertEquals(R.string.adv_approaching_body_past, paceAdvice.bodyRes)
     }
 
     @Test
@@ -222,15 +221,11 @@ class FinancialAdvisorTest {
         val s = FinancialAdvisor.summarize(savings, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = savings, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
-        assertFalse(advice.any { it.title.contains("اشتراكات") })
+        assertFalse(advice.any { it.titleRes == R.string.adv_subscriptions_title })
     }
 
     @Test
     fun `detectSubscriptions ignores a recurring similar-amount food-delivery or installment merchant`() {
-        // Regression test: HungerStation/Tabby/Tamara recur with near-identical
-        // amounts too (delivery fees, fixed installments) but are food/shopping,
-        // not subscriptions — only a merchant CategoryClassifier already put in
-        // "اشتراكات" should ever be flagged.
         val allTx = listOf(
             tx(25.0, merchant = "HungerStation", category = "طعام وشراب", timestamp = JAN_2024_START + 1_000L),
             tx(25.0, merchant = "HungerStation", category = "طعام وشراب", timestamp = FEB_MARK),
@@ -241,28 +236,24 @@ class FinancialAdvisorTest {
         val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
 
-        assertFalse(advice.any { it.title.contains("اشتراكات") })
+        assertFalse(advice.any { it.titleRes == R.string.adv_subscriptions_title })
     }
 
     @Test
     fun `summarize excludes flagged transactions from dailyAvg but still counts them in spent`() {
         val txs = listOf(
             tx(100.0, excludeFromDailyAvg = false),
-            tx(3000.0, category = "فواتير", excludeFromDailyAvg = true) // e.g. rent
+            tx(3000.0, category = "فواتير", excludeFromDailyAvg = true)
         )
         val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
 
-        assertEquals(3100.0, s.spent, 0.001) // rent still counts toward real spending/budget
+        assertEquals(3100.0, s.spent, 0.001)
         val daysPassed = ((JAN_2024_END.coerceAtMost(System.currentTimeMillis()) - JAN_2024_START) / 86_400_000L).toInt() + 1
-        assertEquals(100.0 / daysPassed.coerceAtLeast(1), s.dailyAvg, 0.01) // but not the daily pace
+        assertEquals(100.0 / daysPassed.coerceAtLeast(1), s.dailyAvg, 0.01)
     }
 
     @Test
     fun `planningIncome prefers this month's real income over salary once it has posted`() {
-        // A salary figure (manual or detected) is only a pre-payday stand-in —
-        // once real money has actually posted this month, that real total wins
-        // even over a manually-typed salary, so the figure always agrees with
-        // the real remaining balance (income - spent).
         val history = listOf(
             tx(9000.0, TxType.INCOME, timestamp = JAN_2024_START + 1_000L),
             tx(9000.0, TxType.INCOME, timestamp = FEB_MARK)
@@ -281,7 +272,6 @@ class FinancialAdvisorTest {
             tx(9000.0, TxType.INCOME, timestamp = FEB_MARK),
             tx(9000.0, TxType.INCOME, timestamp = MAR_MARK)
         )
-        // Nothing posted in January itself — before payday.
         val s = FinancialAdvisor.summarize(priorMonthsOnly, JAN_2024_START, JAN_2024_END)
 
         assertEquals(12000.0, FinancialAdvisor.planningIncome(s, priorMonthsOnly, manualSalary = 12000.0)!!, 0.001)

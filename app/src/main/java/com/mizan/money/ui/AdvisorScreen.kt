@@ -13,9 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mizan.money.R
 import com.mizan.money.advisor.Advice
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.advisor.Level
@@ -30,11 +32,6 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
     val budgets by vm.budgets.collectAsState()
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
-    // Same basis as the dashboard's "استهلاك دخل الشهر" card — this month's real
-    // income (falling back to salary pre-payday), unless a total budget was
-    // explicitly set on the Budget tab, which then overrides it — so
-    // "تجاوزت الميزانية"/"المتبقي" here always agrees with what the dashboard
-    // shows, and a manually-set budget isn't silently ignored.
     val monthKey = remember(offset, startDay) { Dates.monthKey(offset, startDay) }
     val manualBudget = remember(budgets, monthKey) {
         budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }?.limitAmount?.takeIf { it > 0 }
@@ -42,11 +39,6 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
     val budget = remember(summary, txs, manualSalary, manualBudget) {
         manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0)
     }
-    // DANGER-level advice (over budget, spending more than you earn) is the most
-    // urgent thing on this screen and must never be buried below WARN/GOOD/INFO
-    // cards that simply happened to be generated earlier in FinancialAdvisor's
-    // fixed pipeline order. Level's own declaration order isn't severity order,
-    // so this maps it explicitly instead of sorting by ordinal.
     fun severity(level: Level) = when (level) {
         Level.DANGER -> 0
         Level.WARN -> 1
@@ -82,9 +74,6 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
         if (advice.isEmpty()) {
             item { EmptyState("لا توجد نصائح بعد — أضف عمليات أو ميزانية لهذا الشهر") }
         } else {
-            // One flat bordered list instead of a separately-shadowed card per
-            // tip: several tips at once (the common case) added up to a lot of
-            // scrolling for text-only content.
             item {
                 Column(
                     Modifier.fillMaxWidth()
@@ -105,6 +94,14 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
         }
     }
 }
+
+// Resolves a string resource with optional format args. Calling
+// stringResource(id) directly (rather than with an empty vararg) avoids
+// running the String.format path on messages that have no format specifiers.
+@Composable
+private fun adviceText(resId: Int, args: List<Any>): String =
+    if (args.isEmpty()) stringResource(resId)
+    else stringResource(resId, *args.toTypedArray())
 
 @Composable
 private fun AdviceRow(a: Advice) {
@@ -131,14 +128,10 @@ private fun AdviceRow(a: Advice) {
         Spacer(Modifier.width(12.dp))
         IconBadge(icon, color, color.copy(alpha = 0.12f), size = 36.dp, iconSize = 17.dp)
         Spacer(Modifier.width(10.dp))
-        // Without weight(1f) this Column is measured against the Row's full
-        // width instead of what's left after the stripe/spacer/badge ahead of
-        // it, so a long advice body (e.g. the subscriptions list) overflows
-        // past the card's edge instead of wrapping.
         Column(Modifier.weight(1f)) {
-            Text(a.title, style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
+            Text(adviceText(a.titleRes, a.titleArgs), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
             Spacer(Modifier.height(4.dp))
-            Text(a.body, style = Eyebrow.copy(fontSize = 11.sp, color = InkSoft))
+            Text(adviceText(a.bodyRes, a.bodyArgs), style = Eyebrow.copy(fontSize = 11.sp, color = InkSoft))
         }
     }
 }

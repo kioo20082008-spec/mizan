@@ -292,4 +292,37 @@
     <string name="reports_export_subtitle">A ready-to-share summary of this month — separate from the diagnostic export in Settings</string>
     <string name="reports_export_csv">Excel (CSV)</string>
     <string name="reports_export_pdf">PDF</string>
+
+    <!-- ================== Advisor advice ================== -->
+    <string name="adv_waiting_income_title">Waiting for this month\'s income 🎯</string>
+    <string name="adv_waiting_income_body">No income has posted yet this month, and no saved salary to estimate from. Once the first deposit arrives we\'ll compute your usage from your real balance.</string>
+    <string name="adv_over_budget_title">You\'ve exceeded your budget ⚠️</string>
+    <string name="adv_over_budget_body">You spent %1$s of %2$s SAR (%3$d٪). Over by %4$s SAR.</string>
+    <string name="adv_approaching_title">Approaching the limit 🟠</string>
+    <string name="adv_approaching_body_future">You\'ve used %1$d٪ of your budget. %2$s SAR left across %3$d days, at %4$s SAR/day.</string>
+    <string name="adv_approaching_body_past">You used %1$d٪ of that month\'s budget, with %2$s SAR remaining.</string>
+    <string name="adv_on_track_title">You\'re on track ✅</string>
+    <string name="adv_on_track_body_future">You used %1$d٪ of your budget. %2$s SAR left, you can spend %3$s SAR/day.</string>
+    <string name="adv_on_track_body_past">You used %1$d٪ of that month\'s budget.</string>
+    <string name="adv_top_category_title_fmt">Biggest category: %1$s 🔍</string>
+    <string name="adv_top_category_body_fmt">You spent %2$s SAR on \"%1$s\" (%3$d٪ of your expenses). Cut it by 20٪ and save ~%4$s SAR.</string>
+    <string name="adv_cash_title">Notable cash withdrawals 💵</string>
+    <string name="adv_cash_body_fmt">You withdrew %1$s SAR in cash (%2$d٪ of your spending). Cash spending can\'t be auto-tracked from bank SMS — try noting where you spend it.</string>
+    <string name="adv_daily_avg_title">Your daily spending 📊</string>
+    <string name="adv_daily_avg_body_fmt">You spend %1$s SAR/day. At this rate you\'ll spend ~%2$s SAR/month.</string>
+    <string name="adv_subscriptions_title">Recurring subscriptions 💳</string>
+    <string name="adv_subscriptions_body_fmt">Found %1$d subscription(s): %2$s. Monthly total %3$s SAR = %4$s SAR/year.</string>
+    <string name="adv_large_tx_title">A big transaction spotted 👀</string>
+    <string name="adv_large_tx_body_fmt">A %1$s SAR charge at \"%2$s\" = %3$d٪ of the month.</string>
+    <string name="adv_savings_excellent_title">Excellent saving 🏆</string>
+    <string name="adv_savings_excellent_body_fmt">Great! Your savings rate is %1$d٪.</string>
+    <string name="adv_savings_ok_title">Review your savings rate</string>
+    <string name="adv_savings_ok_body_fmt">Your savings rate is %1$d٪. Try to reach 20٪.</string>
+    <string name="adv_savings_bad_body_fmt">You spend %1$s SAR more than you earn!</string>
+    <string name="adv_salary_manual_title">Your monthly salary 💼</string>
+    <string name="adv_salary_manual_body_fmt">Based on what you entered in Settings, your monthly salary is %1$s SAR.</string>
+    <string name="adv_salary_detected_title">We detected your monthly salary 💼</string>
+    <string name="adv_salary_detected_body_fmt">Based on recurring deposits over the past months, your fixed monthly income is roughly %1$s SAR.</string>
+    <string name="adv_5030_20_title">50 / 30 / 20 rule 💡</string>
+    <string name="adv_5030_20_body_fmt">From %1$s SAR income: %2$s for needs, %3$s for wants, %4$s for savings.</string>
 </resources>
