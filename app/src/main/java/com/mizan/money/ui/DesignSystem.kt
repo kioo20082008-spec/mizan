@@ -187,6 +187,7 @@ fun TransactionCard(tx: TransactionEntity, onClick: () -> Unit) {
 // user's chosen locale. The Arabic key itself never changes — it stays the
 // join point between parser rules, budgets, and stored transactions.
 
+@Composable
 fun categoryDisplay(cat: String): String = when (cat) {
     "طعام وشراب" -> stringResource(R.string.cat_food)
     "بقالة" -> stringResource(R.string.cat_groceries)
@@ -229,7 +230,6 @@ fun catColor(cat: String): Color = when (cat) {
 @Composable
 fun catColorSoft(cat: String): Color = catColor(cat).copy(alpha = 0.12f)
 
-@Composable
 @Composable
 fun currencyLabel(code: String): String = when (code) {
     "SAR" -> stringResource(R.string.currency_sar)
