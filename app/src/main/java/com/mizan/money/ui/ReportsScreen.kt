@@ -68,9 +68,7 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val shareChooserTitle = stringResource(R.string.reports_share_chooser)
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
-    val pdfPeriodLabel = remember(offset, startDay) {
-        "${monthName(offset, startDay)} (${Dates.monthKey(offset, startDay)})"
-    }
+    val pdfPeriodLabel = "${monthName(offset, startDay)} (${Dates.monthKey(offset, startDay)})"
     val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
     val monthKey = remember(offset, startDay) { Dates.monthKey(offset, startDay) }
     val manualBudget = remember(budgets, monthKey) {
