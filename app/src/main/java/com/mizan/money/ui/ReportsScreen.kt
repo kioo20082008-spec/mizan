@@ -69,8 +69,6 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val budget = remember(summary, txs, manualSalary, manualBudget) {
         manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0)
     }
-    // Last 6 cycles including the one being viewed, oldest first — a fixed
-    // window keeps the chart simple instead of needing its own date picker.
     val trend = remember(txs, offset, startDay) {
         (5 downTo 0).map { back ->
             val o = offset - back
@@ -183,6 +181,11 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
 @Composable
 private fun TrendChart(points: List<Triple<String, Double, Double>>) {
     val maxVal = (points.maxOfOrNull { maxOf(it.second, it.third) } ?: 0.0).coerceAtLeast(1.0)
+    // Colors are captured here (in a @Composable context) because the theme
+    // color getters read from a CompositionLocal — the Canvas draw lambda
+    // below is NOT a @Composable scope, so it can't read them directly.
+    val dangerColor = Danger
+    val successColor = Success
     Column {
         Canvas(Modifier.fillMaxWidth().height(140.dp)) {
             val groupWidth = size.width / points.size
@@ -192,12 +195,12 @@ private fun TrendChart(points: List<Triple<String, Double, Double>>) {
                 val spentH = (spent / maxVal * size.height).toFloat()
                 val incomeH = (income / maxVal * size.height).toFloat()
                 drawRect(
-                    color = Danger,
+                    color = dangerColor,
                     topLeft = Offset(groupX + barWidth * 0.5f, size.height - spentH),
                     size = Size(barWidth, spentH)
                 )
                 drawRect(
-                    color = Success,
+                    color = successColor,
                     topLeft = Offset(groupX + barWidth * 1.9f, size.height - incomeH),
                     size = Size(barWidth, incomeH)
                 )
@@ -213,12 +216,15 @@ private fun TrendChart(points: List<Triple<String, Double, Double>>) {
 @Composable
 private fun CategoryDonut(categories: List<CategoryTotal>) {
     val total = categories.sumOf { it.amount }.coerceAtLeast(0.01)
+    // Same reasoning as TrendChart: catColor() is a @Composable getter now, so
+    // the per-slice colors must be resolved *before* entering the draw lambda.
+    val sliceColors = categories.map { catColor(it.category) }
     Canvas(Modifier.size(112.dp)) {
         var startAngle = -90f
-        categories.forEach { c ->
+        categories.forEachIndexed { index, c ->
             val sweep = (c.amount / total * 360.0).toFloat().coerceAtLeast(1f)
             drawArc(
-                color = catColor(c.category),
+                color = sliceColors[index],
                 startAngle = startAngle,
                 sweepAngle = sweep,
                 useCenter = false,
