@@ -368,4 +368,24 @@
 
     <string name="stg_privacy_body">All your data stays local on your device and is never sent to any external server unless you choose to export and share it yourself.</string>
     <string name="stg_save">Save</string>
+
+    <!-- ================== Advanced transaction filter ================== -->
+    <string name="tx_filter_icon">Filter</string>
+    <string name="tx_filter_title">Advanced filter</string>
+    <string name="tx_filter_active_fmt">%1$d filter(s) active</string>
+    <string name="tx_filter_clear_all">Clear all</string>
+    <string name="tx_filter_section_date">Date range</string>
+    <string name="tx_filter_section_amount">Amount range</string>
+    <string name="tx_filter_section_categories">Categories</string>
+    <string name="tx_filter_section_type">Transaction type</string>
+    <string name="tx_filter_section_banks">Banks</string>
+    <string name="tx_filter_from_hint">From (yyyy-MM-dd)</string>
+    <string name="tx_filter_to_hint">To (yyyy-MM-dd)</string>
+    <string name="tx_filter_min_hint">Min</string>
+    <string name="tx_filter_max_hint">Max</string>
+    <string name="tx_filter_type_all">All</string>
+    <string name="tx_filter_apply">Apply</string>
+    <string name="tx_filter_no_results">No transactions match the filters</string>
+    <string name="tx_filter_banks_empty">No banks in your data yet</string>
+    <string name="tx_filter_date_invalid">Date format must be yyyy-MM-dd</string>
 </resources>

@@ -368,4 +368,24 @@
 
     <string name="stg_privacy_body">جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي إلا إذا اخترت تصديرها ومشاركتها بنفسك.</string>
     <string name="stg_save">حفظ</string>
+
+    <!-- ================== Advanced transaction filter ================== -->
+    <string name="tx_filter_icon">تصفية</string>
+    <string name="tx_filter_title">تصفية متقدمة</string>
+    <string name="tx_filter_active_fmt">%1$d فلتر مفعّل</string>
+    <string name="tx_filter_clear_all">مسح الكل</string>
+    <string name="tx_filter_section_date">نطاق التاريخ</string>
+    <string name="tx_filter_section_amount">نطاق المبلغ</string>
+    <string name="tx_filter_section_categories">التصنيفات</string>
+    <string name="tx_filter_section_type">نوع الحركة</string>
+    <string name="tx_filter_section_banks">البنوك</string>
+    <string name="tx_filter_from_hint">من (yyyy-MM-dd)</string>
+    <string name="tx_filter_to_hint">إلى (yyyy-MM-dd)</string>
+    <string name="tx_filter_min_hint">أدنى</string>
+    <string name="tx_filter_max_hint">أعلى</string>
+    <string name="tx_filter_type_all">الكل</string>
+    <string name="tx_filter_apply">تطبيق</string>
+    <string name="tx_filter_no_results">لا توجد عمليات مطابقة للفلاتر</string>
+    <string name="tx_filter_banks_empty">لا توجد بنوك في بياناتك</string>
+    <string name="tx_filter_date_invalid">صيغة التاريخ يجب أن تكون yyyy-MM-dd</string>
 </resources>
