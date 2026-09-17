@@ -33,6 +33,9 @@ import com.mizan.money.data.TOTAL_BUDGET
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.DateFormatSymbols
+import java.util.Calendar
+import java.util.Locale
 
 // ============ INSIGHTS ============
 @Composable
@@ -69,6 +72,16 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val shareChooserTitle = stringResource(R.string.reports_share_chooser)
+    // Locale is captured at @Composable scope so the (non-composable)
+    // monthShortLabel below can use it from inside remember{} lambdas.
+    val locale = LocalConfiguration.current.locales[0]
+    // Pre-computed at @Composable scope: the stringResource/mothName getters
+    // read from CompositionLocals, which the scope.launch below cannot access.
+    val categoryTitle = stringResource(
+        R.string.reports_categories_title_fmt,
+        monthName(offset, startDay)
+    )
+    val pdfPeriodLabel = "${monthName(offset, startDay)} (${Dates.monthKey(offset, startDay)})"
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
@@ -79,12 +92,12 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val budget = remember(summary, txs, manualSalary, manualBudget) {
         manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0)
     }
-    val trend = remember(txs, offset, startDay) {
+    val trend = remember(txs, offset, startDay, locale) {
         (5 downTo 0).map { back ->
             val o = offset - back
             val r = Dates.monthRange(o, startDay)
             val s = FinancialAdvisor.summarize(txs, r.first, r.last)
-            Triple(monthShortLabel(o, startDay), s.spent, s.income)
+            Triple(monthShortLabel(o, startDay, locale), s.spent, s.income)
         }
     }
     val prevSummary = remember(txs, offset, startDay) {
@@ -116,10 +129,7 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
         if (summary.categoryTotals.isNotEmpty()) {
             item {
                 SoftCard {
-                    Text(
-                        stringResource(R.string.reports_categories_title_fmt, monthName(offset, startDay)),
-                        style = H2
-                    )
+                    Text(categoryTitle, style = H2)
                     Spacer(Modifier.height(16.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CategoryDonut(summary.categoryTotals)
@@ -130,7 +140,10 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
                                     Box(Modifier.size(8.dp).clip(RoundedCornerShape(Pill)).background(catColor(c.category)))
                                     Spacer(Modifier.width(6.dp))
                                     Text(c.category, style = Eyebrow.copy(fontSize = 10.sp), modifier = Modifier.weight(1f), maxLines = 1)
-                                    Text(stringResource(R.string.reports_percent_fmt, (c.share * 100).toInt()), style = Eyebrow.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold))
+                                    Text(
+                                        stringResource(R.string.reports_percent_fmt, (c.share * 100).toInt()),
+                                        style = Eyebrow.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    )
                                 }
                             }
                         }
@@ -188,8 +201,9 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
                         enabled = !exporting
                     ) {
                         exporting = true
+                        val capturedLabel = pdfPeriodLabel
                         scope.launch(Dispatchers.IO) {
-                            val file = writePdfReport(ctx, "${monthName(offset, startDay)} ($monthKey)", summary, budget)
+                            val file = writePdfReport(ctx, capturedLabel, summary, budget)
                             withContext(Dispatchers.Main) {
                                 shareExportFile(ctx, file, "application/pdf", shareChooserTitle)
                                 exporting = false
@@ -205,7 +219,6 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
 @Composable
 private fun TrendChart(points: List<Triple<String, Double, Double>>) {
     val maxVal = (points.maxOfOrNull { maxOf(it.second, it.third) } ?: 0.0).coerceAtLeast(1.0)
-    // Capture colors in a @Composable scope — the Canvas lambda is not @Composable.
     val dangerColor = Danger
     val successColor = Success
     Column {
@@ -238,6 +251,7 @@ private fun TrendChart(points: List<Triple<String, Double, Double>>) {
 @Composable
 private fun CategoryDonut(categories: List<CategoryTotal>) {
     val total = categories.sumOf { it.amount }.coerceAtLeast(0.01)
+    // Resolve per-slice colors at @Composable scope, then pass into the draw lambda.
     val sliceColors = categories.map { catColor(it.category) }
     Canvas(Modifier.size(112.dp)) {
         var startAngle = -90f
@@ -290,10 +304,9 @@ private fun LegendDot(color: Color, label: String) {
     }
 }
 
-@Composable
-private fun monthShortLabel(offset: Int, startDay: Int): String {
-    val locale = LocalConfiguration.current.locales[0]
-    val c = java.util.Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
-    val symbols = java.text.DateFormatSymbols(locale)
-    return symbols.shortMonths[c.get(java.util.Calendar.MONTH)]
+// Non-composable so it can be safely called from inside remember{} lambdas.
+private fun monthShortLabel(offset: Int, startDay: Int, locale: Locale): String {
+    val c = Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
+    val symbols = DateFormatSymbols(locale)
+    return symbols.shortMonths[c.get(Calendar.MONTH)]
 }
