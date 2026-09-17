@@ -330,4 +330,42 @@
     <string name="advisor_header_title">Financial advisor</string>
     <string name="advisor_header_subtitle">Smart local analysis of your spending pattern</string>
     <string name="advisor_empty">No advice yet — add transactions or a budget for this month</string>
+
+    <!-- ================== Settings Dialog ================== -->
+    <string name="stg_rescan_title">Rescan messages</string>
+    <string name="stg_rescan_subtitle">Search again for transactions in the last 120 days</string>
+    <string name="stg_rescan_busy">Scanning…</string>
+    <string name="stg_export_title">Export SMS for diagnostics</string>
+    <string name="stg_export_subtitle">Share a text file with all transactions and their original SMS</string>
+    <string name="stg_export_none">No transactions yet</string>
+    <string name="stg_export_confirm_title">Share your data?</string>
+    <string name="stg_export_confirm_body">This will share a text file containing all your transactions: amounts, bank names, last 4 digits of the card, and the full original SMS. Choose yourself where to send it from the share sheet.</string>
+    <string name="stg_share">Share</string>
+    <string name="stg_cancel">Cancel</string>
+
+    <string name="stg_theme_label">Appearance</string>
+    <string name="stg_theme_desc">Choose light, dark, or follow the system setting.</string>
+    <string name="stg_theme_system">System</string>
+    <string name="stg_theme_light">Light</string>
+    <string name="stg_theme_dark">Dark</string>
+
+    <string name="stg_salary_label">Your monthly salary</string>
+    <string name="stg_salary_desc">Used in the financial advisor\'s tips (50/30/20 rule, etc.) instead of relying solely on auto-detection from recurring deposits.</string>
+    <string name="stg_salary_hint">e.g., 8000</string>
+
+    <string name="stg_name_label">Your name</string>
+    <string name="stg_name_desc">Used only to recognize transfers between your own accounts (e.g., Alinma to Barq) via the beneficiary name on the SMS. Write it exactly as it appears — Arabic or English.</string>
+    <string name="stg_name_hint">e.g., Waleed Hamadallah</string>
+
+    <string name="stg_month_start_label">Month start day</string>
+    <string name="stg_month_start_desc">The day the "month" begins on every screen — change it to match your salary day instead of the 1st.</string>
+    <string name="stg_month_start_day_fmt">Day %1$d of every month</string>
+    <string name="stg_decrease">Decrease</string>
+    <string name="stg_increase">Increase</string>
+
+    <string name="stg_notif_label">Notifications</string>
+    <string name="stg_notif_desc">Alert when you exceed your budget or a bill is due soon</string>
+
+    <string name="stg_privacy_body">All your data stays local on your device and is never sent to any external server unless you choose to export and share it yourself.</string>
+    <string name="stg_save">Save</string>
 </resources>

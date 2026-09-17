@@ -67,7 +67,6 @@ fun AppRoot() {
     var scanned by remember { mutableStateOf(vm.hasCompletedInitialScan()) }
     var permissionAttempted by remember { mutableStateOf(false) }
 
-    // Theme preference.
     var themeMode by remember { mutableStateOf(ThemePreference.load(ctx)) }
     val isDark = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -75,9 +74,6 @@ fun AppRoot() {
         ThemeMode.DARK -> true
     }
 
-    // Language preference. Changing it triggers an Activity recreate so
-    // attachBaseContext re-applies the new locale + layout direction to the
-    // whole tree (including future Dialogs).
     var languageMode by remember { mutableStateOf(LanguagePreference.load(ctx)) }
     val layoutDir = when (languageMode) {
         LanguageMode.ENGLISH -> LayoutDirection.Ltr
@@ -109,40 +105,21 @@ fun AppRoot() {
     ProvideMizanTheme(isDark = isDark) {
         MaterialTheme(
             colorScheme = if (isDark) darkColorScheme(
-                background = Paper,
-                surface = White,
-                surfaceVariant = PaperOuter,
-                surfaceTint = Color.Transparent,
-                primary = Indigo,
-                onPrimary = Color.White,
-                onBackground = Ink,
-                onSurface = Ink,
-                onSurfaceVariant = InkSoft,
-                error = Danger,
-                onError = Color.White,
-                outline = Line,
+                background = Paper, surface = White, surfaceVariant = PaperOuter,
+                surfaceTint = Color.Transparent, primary = Indigo, onPrimary = Color.White,
+                onBackground = Ink, onSurface = Ink, onSurfaceVariant = InkSoft,
+                error = Danger, onError = Color.White, outline = Line,
             ) else lightColorScheme(
-                background = Paper,
-                surface = White,
-                surfaceVariant = PaperOuter,
-                surfaceTint = Color.Transparent,
-                primary = Indigo,
-                onPrimary = Color.White,
-                onBackground = Ink,
-                onSurface = Ink,
-                onSurfaceVariant = InkSoft,
-                error = Danger,
-                onError = Color.White,
-                outline = Line,
+                background = Paper, surface = White, surfaceVariant = PaperOuter,
+                surfaceTint = Color.Transparent, primary = Indigo, onPrimary = Color.White,
+                onBackground = Ink, onSurface = Ink, onSurfaceVariant = InkSoft,
+                error = Danger, onError = Color.White, outline = Line,
             )
         ) {
             CompositionLocalProvider(LocalLayoutDirection provides layoutDir) {
                 Surface(Modifier.fillMaxSize(), color = PaperOuter) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                        Surface(
-                            Modifier.fillMaxWidth().fillMaxHeight(),
-                            color = Paper
-                        ) {
+                        Surface(Modifier.fillMaxWidth().fillMaxHeight(), color = Paper) {
                             if (!hasSms) PermissionScreen(
                                 showSettingsLink = permissionAttempted,
                                 onGrant = {
@@ -171,8 +148,6 @@ fun AppRoot() {
                                     onLanguageModeChange = { newMode ->
                                         LanguagePreference.save(ctx, newMode)
                                         languageMode = newMode
-                                        // Apply immediately by recreating the Activity —
-                                        // attachBaseContext will pick up the new locale.
                                         (ctx as? Activity)?.recreate()
                                     }
                                 )
@@ -317,13 +292,8 @@ private fun SettingsDialog(
             onDismissRequest = { showExportConfirm = false },
             containerColor = White,
             shape = RoundedCornerShape(RadiusXl),
-            title = { Text("مشاركة بياناتك؟", style = H2) },
-            text = {
-                Text(
-                    "بيشارك ملف نصي فيه كل عملياتك: المبالغ، أسماء البنوك، آخر 4 أرقام من البطاقة، ونص رسائل SMS الأصلية كاملة. اختر بنفسك وين ترسله من قائمة المشاركة التالية.",
-                    style = BodyMuted
-                )
-            },
+            title = { Text(stringResource(R.string.stg_export_confirm_title), style = H2) },
+            text = { Text(stringResource(R.string.stg_export_confirm_body), style = BodyMuted) },
             confirmButton = {
                 TextButton(onClick = {
                     showExportConfirm = false
@@ -331,10 +301,12 @@ private fun SettingsDialog(
                         val file = writeSmsExportFile(ctx, txs)
                         withContext(Dispatchers.Main) { shareExportFile(ctx, file) }
                     }
-                }) { Text("مشاركة", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
+                }) { Text(stringResource(R.string.stg_share), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
             },
             dismissButton = {
-                TextButton(onClick = { showExportConfirm = false }) { Text("إلغاء", style = Body.copy(color = InkSoft)) }
+                TextButton(onClick = { showExportConfirm = false }) {
+                    Text(stringResource(R.string.stg_cancel), style = Body.copy(color = InkSoft))
+                }
             }
         )
     }
@@ -346,6 +318,7 @@ private fun SettingsDialog(
         title = { Text(stringResource(R.string.settings_title), style = H2) },
         text = {
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
+                // ===== RESCAN =====
                 Row(
                     Modifier.fillMaxWidth()
                         .clip(RoundedCornerShape(RadiusMd))
@@ -357,27 +330,32 @@ private fun SettingsDialog(
                     IconBadge(Icons.Default.Sync, Indigo, White, size = 40.dp, iconSize = 18.dp)
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text(if (isScanning) "جارٍ المسح..." else "إعادة مسح الرسائل", style = Body.copy(fontWeight = FontWeight.Bold))
-                        Text("يبحث مجدداً عن عمليات في آخر 120 يوم", style = Eyebrow.copy(fontSize = 11.sp))
+                        Text(
+                            if (isScanning) stringResource(R.string.stg_rescan_busy)
+                            else stringResource(R.string.stg_rescan_title),
+                            style = Body.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(stringResource(R.string.stg_rescan_subtitle), style = Eyebrow.copy(fontSize = 11.sp))
                     }
                 }
                 Spacer(Modifier.height(10.dp))
+
+                // ===== EXPORT =====
                 Row(
                     Modifier.fillMaxWidth()
                         .clip(RoundedCornerShape(RadiusMd))
                         .background(PaperOuter)
-                        .clickable(enabled = txs.isNotEmpty()) {
-                            showExportConfirm = true
-                        }
+                        .clickable(enabled = txs.isNotEmpty()) { showExportConfirm = true }
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconBadge(Icons.Default.Share, InkSoft, White, size = 40.dp, iconSize = 18.dp)
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("تصدير الرسائل للتشخيص", style = Body.copy(fontWeight = FontWeight.Bold))
+                        Text(stringResource(R.string.stg_export_title), style = Body.copy(fontWeight = FontWeight.Bold))
                         Text(
-                            if (txs.isEmpty()) "لا توجد عمليات بعد" else "شارك ملف نصي بكل العمليات ورسائلها الأصلية",
+                            if (txs.isEmpty()) stringResource(R.string.stg_export_none)
+                            else stringResource(R.string.stg_export_subtitle),
                             style = Eyebrow.copy(fontSize = 11.sp)
                         )
                     }
@@ -386,7 +364,7 @@ private fun SettingsDialog(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
 
-                // ============ LANGUAGE ============
+                // ===== LANGUAGE =====
                 Text(stringResource(R.string.settings_language), style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(4.dp))
                 Text(stringResource(R.string.settings_language_desc), style = Eyebrow)
@@ -397,13 +375,10 @@ private fun SettingsDialog(
                         .background(PaperOuter)
                         .padding(4.dp)
                 ) {
-                    val sysLabel = stringResource(R.string.settings_language_system)
-                    val arLabel = stringResource(R.string.settings_language_arabic)
-                    val enLabel = stringResource(R.string.settings_language_english)
                     val options = listOf(
-                        LanguageMode.SYSTEM to sysLabel,
-                        LanguageMode.ARABIC to arLabel,
-                        LanguageMode.ENGLISH to enLabel,
+                        LanguageMode.SYSTEM to stringResource(R.string.settings_language_system),
+                        LanguageMode.ARABIC to stringResource(R.string.settings_language_arabic),
+                        LanguageMode.ENGLISH to stringResource(R.string.settings_language_english),
                     )
                     options.forEach { (mode, label) ->
                         val sel = languageMode == mode
@@ -430,10 +405,10 @@ private fun SettingsDialog(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
 
-                // ============ THEME ============
-                Text("المظهر", style = Body.copy(fontWeight = FontWeight.Bold))
+                // ===== THEME =====
+                Text(stringResource(R.string.stg_theme_label), style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(4.dp))
-                Text("اختر بين الفاتح أو الداكن، أو اتباع إعدادات النظام.", style = Eyebrow)
+                Text(stringResource(R.string.stg_theme_desc), style = Eyebrow)
                 Spacer(Modifier.height(10.dp))
                 Row(
                     Modifier.fillMaxWidth()
@@ -442,9 +417,9 @@ private fun SettingsDialog(
                         .padding(4.dp)
                 ) {
                     val options = listOf(
-                        ThemeMode.SYSTEM to "النظام",
-                        ThemeMode.LIGHT to "فاتح",
-                        ThemeMode.DARK to "داكن",
+                        ThemeMode.SYSTEM to stringResource(R.string.stg_theme_system),
+                        ThemeMode.LIGHT to stringResource(R.string.stg_theme_light),
+                        ThemeMode.DARK to stringResource(R.string.stg_theme_dark),
                     )
                     options.forEach { (mode, label) ->
                         val sel = themeMode == mode
@@ -471,18 +446,16 @@ private fun SettingsDialog(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
 
-                Text("راتبك الشهري", style = Body.copy(fontWeight = FontWeight.Bold))
+                // ===== SALARY =====
+                Text(stringResource(R.string.stg_salary_label), style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    "يُستخدم في نصائح المستشار المالي (قاعدة 50/30/20 وغيرها) بدل الاعتماد فقط على اكتشافه تلقائياً من الإيداعات المتكررة.",
-                    style = Eyebrow
-                )
+                Text(stringResource(R.string.stg_salary_desc), style = Eyebrow)
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = salaryInput,
                         onValueChange = { salaryInput = sanitizeAmountInput(it) },
-                        placeholder = { Text("مثال: 8000", style = Eyebrow) },
+                        placeholder = { Text(stringResource(R.string.stg_salary_hint), style = Eyebrow) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                         singleLine = true,
@@ -494,23 +467,22 @@ private fun SettingsDialog(
                         Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
                             .clickable { vm.setManualSalary(salaryInput.toDoubleOrNull() ?: 0.0) },
                         contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Default.Check, "حفظ", tint = White, modifier = Modifier.size(20.dp)) }
+                    ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = White, modifier = Modifier.size(20.dp)) }
                 }
                 Spacer(Modifier.height(18.dp))
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
-                Text("اسمك", style = Body.copy(fontWeight = FontWeight.Bold))
+
+                // ===== NAME =====
+                Text(stringResource(R.string.stg_name_label), style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    "يُستخدم فقط للتعرف على تحويلاتك بين حساباتك أنت (مثلاً من الإنماء إلى برق) عن طريق اسم المستفيد بالرسالة — اكتبه بنفس الشكل اللي يظهر فيه، عربي أو إنجليزي.",
-                    style = Eyebrow
-                )
+                Text(stringResource(R.string.stg_name_desc), style = Eyebrow)
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = nameInput,
                         onValueChange = { nameInput = it },
-                        placeholder = { Text("مثال: Waleed Hamadallah", style = Eyebrow) },
+                        placeholder = { Text(stringResource(R.string.stg_name_hint), style = Eyebrow) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         shape = RoundedCornerShape(RadiusSm),
@@ -521,17 +493,16 @@ private fun SettingsDialog(
                         Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
                             .clickable { vm.setOwnerName(nameInput) },
                         contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Default.Check, "حفظ", tint = White, modifier = Modifier.size(20.dp)) }
+                    ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = White, modifier = Modifier.size(20.dp)) }
                 }
                 Spacer(Modifier.height(18.dp))
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
-                Text("بداية الدورة الشهرية", style = Body.copy(fontWeight = FontWeight.Bold))
+
+                // ===== MONTH START =====
+                Text(stringResource(R.string.stg_month_start_label), style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    "اليوم الذي يبدأ منه حساب «الشهر» في كل الصفحات — غيّره ليطابق يوم نزول راتبك بدل أول الشهر تلقائياً.",
-                    style = Eyebrow
-                )
+                Text(stringResource(R.string.stg_month_start_desc), style = Eyebrow)
                 Spacer(Modifier.height(10.dp))
                 Row(
                     Modifier.fillMaxWidth()
@@ -541,23 +512,25 @@ private fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { vm.setMonthStartDay(startDay - 1) }, enabled = startDay > 1) {
-                        Icon(Icons.Default.Remove, "إنقاص", tint = if (startDay > 1) Indigo else InkFaint)
+                        Icon(Icons.Default.Remove, stringResource(R.string.stg_decrease), tint = if (startDay > 1) Indigo else InkFaint)
                     }
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        Text("يوم $startDay من كل شهر", style = Body.copy(fontWeight = FontWeight.Bold))
+                        Text(stringResource(R.string.stg_month_start_day_fmt, startDay), style = Body.copy(fontWeight = FontWeight.Bold))
                     }
                     IconButton(onClick = { vm.setMonthStartDay(startDay + 1) }, enabled = startDay < 28) {
-                        Icon(Icons.Default.Add, "زيادة", tint = if (startDay < 28) Indigo else InkFaint)
+                        Icon(Icons.Default.Add, stringResource(R.string.stg_increase), tint = if (startDay < 28) Indigo else InkFaint)
                     }
                 }
                 Spacer(Modifier.height(18.dp))
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
+
+                // ===== NOTIFICATIONS =====
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("الإشعارات", style = Body.copy(fontWeight = FontWeight.Bold))
+                        Text(stringResource(R.string.stg_notif_label), style = Body.copy(fontWeight = FontWeight.Bold))
                         Spacer(Modifier.height(4.dp))
-                        Text("تنبيه عند تجاوز الميزانية أو اقتراب موعد فاتورة", style = Eyebrow)
+                        Text(stringResource(R.string.stg_notif_desc), style = Eyebrow)
                     }
                     Switch(
                         checked = notificationsEnabled,
@@ -574,13 +547,17 @@ private fun SettingsDialog(
                 Spacer(Modifier.height(18.dp))
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
+
+                // ===== PRIVACY =====
                 Text(stringResource(R.string.app_name), style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(4.dp))
-                Text("جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي إلا إذا اخترت تصديرها ومشاركتها بنفسك.", style = Eyebrow)
+                Text(stringResource(R.string.stg_privacy_body), style = Eyebrow)
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), style = Body.copy(color = InkSoft)) }
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.settings_close), style = Body.copy(color = InkSoft))
+            }
         }
     )
 }

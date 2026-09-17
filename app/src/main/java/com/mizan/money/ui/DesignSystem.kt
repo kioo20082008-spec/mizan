@@ -201,6 +201,7 @@ fun categoryDisplay(cat: String): String = when (cat) {
     "اشتراكات" -> stringResource(R.string.cat_subscriptions)
     "تعليم" -> stringResource(R.string.cat_education)
     "تحويلات" -> stringResource(R.string.cat_transfers)
+    "أخرى" -> stringResource(R.string.cat_other)
     CASH_WITHDRAWAL_CATEGORY -> stringResource(R.string.cat_cash)
     SELF_TRANSFER_CATEGORY -> stringResource(R.string.cat_self_transfer)
     else -> cat

@@ -330,4 +330,42 @@
     <string name="advisor_header_title">المستشار المالي</string>
     <string name="advisor_header_subtitle">تحليل ذكي ومحلي لنمط إنفاقك</string>
     <string name="advisor_empty">لا توجد نصائح بعد — أضف عمليات أو ميزانية لهذا الشهر</string>
+
+    <!-- ================== Settings Dialog ================== -->
+    <string name="stg_rescan_title">إعادة مسح الرسائل</string>
+    <string name="stg_rescan_subtitle">يبحث مجدداً عن عمليات في آخر 120 يوم</string>
+    <string name="stg_rescan_busy">جارٍ المسح...</string>
+    <string name="stg_export_title">تصدير الرسائل للتشخيص</string>
+    <string name="stg_export_subtitle">شارك ملف نصي بكل العمليات ورسائلها الأصلية</string>
+    <string name="stg_export_none">لا توجد عمليات بعد</string>
+    <string name="stg_export_confirm_title">مشاركة بياناتك؟</string>
+    <string name="stg_export_confirm_body">بيشارك ملف نصي فيه كل عملياتك: المبالغ، أسماء البنوك، آخر 4 أرقام من البطاقة، ونص رسائل SMS الأصلية كاملة. اختر بنفسك وين ترسله من قائمة المشاركة التالية.</string>
+    <string name="stg_share">مشاركة</string>
+    <string name="stg_cancel">إلغاء</string>
+
+    <string name="stg_theme_label">المظهر</string>
+    <string name="stg_theme_desc">اختر بين الفاتح أو الداكن، أو اتباع إعدادات النظام.</string>
+    <string name="stg_theme_system">النظام</string>
+    <string name="stg_theme_light">فاتح</string>
+    <string name="stg_theme_dark">داكن</string>
+
+    <string name="stg_salary_label">راتبك الشهري</string>
+    <string name="stg_salary_desc">يُستخدم في نصائح المستشار المالي (قاعدة 50/30/20 وغيرها) بدل الاعتماد فقط على اكتشافه تلقائياً من الإيداعات المتكررة.</string>
+    <string name="stg_salary_hint">مثال: 8000</string>
+
+    <string name="stg_name_label">اسمك</string>
+    <string name="stg_name_desc">يُستخدم فقط للتعرف على تحويلاتك بين حساباتك أنت (مثلاً من الإنماء إلى برق) عن طريق اسم المستفيد بالرسالة — اكتبه بنفس الشكل اللي يظهر فيه، عربي أو إنجليزي.</string>
+    <string name="stg_name_hint">مثال: Waleed Hamadallah</string>
+
+    <string name="stg_month_start_label">بداية الدورة الشهرية</string>
+    <string name="stg_month_start_desc">اليوم الذي يبدأ منه حساب «الشهر» في كل الصفحات — غيّره ليطابق يوم نزول راتبك بدل أول الشهر تلقائياً.</string>
+    <string name="stg_month_start_day_fmt">يوم %1$d من كل شهر</string>
+    <string name="stg_decrease">إنقاص</string>
+    <string name="stg_increase">زيادة</string>
+
+    <string name="stg_notif_label">الإشعارات</string>
+    <string name="stg_notif_desc">تنبيه عند تجاوز الميزانية أو اقتراب موعد فاتورة</string>
+
+    <string name="stg_privacy_body">جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي إلا إذا اخترت تصديرها ومشاركتها بنفسك.</string>
+    <string name="stg_save">حفظ</string>
 </resources>
