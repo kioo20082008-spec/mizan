@@ -7,6 +7,7 @@ import com.mizan.money.data.TransactionRepository
 import com.mizan.money.notify.BillReminderWorker
 import com.mizan.money.notify.NotificationHelper
 import com.mizan.money.sms.SmsParser
+import com.mizan.money.widget.WidgetUpdater
 import java.io.File
 
 class MoneyApp : Application() {
@@ -35,5 +36,6 @@ class MoneyApp : Application() {
         // enqueueUniquePeriodicWork(..., KEEP, ...) makes this a no-op if the
         // daily check is already scheduled from a previous launch.
         BillReminderWorker.schedule(this)
+        WidgetUpdater.refresh(this)
     }
 }

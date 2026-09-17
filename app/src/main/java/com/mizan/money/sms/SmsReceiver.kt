@@ -6,6 +6,7 @@ import android.content.Intent
 import android.provider.Telephony
 import android.util.Log
 import com.mizan.money.MoneyApp
+import com.mizan.money.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -24,6 +25,7 @@ class SmsReceiver : BroadcastReceiver() {
                     val ts = msg.timestampMillis
                     val parsed = SmsParser.parse(sender, body, ts) ?: continue
                     app.repository.add(parsed.toEntity())
+                    WidgetUpdater.refresh(context)
                 }
             } catch (e: Exception) {
                 // Never let a malformed SMS crash the app in the background.

@@ -10,6 +10,7 @@ import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.*
 import com.mizan.money.notify.NotificationHelper
 import com.mizan.money.sms.InboxScanner
+import com.mizan.money.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -119,6 +120,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 val ctx = getApplication<Application>()
                 val result = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
                 repo.reconcile(result.transactions, result.scannedHashes)
+                WidgetUpdater.refresh(getApplication())
                 checkBudgetThreshold()
             } catch (e: Exception) {
                 // Reading the SMS provider can fail in device-specific ways (some
@@ -139,11 +141,12 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 type = type, rawSms = "إدخال يدوي",
                 smsHash = "manual-${java.util.UUID.randomUUID()}",
                 timestamp = now, isManual = true))
+            WidgetUpdater.refresh(getApplication())
             checkBudgetThreshold()
         }
     }
-    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.update(tx); checkBudgetThreshold() }
-    fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx) }
+    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.update(tx); checkBudgetThreshold(); WidgetUpdater.refresh(getApplication()) }
+    fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx); WidgetUpdater.refresh(getApplication()) }
     fun setBudget(
         monthKey: String,
         category: String,

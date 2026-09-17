@@ -64,5 +64,6 @@ dependencies {
     // Daily background check for upcoming bill reminders (BillReminderWorker) —
     // WorkManager survives process death/reboot, unlike a plain coroutine/alarm.
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+    implementation("androidx.glance:glance-appwidget:1.1.0")
     testImplementation("junit:junit:4.13.2")
 }

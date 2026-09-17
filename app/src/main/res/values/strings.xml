@@ -406,4 +406,11 @@
     <string name="pdf_all_tx_title">كل العمليات</string>
     <string name="pdf_page_fmt">صفحة %1$d</string>
     <string name="pdf_generated_by">تم إنشاؤه بواسطة ميزان — جميع البيانات محلية على جهازك</string>
+
+    <!-- Widget -->
+    <string name="widget_label">ميزان — ملخص الشهر</string>
+    <string name="widget_description">ملخص استهلاكك للشهر الحالي</string>
+    <string name="widget_usage_label">استهلاك دخل الشهر</string>
+    <string name="widget_spent_fmt">صرفت: %1$s %2$s</string>
+    <string name="widget_no_data">لا توجد بيانات — افتح ميزان</string>
 </resources>
