@@ -20,10 +20,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mizan.money.R
 import com.mizan.money.advisor.CategoryTotal
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.TOTAL_BUDGET
@@ -31,15 +34,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// ============ INSIGHTS — Advisor / Reports under one bottom-nav slot ============
+// ============ INSIGHTS ============
 @Composable
 fun InsightsScreen(vm: MainViewModel, offset: Int) {
     var subTab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(start = 20.dp, top = 4.dp, end = 20.dp, bottom = 10.dp)) {
-            Text("المستشار والتقارير", style = H1)
+            Text(stringResource(R.string.insights_title), style = H1)
             Spacer(Modifier.height(10.dp))
-            TabSwitcher(listOf("نصائح", "تقارير"), subTab) { subTab = it }
+            TabSwitcher(
+                listOf(
+                    stringResource(R.string.insights_tab_advice),
+                    stringResource(R.string.insights_tab_reports),
+                ),
+                subTab
+            ) { subTab = it }
         }
         Box(Modifier.weight(1f)) {
             when (subTab) {
@@ -50,7 +59,7 @@ fun InsightsScreen(vm: MainViewModel, offset: Int) {
     }
 }
 
-// ============ REPORTS: real charts + Excel/PDF export ============
+// ============ REPORTS ============
 @Composable
 private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val txs by vm.transactions.collectAsState()
@@ -59,6 +68,7 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val manualSalary by vm.manualSalary.collectAsState()
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val shareChooserTitle = stringResource(R.string.reports_share_chooser)
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
@@ -90,23 +100,26 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     ) {
         item {
             SoftCard {
-                Text("اتجاه آخر 6 أشهر", style = H2)
+                Text(stringResource(R.string.reports_trend_title), style = H2)
                 Spacer(Modifier.height(2.dp))
-                Text("الصرف مقابل الدخل", style = Eyebrow)
+                Text(stringResource(R.string.reports_trend_subtitle), style = Eyebrow)
                 Spacer(Modifier.height(16.dp))
                 TrendChart(trend)
                 Spacer(Modifier.height(10.dp))
                 Row(Modifier.fillMaxWidth()) {
-                    LegendDot(Danger, "صرف")
+                    LegendDot(Danger, stringResource(R.string.reports_legend_spend))
                     Spacer(Modifier.width(14.dp))
-                    LegendDot(Success, "دخل")
+                    LegendDot(Success, stringResource(R.string.reports_legend_income))
                 }
             }
         }
         if (summary.categoryTotals.isNotEmpty()) {
             item {
                 SoftCard {
-                    Text("توزيع الفئات — ${monthName(offset, startDay)}", style = H2)
+                    Text(
+                        stringResource(R.string.reports_categories_title_fmt, monthName(offset, startDay)),
+                        style = H2
+                    )
                     Spacer(Modifier.height(16.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CategoryDonut(summary.categoryTotals)
@@ -117,7 +130,7 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
                                     Box(Modifier.size(8.dp).clip(RoundedCornerShape(Pill)).background(catColor(c.category)))
                                     Spacer(Modifier.width(6.dp))
                                     Text(c.category, style = Eyebrow.copy(fontSize = 10.sp), modifier = Modifier.weight(1f), maxLines = 1)
-                                    Text("${(c.share * 100).toInt()}٪", style = Eyebrow.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold))
+                                    Text(stringResource(R.string.reports_percent_fmt, (c.share * 100).toInt()), style = Eyebrow.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold))
                                 }
                             }
                         }
@@ -127,18 +140,19 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
         }
         item {
             SoftCard {
-                Text("مقارنة بالشهر الماضي", style = H2)
+                Text(stringResource(R.string.reports_comparison_title), style = H2)
                 Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth()) {
-                    ComparisonColumn("هذا الشهر", summary.spent, Modifier.weight(1f))
+                    ComparisonColumn(stringResource(R.string.reports_this_month), summary.spent, Modifier.weight(1f))
                     Box(Modifier.width(1.dp).height(40.dp).background(Line))
-                    ComparisonColumn("الشهر الماضي", prevSummary.spent, Modifier.weight(1f))
+                    ComparisonColumn(stringResource(R.string.reports_last_month), prevSummary.spent, Modifier.weight(1f))
                 }
                 if (prevSummary.spent > 0) {
                     Spacer(Modifier.height(12.dp))
                     val diff = ((summary.spent - prevSummary.spent) / prevSummary.spent) * 100
                     Text(
-                        if (diff >= 0) "أعلى بـ ${diff.toInt()}٪ من الشهر الماضي" else "أقل بـ ${(-diff).toInt()}٪ من الشهر الماضي",
+                        if (diff >= 0) stringResource(R.string.reports_diff_higher_fmt, diff.toInt())
+                        else stringResource(R.string.reports_diff_lower_fmt, (-diff).toInt()),
                         style = Eyebrow.copy(fontSize = 11.sp, color = if (diff > 0) Danger else Success, fontWeight = FontWeight.Bold)
                     )
                 }
@@ -146,28 +160,38 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
         }
         item {
             SoftCard {
-                Text("تصدير التقرير", style = H2)
+                Text(stringResource(R.string.reports_export_title), style = H2)
                 Spacer(Modifier.height(2.dp))
-                Text("ملخص هذا الشهر بصيغة جاهزة للمشاركة أو الأرشفة — غير ملف التشخيص في الإعدادات", style = Eyebrow)
+                Text(stringResource(R.string.reports_export_subtitle), style = Eyebrow)
                 Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ExportButton("Excel (CSV)", Icons.Default.TableChart, Modifier.weight(1f), enabled = !exporting) {
+                    ExportButton(
+                        stringResource(R.string.reports_export_csv),
+                        Icons.Default.TableChart,
+                        Modifier.weight(1f),
+                        enabled = !exporting
+                    ) {
                         exporting = true
                         scope.launch(Dispatchers.IO) {
                             val monthTxs = txs.filter { it.timestamp in range }
                             val file = writeCsvReport(ctx, monthTxs, monthKey)
                             withContext(Dispatchers.Main) {
-                                shareExportFile(ctx, file, "text/csv", "مشاركة التقرير")
+                                shareExportFile(ctx, file, "text/csv", shareChooserTitle)
                                 exporting = false
                             }
                         }
                     }
-                    ExportButton("PDF", Icons.Default.PictureAsPdf, Modifier.weight(1f), enabled = !exporting) {
+                    ExportButton(
+                        stringResource(R.string.reports_export_pdf),
+                        Icons.Default.PictureAsPdf,
+                        Modifier.weight(1f),
+                        enabled = !exporting
+                    ) {
                         exporting = true
                         scope.launch(Dispatchers.IO) {
                             val file = writePdfReport(ctx, "${monthName(offset, startDay)} ($monthKey)", summary, budget)
                             withContext(Dispatchers.Main) {
-                                shareExportFile(ctx, file, "application/pdf", "مشاركة التقرير")
+                                shareExportFile(ctx, file, "application/pdf", shareChooserTitle)
                                 exporting = false
                             }
                         }
@@ -181,9 +205,7 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
 @Composable
 private fun TrendChart(points: List<Triple<String, Double, Double>>) {
     val maxVal = (points.maxOfOrNull { maxOf(it.second, it.third) } ?: 0.0).coerceAtLeast(1.0)
-    // Colors are captured here (in a @Composable context) because the theme
-    // color getters read from a CompositionLocal — the Canvas draw lambda
-    // below is NOT a @Composable scope, so it can't read them directly.
+    // Capture colors in a @Composable scope — the Canvas lambda is not @Composable.
     val dangerColor = Danger
     val successColor = Success
     Column {
@@ -216,8 +238,6 @@ private fun TrendChart(points: List<Triple<String, Double, Double>>) {
 @Composable
 private fun CategoryDonut(categories: List<CategoryTotal>) {
     val total = categories.sumOf { it.amount }.coerceAtLeast(0.01)
-    // Same reasoning as TrendChart: catColor() is a @Composable getter now, so
-    // the per-slice colors must be resolved *before* entering the draw lambda.
     val sliceColors = categories.map { catColor(it.category) }
     Canvas(Modifier.size(112.dp)) {
         var startAngle = -90f
@@ -240,7 +260,7 @@ private fun ComparisonColumn(label: String, amount: Double, modifier: Modifier =
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, style = Eyebrow)
         Spacer(Modifier.height(6.dp))
-        Text("${FinancialAdvisor.fmt(amount)} ر.س", style = NumBold.copy(fontSize = 16.sp))
+        Text("${FinancialAdvisor.fmt(amount)} ${currencyLabel("SAR")}", style = NumBold.copy(fontSize = 16.sp))
     }
 }
 
@@ -270,8 +290,10 @@ private fun LegendDot(color: Color, label: String) {
     }
 }
 
+@Composable
 private fun monthShortLabel(offset: Int, startDay: Int): String {
+    val locale = LocalConfiguration.current.locales[0]
     val c = java.util.Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
-    val names = listOf("ينا", "فبر", "مار", "أبر", "ماي", "يون", "يول", "أغس", "سبت", "أكت", "نوف", "ديس")
-    return names[c.get(java.util.Calendar.MONTH)]
+    val symbols = java.text.DateFormatSymbols(locale)
+    return symbols.shortMonths[c.get(java.util.Calendar.MONTH)]
 }

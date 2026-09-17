@@ -16,11 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.TOTAL_BUDGET
 import kotlin.math.roundToInt
@@ -56,9 +58,6 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
     var editingCategory by remember(monthKey) { mutableStateOf<String?>(null) }
     var addingCategory by remember { mutableStateOf(false) }
     var newCategoryInput by remember { mutableStateOf("") }
-    // Rollover toggle state per category — kept separate from the DB so a user
-    // can flip it before hitting save, and so it discards on collapse without
-    // saving (mirrors catInputs' behavior).
     var catRollover by remember(monthKey) {
         mutableStateOf(
             categories.associateWith { c ->
@@ -68,8 +67,6 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
         )
     }
 
-    // Previous month's spending by category — needed to compute how much of
-    // last month's limit went unspent, which is what actually rolls forward.
     val prevMonthKey = Dates.monthKey(offset - 1, startDay)
     val prevRange = remember(offset, startDay) { Dates.monthRange(offset - 1, startDay) }
     val prevSpentByCat = remember(txs, offset, startDay) {
@@ -115,8 +112,8 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Text("الميزانية والتصنيفات — ${monthName(offset, startDay)}", style = H1)
-            Text("راقب إنفاقك وقارنه بالحدود المحددة", style = Eyebrow)
+            Text(stringResource(R.string.budget_title_fmt, monthName(offset, startDay)), style = H1)
+            Text(stringResource(R.string.budget_subtitle), style = Eyebrow)
         }
 
         if (!hasCurrentBudget && hasPrevBudget) {
@@ -134,7 +131,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                 ) {
                     Icon(Icons.Default.ContentCopy, null, Modifier.size(18.dp), tint = Indigo)
                     Spacer(Modifier.width(10.dp))
-                    Text("نسخ ميزانية الشهر الماضي", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold))
+                    Text(stringResource(R.string.budget_copy_prev), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold))
                 }
             }
         }
@@ -147,18 +144,18 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                     .padding(22.dp)
             ) {
                 Column {
-                    Text("الميزانية الإجمالية للشهر", style = Eyebrow.copy(color = OnInkSoft))
+                    Text(stringResource(R.string.budget_total_label), style = Eyebrow.copy(color = OnInkSoft))
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(FinancialAdvisor.fmt(totalInput.toDoubleOrNull() ?: 0.0), style = Display.copy(fontSize = 32.sp))
                         Spacer(Modifier.width(6.dp))
-                        Text("ر.س", style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium))
+                        Text(currencyLabel("SAR"), style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium))
                     }
                     Spacer(Modifier.height(18.dp))
                     OutlinedTextField(
                         value = totalInput,
                         onValueChange = { editingTotal = true; totalInput = sanitizeAmountInput(it) },
-                        label = { Text("الحد الشهري") },
+                        label = { Text(stringResource(R.string.budget_monthly_limit)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(RadiusSm),
@@ -182,16 +179,16 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         shape = RoundedCornerShape(RadiusSm),
                         colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Ink900)
-                    ) { Text("حفظ", style = Body.copy(color = Ink900, fontWeight = FontWeight.Bold)) }
+                    ) { Text(stringResource(R.string.budget_save), style = Body.copy(color = Ink900, fontWeight = FontWeight.Bold)) }
                 }
             }
         }
 
         item {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
-                Text("الميزانية لكل تصنيف", style = H2, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.budget_per_category), style = H2, modifier = Modifier.weight(1f))
                 Text(
-                    if (addingCategory) "إلغاء" else "+ تصنيف",
+                    if (addingCategory) stringResource(R.string.budget_cancel_add) else stringResource(R.string.budget_add_category),
                     style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold),
                     modifier = Modifier
                         .clickable { addingCategory = !addingCategory; newCategoryInput = "" }
@@ -206,7 +203,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                     OutlinedTextField(
                         value = newCategoryInput,
                         onValueChange = { newCategoryInput = it },
-                        placeholder = { Text("اسم التصنيف", style = Eyebrow) },
+                        placeholder = { Text(stringResource(R.string.budget_category_name_hint), style = Eyebrow) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         shape = RoundedCornerShape(RadiusSm),
@@ -221,7 +218,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                         Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
                             .clickable { vm.addCategory(newCategoryInput); newCategoryInput = ""; addingCategory = false },
                         contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Default.Check, "إضافة", tint = White, modifier = Modifier.size(18.dp)) }
+                    ) { Icon(Icons.Default.Check, stringResource(R.string.budget_add_action), tint = White, modifier = Modifier.size(18.dp)) }
                 }
             }
         }
@@ -252,11 +249,15 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(cat, style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
+                                val rolloverSuffix = if (rollover > 0.0) stringResource(R.string.budget_rolled_fmt, FinancialAdvisor.fmt(rollover)) else ""
                                 Text(
                                     if (effectiveLimit > 0) {
-                                        "${FinancialAdvisor.fmt(spentInCat)} / ${FinancialAdvisor.fmt(effectiveLimit)} ر.س" +
-                                            (if (rollover > 0.0) "  (+${FinancialAdvisor.fmt(rollover)} مرحّل)" else "")
-                                    } else "${FinancialAdvisor.fmt(spentInCat)} ر.س — بدون حد",
+                                        stringResource(
+                                            R.string.budget_amount_fmt,
+                                            FinancialAdvisor.fmt(spentInCat),
+                                            FinancialAdvisor.fmt(effectiveLimit)
+                                        ) + rolloverSuffix
+                                    } else stringResource(R.string.budget_no_limit_fmt, FinancialAdvisor.fmt(spentInCat)),
                                     style = Eyebrow.copy(
                                         fontSize = 10.sp,
                                         color = if (isOver) Danger else InkFaint,
@@ -266,7 +267,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                             }
                             if (effectiveLimit > 0) {
                                 Text(
-                                    "${(pct * 100).roundToInt()}٪",
+                                    stringResource(R.string.budget_percent_fmt, (pct * 100).roundToInt()),
                                     style = Eyebrow.copy(
                                         fontSize = 10.sp,
                                         color = if (isOver) Danger else Indigo,
@@ -307,8 +308,8 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(Modifier.weight(1f)) {
-                                    Text("ترحيل فائض الشهر الماضي", style = Body.copy(fontWeight = FontWeight.Medium))
-                                    Text("يُضاف أي مبلغ لم تصرفه من الحد السابق لهذا الشهر", style = Eyebrow.copy(fontSize = 11.sp))
+                                    Text(stringResource(R.string.budget_rollover_title), style = Body.copy(fontWeight = FontWeight.Medium))
+                                    Text(stringResource(R.string.budget_rollover_desc), style = Eyebrow.copy(fontSize = 11.sp))
                                 }
                                 Switch(
                                     checked = catRollover[cat] ?: false,
@@ -340,7 +341,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                                             editingCategory = null
                                         },
                                     contentAlignment = Alignment.Center
-                                ) { Icon(Icons.Default.Check, "حفظ", tint = White, modifier = Modifier.size(18.dp)) }
+                                ) { Icon(Icons.Default.Check, stringResource(R.string.budget_save), tint = White, modifier = Modifier.size(18.dp)) }
                                 if (cat != "أخرى") {
                                     Spacer(Modifier.width(8.dp))
                                     Box(
@@ -350,7 +351,13 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                                                 editingCategory = null
                                             },
                                         contentAlignment = Alignment.Center
-                                    ) { Icon(Icons.Default.Delete, "حذف $cat", tint = Danger, modifier = Modifier.size(18.dp)) }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            stringResource(R.string.budget_delete_category_fmt, cat),
+                                            tint = Danger, modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

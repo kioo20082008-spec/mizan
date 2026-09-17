@@ -243,11 +243,14 @@ fun sanitizeAmountInput(raw: String): String {
     return if (firstDot == -1) s else s.substring(0, firstDot + 1) + s.substring(firstDot + 1).replace(".", "")
 }
 
+
+// Locale-aware month name. Uses the same locale the rest of the UI is
+// rendering with (via LocalConfiguration), so switching between Arabic and
+// English also flips the month names on every dashboard/budget/report header.
+@Composable
 fun monthName(offset: Int, startDay: Int = 1): String {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     val c = java.util.Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
-    val names = listOf(
-        "يناير","فبراير","مارس","أبريل","مايو","يونيو",
-        "يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"
-    )
-    return names[c.get(java.util.Calendar.MONTH)] + " " + c.get(java.util.Calendar.YEAR)
+    val symbols = java.text.DateFormatSymbols(locale)
+    return symbols.months[c.get(java.util.Calendar.MONTH)] + " " + c.get(java.util.Calendar.YEAR)
 }
