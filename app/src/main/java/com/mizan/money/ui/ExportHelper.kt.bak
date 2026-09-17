@@ -369,6 +369,28 @@ fun writePdfReport(
         b.y += 10f
     }
 
+    // --- All transactions ---
+    if (transactions.isNotEmpty()) {
+        b.ensureSpace(80f)
+        c = b.canvas
+        c.drawText(labels.allTransactionsTitle, right, b.y, paint(14f, C_INK, bold = true))
+        b.y += 6f
+        c.drawRect(right - 40f, b.y, right, b.y + 3f, Paint().apply { color = C_INDIGO })
+        b.y += 26f
+
+        transactions.sortedByDescending { it.timestamp }.forEach { tx ->
+            b.ensureSpace(34f)
+            c = b.canvas
+            val sign = if (tx.type == TxType.EXPENSE) "-" else "+"
+            val amtColor = if (tx.type == TxType.EXPENSE) C_RED else C_GREEN
+            c.drawText((tx.merchant ?: "-").take(38), right, b.y, paint(9f, C_INK))
+            c.drawText("$sign${fmt(tx.amount)}", left, b.y, paint(9f, amtColor, bold = true, align = Paint.Align.LEFT))
+            b.y += 6f
+            c.drawText(Dates.dayLabel(tx.timestamp) + "  ·  " + localName(tx.category), right, b.y, paint(8f, C_FAINT))
+            b.y += 20f
+        }
+    }
+
     // Footer on last page
     c = b.canvas
     c.drawText(labels.generatedBy, center, PAGE_H - 30f, paint(8f, C_FAINT, align = Paint.Align.CENTER))
