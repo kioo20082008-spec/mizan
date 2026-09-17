@@ -388,4 +388,22 @@
     <string name="tx_filter_no_results">لا توجد عمليات مطابقة للفلاتر</string>
     <string name="tx_filter_banks_empty">لا توجد بنوك في بياناتك</string>
     <string name="tx_filter_date_invalid">صيغة التاريخ يجب أن تكون yyyy-MM-dd</string>
+
+    <!-- PDF report labels -->
+    <string name="pdf_report_title">تقرير ميزان المالي</string>
+    <string name="pdf_net_label">صافي الشهر</string>
+    <string name="pdf_savings_rate">نسبة الادخار</string>
+    <string name="pdf_budget_usage">استخدام الميزانية</string>
+    <string name="pdf_budget_spent_of">من</string>
+    <string name="pdf_higher_fmt">أعلى بـ %1$d٪</string>
+    <string name="pdf_lower_fmt">أقل بـ %1$d٪</string>
+    <string name="pdf_insights_title">ملخص سريع</string>
+    <string name="pdf_categories_title">التوزيع حسب الفئة</string>
+    <string name="pdf_no_limit">بدون حد</string>
+    <string name="pdf_over_limit_fmt">تجاوز بـ %1$s</string>
+    <string name="pdf_remaining_fmt">متبقي %1$s</string>
+    <string name="pdf_top_tx_title">أكبر العمليات</string>
+    <string name="pdf_all_tx_title">كل العمليات</string>
+    <string name="pdf_page_fmt">صفحة %1$d</string>
+    <string name="pdf_generated_by">تم إنشاؤه بواسطة ميزان — جميع البيانات محلية على جهازك</string>
 </resources>
