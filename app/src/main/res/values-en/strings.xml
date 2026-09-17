@@ -30,7 +30,7 @@
     <!-- Receive-SMS warning banner -->
     <string name="receive_sms_warning">SMS receive permission not granted — manually rescan from Settings after each new transaction.</string>
 
-    <!-- Settings (partial) -->
+    <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_desc">Choose the app language.</string>
@@ -38,4 +38,72 @@
     <string name="settings_language_arabic">العربية</string>
     <string name="settings_language_english">English</string>
     <string name="settings_close">Close</string>
+
+    <!-- ================== DASHBOARD ================== -->
+    <string name="dash_local_badge">100% local</string>
+    <string name="dash_month_prev">Previous month</string>
+    <string name="dash_month_next">Next month</string>
+    <string name="dash_label_over_budget">You\'ve exceeded your budget this month</string>
+    <string name="dash_label_negative_net">You spent more than you earned this month</string>
+    <string name="dash_label_past_month">Month net</string>
+    <string name="dash_label_available">Remaining available balance</string>
+    <string name="dash_total_income">Total income</string>
+    <string name="dash_total_spend">Total spending</string>
+    <string name="dash_card_budget_title">Budget usage this month</string>
+    <string name="dash_card_income_title">Income usage this month</string>
+    <string name="dash_cap_budget">Budget</string>
+    <string name="dash_cap_income">Income</string>
+    <string name="dash_spent_label">Spent: %1$s %2$s</string>
+    <string name="dash_cap_label">%1$s: %2$s %3$s</string>
+    <string name="dash_top_spending">Top spending</string>
+    <string name="dash_recent">Recent transactions</string>
+    <string name="dash_view_all">View all</string>
+    <string name="dash_upcoming_bills">Upcoming bills</string>
+    <string name="dash_today">Today</string>
+    <string name="dash_in_days">In %1$d days</string>
+    <string name="dash_empty_ever">No transactions yet</string>
+    <string name="dash_empty_month">No transactions this month</string>
+
+    <!-- ================== TRANSACTIONS ================== -->
+    <string name="tx_title">Transaction history</string>
+    <string name="tx_subtitle">Extracted automatically from bank SMS</string>
+    <string name="tx_search_hint">Search by merchant, category, or amount…</string>
+    <string name="tx_clear_search">Clear search</string>
+    <string name="tx_add">Add manual transaction</string>
+    <string name="tx_empty_ever">No transactions yet — add one or scan your bank SMS</string>
+    <string name="tx_empty_search">No transactions match your search</string>
+
+    <string name="tx_detail_title">Transaction details</string>
+    <string name="tx_detail_edit">Edit transaction</string>
+    <string name="tx_detail_edit_action">Edit</string>
+    <string name="tx_detail_close">Close</string>
+    <string name="tx_detail_cancel">Cancel</string>
+    <string name="tx_detail_save">Save</string>
+    <string name="tx_detail_delete">Delete transaction</string>
+    <string name="tx_detail_confirm_delete_title">Delete this transaction?</string>
+    <string name="tx_detail_confirm_delete_desc">This action cannot be undone.</string>
+    <string name="tx_detail_confirm_delete_yes">Delete</string>
+
+    <string name="tx_unknown_merchant">Unknown</string>
+    <string name="tx_unknown_bank">Bank</string>
+    <string name="tx_original_sms">Original SMS</string>
+
+    <string name="tx_type_expense">Expense</string>
+    <string name="tx_type_income">Income</string>
+    <string name="tx_field_amount_fmt">Amount (%1$s)</string>
+    <string name="tx_field_merchant">Merchant / payee</string>
+    <string name="tx_field_category">Category</string>
+
+    <string name="tx_self_transfer_title">Transfer between your accounts</string>
+    <string name="tx_self_transfer_desc">Not counted as income or spending</string>
+    <string name="tx_self_transfer_note">Transfer between your accounts — not counted as income or spending</string>
+
+    <string name="tx_exclude_daily_title">Exclude from daily average</string>
+    <string name="tx_exclude_daily_desc">For large one-off bills like rent — still counted in totals and budgets</string>
+    <string name="tx_exclude_daily_note">Excluded from daily average</string>
+
+    <string name="tx_bill_reminder_title">Remind me monthly</string>
+    <string name="tx_bill_reminder_desc">Alert a few days before the expected date</string>
+
+    <string name="tx_add_title">Add manual transaction</string>
 </resources>

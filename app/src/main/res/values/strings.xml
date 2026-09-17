@@ -30,7 +30,7 @@
     <!-- Receive-SMS warning banner -->
     <string name="receive_sms_warning">إذن استقبال الرسائل غير ممنوح — أعد المسح يدوياً من الإعدادات بعد كل عملية جديدة</string>
 
-    <!-- Settings (partial — rest is converted in later stages) -->
+    <!-- Settings -->
     <string name="settings_title">الإعدادات</string>
     <string name="settings_language">اللغة</string>
     <string name="settings_language_desc">اختر لغة التطبيق.</string>
@@ -38,4 +38,72 @@
     <string name="settings_language_arabic">العربية</string>
     <string name="settings_language_english">English</string>
     <string name="settings_close">إغلاق</string>
+
+    <!-- ================== DASHBOARD ================== -->
+    <string name="dash_local_badge">محلي 100٪</string>
+    <string name="dash_month_prev">الشهر السابق</string>
+    <string name="dash_month_next">الشهر التالي</string>
+    <string name="dash_label_over_budget">تجاوزت ميزانيتك هذا الشهر</string>
+    <string name="dash_label_negative_net">صرفت أكثر مما دخلت هذا الشهر</string>
+    <string name="dash_label_past_month">صافي الشهر</string>
+    <string name="dash_label_available">الرصيد المتبقي المتاح</string>
+    <string name="dash_total_income">إجمالي الدخل</string>
+    <string name="dash_total_spend">إجمالي الصرف</string>
+    <string name="dash_card_budget_title">استهلاك ميزانية الشهر</string>
+    <string name="dash_card_income_title">استهلاك دخل الشهر</string>
+    <string name="dash_cap_budget">السقف</string>
+    <string name="dash_cap_income">الدخل</string>
+    <string name="dash_spent_label">صرفت: %1$s %2$s</string>
+    <string name="dash_cap_label">%1$s: %2$s %3$s</string>
+    <string name="dash_top_spending">الأكثر استهلاكاً</string>
+    <string name="dash_recent">أحدث العمليات</string>
+    <string name="dash_view_all">عرض الكل</string>
+    <string name="dash_upcoming_bills">فواتير قادمة</string>
+    <string name="dash_today">اليوم</string>
+    <string name="dash_in_days">خلال %1$d يوم</string>
+    <string name="dash_empty_ever">لم نرصد عمليات بعد</string>
+    <string name="dash_empty_month">لا توجد عمليات في هذا الشهر</string>
+
+    <!-- ================== TRANSACTIONS ================== -->
+    <string name="tx_title">سجل العمليات</string>
+    <string name="tx_subtitle">مستخرجة تلقائياً من رسائل البنك</string>
+    <string name="tx_search_hint">ابحث عن عملية، جهة، أو تصنيف…</string>
+    <string name="tx_clear_search">مسح البحث</string>
+    <string name="tx_add">إضافة عملية يدوية</string>
+    <string name="tx_empty_ever">لا توجد عمليات بعد — أضف عملية أو امسح رسائل البنك</string>
+    <string name="tx_empty_search">لا توجد عمليات مطابقة لبحثك</string>
+
+    <string name="tx_detail_title">تفاصيل العملية</string>
+    <string name="tx_detail_edit">تعديل العملية</string>
+    <string name="tx_detail_edit_action">تعديل</string>
+    <string name="tx_detail_close">إغلاق</string>
+    <string name="tx_detail_cancel">إلغاء</string>
+    <string name="tx_detail_save">حفظ</string>
+    <string name="tx_detail_delete">حذف العملية</string>
+    <string name="tx_detail_confirm_delete_title">حذف هذه العملية؟</string>
+    <string name="tx_detail_confirm_delete_desc">لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="tx_detail_confirm_delete_yes">حذف</string>
+
+    <string name="tx_unknown_merchant">غير معروف</string>
+    <string name="tx_unknown_bank">بنك</string>
+    <string name="tx_original_sms">الرسالة الأصلية</string>
+
+    <string name="tx_type_expense">مصروف</string>
+    <string name="tx_type_income">دخل</string>
+    <string name="tx_field_amount_fmt">المبلغ (%1$s)</string>
+    <string name="tx_field_merchant">الجهة / التاجر</string>
+    <string name="tx_field_category">التصنيف</string>
+
+    <string name="tx_self_transfer_title">تحويل بين حساباتك</string>
+    <string name="tx_self_transfer_desc">لا يُحتسب ضمن دخلك أو مصاريفك</string>
+    <string name="tx_self_transfer_note">تحويل بين حساباتك — لا يُحتسب ضمن دخلك أو مصاريفك</string>
+
+    <string name="tx_exclude_daily_title">استثنِ من معدل الصرف اليومي</string>
+    <string name="tx_exclude_daily_desc">لمصروف كبير غير يومي مثل الإيجار — يبقى محسوباً في الإجمالي والميزانية</string>
+    <string name="tx_exclude_daily_note">مستثناة من معدل الصرف اليومي</string>
+
+    <string name="tx_bill_reminder_title">ذكّرني بهذي شهرياً</string>
+    <string name="tx_bill_reminder_desc">تنبيه قبل الموعد المتوقع بأيام قليلة</string>
+
+    <string name="tx_add_title">إضافة عملية يدوية</string>
 </resources>

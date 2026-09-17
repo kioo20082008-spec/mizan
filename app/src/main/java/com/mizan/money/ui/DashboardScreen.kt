@@ -21,9 +21,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.advisor.MonthSummary
 import com.mizan.money.data.RecurringItemEntity
@@ -45,20 +47,10 @@ fun DashboardScreen(
     val startDay by vm.monthStartDay.collectAsState()
     val budgets by vm.budgets.collectAsState()
     val recurringItems by vm.recurringItems.collectAsState()
-    // Only ever computed from reminders the user opted into (see the "ذكّرني
-    // بهذي شهرياً" toggle on a transaction's detail view) — this card simply
-    // doesn't exist for a user who never used that feature, so it never
-    // subtracts from the plain "balance + categories + recent" dashboard.
     val upcomingBills = remember(recurringItems) { upcomingBillsWithinDays(recurringItems, 5) }
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
-    // "استهلاك ميزانية الشهر" defaults to what you actually earned this month
-    // (or your configured/detected salary before payday), so it stays meaningful
-    // without separate upkeep — but a total budget explicitly set on the Budget
-    // tab (e.g. to force saving below what you earn) overrides that default,
-    // since otherwise that field would save to the database and never affect
-    // anything the user actually sees.
     val monthKey = remember(offset, startDay) { Dates.monthKey(offset, startDay) }
     val manualBudget = remember(budgets, monthKey) {
         budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }?.limitAmount?.takeIf { it > 0 }
@@ -66,10 +58,6 @@ fun DashboardScreen(
     val planningIncome = remember(summary, txs, manualSalary, manualBudget) {
         manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0)
     }
-    // "أحدث العمليات" must reflect the month being browsed — otherwise paging to
-    // an older month still shows today's latest transactions as if they belonged
-    // to it, while every other card on this screen (balance, budget, categories)
-    // correctly updates.
     val monthTxs = remember(txs, range) { txs.filter { it.timestamp in range } }
 
     LazyColumn(
@@ -78,7 +66,14 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
-            BalanceCard(summary, offset, startDay, planningIncome, onPrev = { onOffsetChange(offset - 1) }, onNext = { if (offset < 0) onOffsetChange(offset + 1) })
+            BalanceCard(
+                s = summary,
+                offset = offset,
+                startDay = startDay,
+                budget = planningIncome,
+                onPrev = { onOffsetChange(offset - 1) },
+                onNext = { if (offset < 0) onOffsetChange(offset + 1) }
+            )
         }
 
         if (planningIncome > 0) {
@@ -86,14 +81,18 @@ fun DashboardScreen(
                 if (manualBudget != null) {
                     BudgetStatusCard(planningIncome, summary.spent)
                 } else {
-                    BudgetStatusCard(planningIncome, summary.spent, title = "استهلاك دخل الشهر", capLabel = "الدخل")
+                    BudgetStatusCard(
+                        planningIncome, summary.spent,
+                        title = stringResource(R.string.dash_card_income_title),
+                        capLabel = stringResource(R.string.dash_cap_income)
+                    )
                 }
             }
         }
 
         if (upcomingBills.isNotEmpty()) {
             item {
-                Text("فواتير قادمة", style = H2, modifier = Modifier.padding(horizontal = 4.dp))
+                Text(stringResource(R.string.dash_upcoming_bills), style = H2, modifier = Modifier.padding(horizontal = 4.dp))
             }
             item {
                 LazyRow(
@@ -107,7 +106,7 @@ fun DashboardScreen(
 
         if (summary.categoryTotals.isNotEmpty()) {
             item {
-                Text("الأكثر استهلاكاً", style = H2, modifier = Modifier.padding(horizontal = 4.dp))
+                Text(stringResource(R.string.dash_top_spending), style = H2, modifier = Modifier.padding(horizontal = 4.dp))
             }
             item {
                 LazyRow(
@@ -127,9 +126,9 @@ fun DashboardScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("أحدث العمليات", style = H2, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.dash_recent), style = H2, modifier = Modifier.weight(1f))
                     Text(
-                        "عرض الكل",
+                        stringResource(R.string.dash_view_all),
                         style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold),
                         modifier = Modifier.clickable { onNavigateToTransactions(null) }.padding(8.dp)
                     )
@@ -139,9 +138,9 @@ fun DashboardScreen(
                 TransactionCard(tx, onClick = { onNavigateToTransactions(null) })
             }
         } else if (txs.isNotEmpty()) {
-            item { EmptyState("لا توجد عمليات في هذا الشهر") }
+            item { EmptyState(stringResource(R.string.dash_empty_month)) }
         } else {
-            item { EmptyState("لم نرصد عمليات بعد") }
+            item { EmptyState(stringResource(R.string.dash_empty_ever)) }
         }
     }
 }
@@ -164,7 +163,11 @@ private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Dou
         Column(Modifier.padding(26.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onPrev, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "الشهر السابق", tint = White, modifier = Modifier.size(16.dp))
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        stringResource(R.string.dash_month_prev),
+                        tint = White, modifier = Modifier.size(16.dp)
+                    )
                 }
                 Text(
                     monthName(offset, startDay),
@@ -176,7 +179,8 @@ private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Dou
                 )
                 IconButton(onClick = onNext, enabled = offset < 0, modifier = Modifier.size(48.dp)) {
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward, "الشهر التالي",
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        stringResource(R.string.dash_month_next),
                         tint = White.copy(alpha = if (offset < 0) 1f else 0.3f),
                         modifier = Modifier.size(16.dp)
                     )
@@ -189,28 +193,22 @@ private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Dou
                 ) {
                     Icon(Icons.Default.Shield, null, Modifier.size(12.dp), tint = Lime)
                     Spacer(Modifier.width(4.dp))
-                    Text("محلي 100٪", style = Eyebrow.copy(color = Lime, fontSize = 11.sp))
+                    Text(stringResource(R.string.dash_local_badge), style = Eyebrow.copy(color = Lime, fontSize = 11.sp))
                 }
             }
 
             Spacer(Modifier.height(24.dp))
-            // "تجاوزت ميزانيتك" (exceeded your budget) must actually compare spend
-            // to your (income-based) budget. Once that budget is known, compare
-            // against IT — not against s.net, which would otherwise false-alarm
-            // before payday (income hasn't posted yet this month even though
-            // spending against the *expected* income is perfectly fine). The
-            // net-based fallback only applies when there's no income signal at all.
             val isOverBudget = budget > 0 && s.spent > budget
             val isNegativeNet = budget <= 0 && s.net < 0
             val isPastMonth = offset < 0
-            val label = when {
-                isOverBudget -> "تجاوزت ميزانيتك هذا الشهر"
-                isNegativeNet -> "صرفت أكثر مما دخلت هذا الشهر"
-                isPastMonth -> "صافي الشهر"
-                else -> "الرصيد المتبقي المتاح"
+            val labelRes = when {
+                isOverBudget -> R.string.dash_label_over_budget
+                isNegativeNet -> R.string.dash_label_negative_net
+                isPastMonth -> R.string.dash_label_past_month
+                else -> R.string.dash_label_available
             }
             val isDanger = isOverBudget || isNegativeNet
-            Text(label, style = Body.copy(color = OnInkSoft))
+            Text(stringResource(labelRes), style = Body.copy(color = OnInkSoft))
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
@@ -219,7 +217,8 @@ private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Dou
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    currencyLabel("SAR"), style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium, fontSize = 16.sp),
+                    currencyLabel("SAR"),
+                    style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium, fontSize = 16.sp),
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
             }
@@ -233,7 +232,7 @@ private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Dou
                     IconBadge(Icons.Default.ArrowDownward, Lime, White.copy(alpha = 0.08f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("إجمالي الدخل", style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
+                        Text(stringResource(R.string.dash_total_income), style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
                         Text(FinancialAdvisor.fmt(s.income), style = Body.copy(color = White, fontWeight = FontWeight.Bold))
                     }
                 }
@@ -243,7 +242,7 @@ private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Dou
                     IconBadge(Icons.Default.ArrowUpward, Danger, White.copy(alpha = 0.08f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("إجمالي الصرف", style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
+                        Text(stringResource(R.string.dash_total_spend), style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
                         Text(FinancialAdvisor.fmt(s.spent), style = Body.copy(color = White, fontWeight = FontWeight.Bold))
                     }
                 }
@@ -253,7 +252,12 @@ private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Dou
 }
 
 @Composable
-private fun BudgetStatusCard(budget: Double, spent: Double, title: String = "استهلاك ميزانية الشهر", capLabel: String = "السقف") {
+private fun BudgetStatusCard(
+    budget: Double,
+    spent: Double,
+    title: String = stringResource(R.string.dash_card_budget_title),
+    capLabel: String = stringResource(R.string.dash_cap_budget)
+) {
     val pct = (spent / budget).coerceIn(0.0, 1.0).toFloat()
     val anim by animateFloatAsState(pct, tween(800), label = "b")
     val overBudget = spent > budget
@@ -288,9 +292,15 @@ private fun BudgetStatusCard(budget: Double, spent: Double, title: String = "ا�
         }
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth()) {
-            Text("صرفت: ${FinancialAdvisor.fmt(spent)} ${currencyLabel("SAR")}", style = BodyMuted.copy(fontSize = 12.sp))
+            Text(
+                stringResource(R.string.dash_spent_label, FinancialAdvisor.fmt(spent), currencyLabel("SAR")),
+                style = BodyMuted.copy(fontSize = 12.sp)
+            )
             Spacer(Modifier.weight(1f))
-            Text("$capLabel: ${FinancialAdvisor.fmt(budget)} ${currencyLabel("SAR")}", style = BodyMuted.copy(fontSize = 12.sp))
+            Text(
+                stringResource(R.string.dash_cap_label, capLabel, FinancialAdvisor.fmt(budget), currencyLabel("SAR")),
+                style = BodyMuted.copy(fontSize = 12.sp)
+            )
         }
     }
 }
@@ -330,8 +340,6 @@ private fun upcomingBillsWithinDays(items: List<RecurringItemEntity>, window: In
     val todayDay = today.get(Calendar.DAY_OF_MONTH)
     val daysInMonth = today.getActualMaximum(Calendar.DAY_OF_MONTH)
     return items.filter { it.reminderEnabled }.mapNotNull { item ->
-        // Same wraparound handling as BillReminderWorker: a due day earlier in
-        // the calendar than today means it's coming up next month, not overdue.
         val daysUntil = if (item.expectedDayOfMonth >= todayDay) {
             item.expectedDayOfMonth - todayDay
         } else {
@@ -357,8 +365,13 @@ private fun UpcomingBillChip(bill: UpcomingBill) {
         Text("~${FinancialAdvisor.fmt(bill.item.expectedAmount)} ${currencyLabel("SAR")}", style = NumBold.copy(fontSize = 12.sp))
         Spacer(Modifier.height(6.dp))
         Text(
-            if (bill.daysUntil == 0) "اليوم" else "خلال ${bill.daysUntil} يوم",
-            style = Eyebrow.copy(fontSize = 10.sp, color = if (bill.daysUntil <= 1) Danger else InkFaint, fontWeight = FontWeight.Bold)
+            if (bill.daysUntil == 0) stringResource(R.string.dash_today)
+            else stringResource(R.string.dash_in_days, bill.daysUntil),
+            style = Eyebrow.copy(
+                fontSize = 10.sp,
+                color = if (bill.daysUntil <= 1) Danger else InkFaint,
+                fontWeight = FontWeight.Bold
+            )
         )
     }
 }

@@ -18,12 +18,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.RecurringItemEntity
 import com.mizan.money.data.TransactionEntity
@@ -36,10 +38,6 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
     val categories by vm.categories.collectAsState()
     val recurringItems by vm.recurringItems.collectAsState()
     var query by remember { mutableStateOf(initialQuery ?: "") }
-    // Re-applies initialQuery on every distinct value it takes, not just once at
-    // first composition — remember(initialQuery) alone would miss a same-value
-    // re-trigger for a screen instance that survives across it (e.g. inside a
-    // navigation backstack instead of being fully disposed on tab switch).
     LaunchedEffect(initialQuery) { query = initialQuery ?: "" }
     var selected by remember { mutableStateOf<TransactionEntity?>(null) }
     var showAdd by remember { mutableStateOf(false) }
@@ -61,14 +59,14 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("سجل العمليات", style = H1)
-                    Text("مستخرجة تلقائياً من رسائل البنك", style = Eyebrow)
+                    Text(stringResource(R.string.tx_title), style = H1)
+                    Text(stringResource(R.string.tx_subtitle), style = Eyebrow)
                 }
                 Box(
                     Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Ink900)
                         .clickable { showAdd = true },
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.Add, "إضافة عملية يدوية", tint = Lime, modifier = Modifier.size(22.dp)) }
+                ) { Icon(Icons.Default.Add, stringResource(R.string.tx_add), tint = Lime, modifier = Modifier.size(22.dp)) }
             }
         }
         item {
@@ -85,7 +83,7 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
                 TextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("ابحث عن عملية، جهة، أو تصنيف...", style = BodyMuted) },
+                    placeholder = { Text(stringResource(R.string.tx_search_hint), style = BodyMuted) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
@@ -98,13 +96,18 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
                 )
                 if (query.isNotEmpty()) {
                     IconButton(onClick = { query = "" }, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Close, "مسح البحث", Modifier.size(16.dp), tint = InkFaint)
+                        Icon(Icons.Default.Close, stringResource(R.string.tx_clear_search), Modifier.size(16.dp), tint = InkFaint)
                     }
                 }
             }
         }
         if (filtered.isEmpty()) {
-            item { EmptyState(if (txs.isEmpty()) "لا توجد عمليات بعد — أضف عملية أو امسح رسائل البنك" else "لا توجد عمليات مطابقة لبحثك") }
+            item {
+                EmptyState(
+                    if (txs.isEmpty()) stringResource(R.string.tx_empty_ever)
+                    else stringResource(R.string.tx_empty_search)
+                )
+            }
         } else {
             items(filtered, key = { it.id }) { tx ->
                 TransactionCard(tx, onClick = { selected = tx })
@@ -148,9 +151,6 @@ private fun TxDetailDialog(
     var isSelfTransfer by remember(tx.id) { mutableStateOf(tx.isSelfTransfer) }
     var excludeFromDailyAvg by remember(tx.id) { mutableStateOf(tx.excludeFromDailyAvg) }
     var confirmingDelete by remember(tx.id) { mutableStateOf(false) }
-    // Seeded from whatever recurring-reminder row already matches this
-    // merchant, so reopening an already-flagged transaction shows the switch
-    // already on instead of always defaulting to off.
     val hasExistingReminder = remember(tx.id, tx.merchant, recurringItems) {
         val m = tx.merchant?.trim()
         m != null && recurringItems.any { it.merchant.equals(m, ignoreCase = true) }
@@ -162,15 +162,17 @@ private fun TxDetailDialog(
             onDismissRequest = { confirmingDelete = false },
             containerColor = White,
             shape = RoundedCornerShape(RadiusXl),
-            title = { Text("حذف هذه العملية؟", style = H2) },
-            text = { Text("لا يمكن التراجع عن هذا الإجراء.", style = BodyMuted) },
+            title = { Text(stringResource(R.string.tx_detail_confirm_delete_title), style = H2) },
+            text = { Text(stringResource(R.string.tx_detail_confirm_delete_desc), style = BodyMuted) },
             confirmButton = {
                 TextButton(onClick = { confirmingDelete = false; onDelete() }) {
-                    Text("حذف", style = Body.copy(color = Danger, fontWeight = FontWeight.Bold))
+                    Text(stringResource(R.string.tx_detail_confirm_delete_yes), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmingDelete = false }) { Text("إلغاء", style = Body.copy(color = InkSoft)) }
+                TextButton(onClick = { confirmingDelete = false }) {
+                    Text(stringResource(R.string.tx_detail_cancel), style = Body.copy(color = InkSoft))
+                }
             }
         )
     }
@@ -179,23 +181,28 @@ private fun TxDetailDialog(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
-        title = { Text(if (editing) "تعديل العملية" else "تفاصيل العملية", style = H2) },
+        title = {
+            Text(
+                if (editing) stringResource(R.string.tx_detail_edit)
+                else stringResource(R.string.tx_detail_title),
+                style = H2
+            )
+        },
         text = {
             if (editing) {
-                // Without a scroll wrapper, a long category list (custom
-                // categories keep growing) overflows the dialog's fixed height
-                // and anything past the fold — including a category just
-                // added — is rendered but unreachable/invisible.
                 Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                     SegmentedToggle(
-                        options = listOf("مصروف" to Danger, "دخل" to Success),
+                        options = listOf(
+                            stringResource(R.string.tx_type_expense) to Danger,
+                            stringResource(R.string.tx_type_income) to Success
+                        ),
                         selectedIndex = if (type == TxType.EXPENSE) 0 else 1,
                         onSelect = { type = if (it == 0) TxType.EXPENSE else TxType.INCOME }
                     )
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(
                         value = amount, onValueChange = { amount = sanitizeAmountInput(it) },
-                        label = { Text("المبلغ (${currencyLabel(tx.currency)})") },
+                        label = { Text(stringResource(R.string.tx_field_amount_fmt, currencyLabel(tx.currency))) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(RadiusSm),
@@ -204,7 +211,7 @@ private fun TxDetailDialog(
                     Spacer(Modifier.height(10.dp))
                     OutlinedTextField(
                         value = merchant, onValueChange = { merchant = it },
-                        label = { Text("الجهة / التاجر") },
+                        label = { Text(stringResource(R.string.tx_field_merchant)) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(RadiusSm),
                         textStyle = Body
@@ -219,17 +226,13 @@ private fun TxDetailDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text("تحويل بين حساباتك", style = Body.copy(fontWeight = FontWeight.Medium))
-                            Text("لا يُحتسب ضمن دخلك أو مصاريفك", style = Eyebrow.copy(fontSize = 11.sp))
+                            Text(stringResource(R.string.tx_self_transfer_title), style = Body.copy(fontWeight = FontWeight.Medium))
+                            Text(stringResource(R.string.tx_self_transfer_desc), style = Eyebrow.copy(fontSize = 11.sp))
                         }
                         Switch(
                             checked = isSelfTransfer,
                             onCheckedChange = { checked ->
                                 isSelfTransfer = checked
-                                // Mirrors what the SMS parser itself does (see
-                                // ParsedSms.toEntity()), so a manually-flagged self
-                                // transfer can't be left pointing at an unrelated
-                                // category chip (e.g. "طعام وشراب") once saved.
                                 if (checked) category = com.mizan.money.data.SELF_TRANSFER_CATEGORY
                             },
                             colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
@@ -245,8 +248,8 @@ private fun TxDetailDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text("استثنِ من معدل الصرف اليومي", style = Body.copy(fontWeight = FontWeight.Medium))
-                            Text("لمصروف كبير غير يومي مثل الإيجار — يبقى محسوباً في الإجمالي والميزانية", style = Eyebrow.copy(fontSize = 11.sp))
+                            Text(stringResource(R.string.tx_exclude_daily_title), style = Body.copy(fontWeight = FontWeight.Medium))
+                            Text(stringResource(R.string.tx_exclude_daily_desc), style = Eyebrow.copy(fontSize = 11.sp))
                         }
                         Switch(
                             checked = excludeFromDailyAvg,
@@ -254,9 +257,6 @@ private fun TxDetailDialog(
                             colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
                         )
                     }
-                    // Only offered when there's a merchant name to key the reminder
-                    // on — a self-transfer or a cash withdrawal has nothing
-                    // meaningful to remind about next month.
                     if (!isSelfTransfer && merchant.isNotBlank()) {
                         Spacer(Modifier.height(10.dp))
                         Row(
@@ -268,8 +268,8 @@ private fun TxDetailDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("ذكّرني بهذي شهرياً", style = Body.copy(fontWeight = FontWeight.Medium))
-                                Text("تنبيه قبل الموعد المتوقع بأيام قليلة", style = Eyebrow.copy(fontSize = 11.sp))
+                                Text(stringResource(R.string.tx_bill_reminder_title), style = Body.copy(fontWeight = FontWeight.Medium))
+                                Text(stringResource(R.string.tx_bill_reminder_desc), style = Eyebrow.copy(fontSize = 11.sp))
                             }
                             Switch(
                                 checked = billReminder,
@@ -280,7 +280,7 @@ private fun TxDetailDialog(
                     }
                     if (!isSelfTransfer) {
                         Spacer(Modifier.height(10.dp))
-                        Text("التصنيف", style = Eyebrow)
+                        Text(stringResource(R.string.tx_field_category), style = Eyebrow)
                         Spacer(Modifier.height(6.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             categories.chunked(2).forEach { row ->
@@ -314,7 +314,7 @@ private fun TxDetailDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconBadge(Icons.Default.AccountBalance, InkSoft, PaperOuter, size = 32.dp, iconSize = 16.dp)
                         Spacer(Modifier.width(8.dp))
-                        Text(tx.bankName ?: "بنك", style = Body.copy(fontWeight = FontWeight.Medium))
+                        Text(tx.bankName ?: stringResource(R.string.tx_unknown_bank), style = Body.copy(fontWeight = FontWeight.Medium))
                         Spacer(Modifier.weight(1f))
                         Text(Dates.dayLabel(tx.timestamp), style = Eyebrow)
                     }
@@ -322,19 +322,21 @@ private fun TxDetailDialog(
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                     Spacer(Modifier.height(16.dp))
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(tx.merchant ?: "غير معروف", style = H2.copy(fontSize = 18.sp))
+                        Text(tx.merchant ?: stringResource(R.string.tx_unknown_merchant), style = H2.copy(fontSize = 18.sp))
                         Spacer(Modifier.height(4.dp))
                         Text(tx.category, style = BodyMuted)
                         Spacer(Modifier.height(8.dp))
                         Text(
                             "${if (tx.type == TxType.EXPENSE) "-" else "+"}${FinancialAdvisor.fmt(tx.amount)} ${currencyLabel(tx.currency)}",
-                            style = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Black,
-                                color = if (tx.isSelfTransfer) InkFaint else if (tx.type == TxType.EXPENSE) Danger else Success)
+                            style = TextStyle(
+                                fontSize = 26.sp, fontWeight = FontWeight.Black,
+                                color = if (tx.isSelfTransfer) InkFaint else if (tx.type == TxType.EXPENSE) Danger else Success
+                            )
                         )
                         if (tx.isSelfTransfer) {
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "تحويل بين حساباتك — لا يُحتسب ضمن دخلك أو مصاريفك",
+                                stringResource(R.string.tx_self_transfer_note),
                                 style = Eyebrow.copy(fontSize = 11.sp),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
@@ -343,7 +345,7 @@ private fun TxDetailDialog(
                         if (tx.excludeFromDailyAvg) {
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "مستثناة من معدل الصرف اليومي",
+                                stringResource(R.string.tx_exclude_daily_note),
                                 style = Eyebrow.copy(fontSize = 11.sp),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
@@ -353,7 +355,7 @@ private fun TxDetailDialog(
                     Spacer(Modifier.height(16.dp))
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                     Spacer(Modifier.height(16.dp))
-                    Text("الرسالة الأصلية", style = Body.copy(fontWeight = FontWeight.Bold))
+                    Text(stringResource(R.string.tx_original_sms), style = Body.copy(fontWeight = FontWeight.Bold))
                     Spacer(Modifier.height(8.dp))
                     Text(tx.rawSms, style = BodyMuted, modifier = Modifier
                         .fillMaxWidth()
@@ -362,7 +364,7 @@ private fun TxDetailDialog(
                         .padding(12.dp))
                     Spacer(Modifier.height(14.dp))
                     TextButton(onClick = { confirmingDelete = true }) {
-                        Text("حذف العملية", style = Body.copy(color = Danger, fontWeight = FontWeight.Bold))
+                        Text(stringResource(R.string.tx_detail_delete), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold))
                     }
                 }
             }
@@ -379,18 +381,22 @@ private fun TxDetailDialog(
                             billReminder
                         )
                     }
-                }) { Text("حفظ", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
+                }) { Text(stringResource(R.string.tx_detail_save), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
             } else {
                 TextButton(onClick = { editing = true }) {
-                    Text("تعديل", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold))
+                    Text(stringResource(R.string.tx_detail_edit_action), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold))
                 }
             }
         },
         dismissButton = {
             if (editing) {
-                TextButton(onClick = { editing = false }) { Text("إلغاء", style = Body.copy(color = InkSoft)) }
+                TextButton(onClick = { editing = false }) {
+                    Text(stringResource(R.string.tx_detail_cancel), style = Body.copy(color = InkSoft))
+                }
             } else {
-                TextButton(onClick = onDismiss) { Text("إغلاق", style = Body.copy(color = InkSoft)) }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.tx_detail_close), style = Body.copy(color = InkSoft))
+                }
             }
         }
     )
@@ -407,18 +413,21 @@ private fun AddDialog(categories: List<String>, onDismiss: () -> Unit, onSave: (
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
-        title = { Text("إضافة عملية يدوية", style = H2) },
+        title = { Text(stringResource(R.string.tx_add_title), style = H2) },
         text = {
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                 SegmentedToggle(
-                    options = listOf("مصروف" to Danger, "دخل" to Success),
+                    options = listOf(
+                        stringResource(R.string.tx_type_expense) to Danger,
+                        stringResource(R.string.tx_type_income) to Success
+                    ),
                     selectedIndex = if (type == TxType.EXPENSE) 0 else 1,
                     onSelect = { type = if (it == 0) TxType.EXPENSE else TxType.INCOME }
                 )
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = amount, onValueChange = { amount = sanitizeAmountInput(it) },
-                    label = { Text("المبلغ (${currencyLabel("SAR")})") },
+                    label = { Text(stringResource(R.string.tx_field_amount_fmt, currencyLabel("SAR"))) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(RadiusSm),
@@ -427,13 +436,13 @@ private fun AddDialog(categories: List<String>, onDismiss: () -> Unit, onSave: (
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = merchant, onValueChange = { merchant = it },
-                    label = { Text("الجهة / التاجر") },
+                    label = { Text(stringResource(R.string.tx_field_merchant)) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(RadiusSm),
                     textStyle = Body
                 )
                 Spacer(Modifier.height(10.dp))
-                Text("التصنيف", style = Eyebrow)
+                Text(stringResource(R.string.tx_field_category), style = Eyebrow)
                 Spacer(Modifier.height(6.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     categories.chunked(2).forEach { row ->
@@ -465,10 +474,12 @@ private fun AddDialog(categories: List<String>, onDismiss: () -> Unit, onSave: (
         confirmButton = {
             TextButton(onClick = {
                 amount.toDoubleOrNull()?.let { onSave(it, merchant, category, type) }
-            }) { Text("حفظ", style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
+            }) { Text(stringResource(R.string.tx_detail_save), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("إلغاء", style = Body.copy(color = InkSoft)) }
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.tx_detail_cancel), style = Body.copy(color = InkSoft))
+            }
         }
     )
 }
