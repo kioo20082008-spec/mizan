@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,28 +29,31 @@ import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
 import com.mizan.money.data.SELF_TRANSFER_CATEGORY
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
+import com.mizan.money.ui.theme.MizanTheme
 
-// ============ DESIGN SYSTEM — "Ink & Lime" ============
-// Neutral paper base, near-black ink surfaces for hero moments, one bold
-// signature accent (lime on ink) plus a calm indigo brand color for actions.
-val Paper       = Color(0xFFFAF9F6)
-val PaperOuter  = Color(0xFFF0EEE7)
-val White       = Color(0xFFFFFFFF)
-val Line        = Color(0xFFE9E6DE)
-val Ink         = Color(0xFF15141A)
-val InkSoft     = Color(0xFF6F6D76)
-val InkFaint    = Color(0xFFA4A2AA)
-val Ink900      = Color(0xFF121017)
-val Ink800      = Color(0xFF1E1B26)
-val OnInkSoft   = Color(0xFFACA9B8)
-val Indigo      = Color(0xFF4F46E5)
-val IndigoDeep  = Color(0xFF3730A3)
-val IndigoSoft  = Color(0xFFEEEEFD)
-val Lime        = Color(0xFFD7F26B)
-val Success     = Color(0xFF22C55E)
-val Danger      = Color(0xFFF43F5E)
-val Amber       = Color(0xFFF59E0B)
-val Purple      = Color(0xFF8B5CF6)
+// ============ COLORS (read from the active theme) ============
+// Every one of these is a @Composable getter reading the current palette, so
+// switching between light/dark immediately updates everywhere. They MUST be
+// read inside a @Composable context, which every usage site already is.
+
+val Paper: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.paper
+val PaperOuter: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.paperOuter
+val White: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.white
+val Line: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.line
+val Ink: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.ink
+val InkSoft: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.inkSoft
+val InkFaint: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.inkFaint
+val Ink900: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.ink900
+val Ink800: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.ink800
+val OnInkSoft: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.onInkSoft
+val Indigo: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.indigo
+val IndigoDeep: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.indigoDeep
+val IndigoSoft: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.indigoSoft
+val Lime: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.lime
+val Success: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.success
+val Danger: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.danger
+val Amber: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.amber
+val Purple: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.purple
 
 val RadiusSm = 14.dp
 val RadiusMd = 20.dp
@@ -59,13 +63,20 @@ val Pill     = 999.dp
 
 private val Sans = FontFamily.Default
 
-val Display    = TextStyle(fontFamily = Sans, fontSize = 38.sp, fontWeight = FontWeight.Black, color = Lime, letterSpacing = (-0.6).sp)
-val H1         = TextStyle(fontFamily = Sans, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ink, letterSpacing = (-0.3).sp)
-val H2         = TextStyle(fontFamily = Sans, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
-val Body       = TextStyle(fontFamily = Sans, fontSize = 14.sp, color = Ink)
-val BodyMuted  = TextStyle(fontFamily = Sans, fontSize = 13.sp, color = InkSoft)
-val Eyebrow    = TextStyle(fontFamily = Sans, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = InkFaint, letterSpacing = 0.6.sp)
-val NumBold    = TextStyle(fontFamily = Sans, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink, letterSpacing = (-0.2).sp)
+val Display: TextStyle @Composable @ReadOnlyComposable get() =
+    TextStyle(fontFamily = Sans, fontSize = 38.sp, fontWeight = FontWeight.Black, color = Lime, letterSpacing = (-0.6).sp)
+val H1: TextStyle @Composable @ReadOnlyComposable get() =
+    TextStyle(fontFamily = Sans, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ink, letterSpacing = (-0.3).sp)
+val H2: TextStyle @Composable @ReadOnlyComposable get() =
+    TextStyle(fontFamily = Sans, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
+val Body: TextStyle @Composable @ReadOnlyComposable get() =
+    TextStyle(fontFamily = Sans, fontSize = 14.sp, color = Ink)
+val BodyMuted: TextStyle @Composable @ReadOnlyComposable get() =
+    TextStyle(fontFamily = Sans, fontSize = 13.sp, color = InkSoft)
+val Eyebrow: TextStyle @Composable @ReadOnlyComposable get() =
+    TextStyle(fontFamily = Sans, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = InkFaint, letterSpacing = 0.6.sp)
+val NumBold: TextStyle @Composable @ReadOnlyComposable get() =
+    TextStyle(fontFamily = Sans, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink, letterSpacing = (-0.2).sp)
 
 // ============ SHARED PRIMITIVES ============
 @Composable
@@ -100,9 +111,6 @@ fun SoftCard(
     )
 }
 
-// Generic pill-style tab switcher — used to fold related sub-screens (Budget /
-// Goals / Debts, Advisor / Reports) under one bottom-nav slot instead of
-// growing the bottom nav itself, so the app gains features without gaining tabs.
 @Composable
 fun TabSwitcher(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     Row(
@@ -173,6 +181,10 @@ fun TransactionCard(tx: TransactionEntity, onClick: () -> Unit) {
 }
 
 // ============ FORMATTING HELPERS ============
+// Category colors are semantic (health=red, groceries=green) and are designed
+// to read clearly on both light and dark backgrounds, so they stay fixed
+// rather than being swapped per theme.
+@Composable
 fun catColor(cat: String): Color = when (cat) {
     "طعام وشراب" -> Amber
     "بقالة" -> Color(0xFF10B981)
@@ -191,6 +203,7 @@ fun catColor(cat: String): Color = when (cat) {
     else -> InkFaint
 }
 
+@Composable
 fun catColorSoft(cat: String): Color = catColor(cat).copy(alpha = 0.12f)
 
 fun currencyLabel(code: String): String = when (code) {
@@ -219,11 +232,6 @@ fun catIcon(cat: String): ImageVector = when (cat) {
     else -> Icons.Default.Category
 }
 
-// Arabic-Indic digits (٠-٩) are common on Arabic-locale numeric keyboards and pass
-// Char.isDigit() fine, but String.toDoubleOrNull() only understands ASCII digits —
-// so a value typed with them looks accepted in the field but silently fails to
-// parse, and for a budget field that means the save is either a no-op or (since
-// the repo treats amount<=0 as "delete") silently wipes the saved budget.
 fun sanitizeAmountInput(raw: String): String {
     var s = raw
     val ar = "٠١٢٣٤٥٦٧٨٩"
@@ -235,10 +243,6 @@ fun sanitizeAmountInput(raw: String): String {
     return if (firstDot == -1) s else s.substring(0, firstDot + 1) + s.substring(firstDot + 1).replace(".", "")
 }
 
-// Named after the month the cycle *starts* in — with a custom start day the
-// cycle can span two calendar months, so this can't just add `offset` months
-// to today; it has to read the same range DashboardScreen/BudgetScreen/
-// AdvisorScreen are actually showing.
 fun monthName(offset: Int, startDay: Int = 1): String {
     val c = java.util.Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
     val names = listOf(

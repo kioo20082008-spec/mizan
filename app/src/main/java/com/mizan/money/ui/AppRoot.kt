@@ -15,6 +15,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +45,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mizan.money.MoneyApp
+import com.mizan.money.ui.theme.ProvideMizanTheme
+import com.mizan.money.ui.theme.ThemeMode
+import com.mizan.money.ui.theme.ThemePreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,20 +59,23 @@ fun AppRoot() {
     val app = ctx.applicationContext as MoneyApp
     val vm: MainViewModel = viewModel(factory = MainViewModel.factory(app, app.repository))
     var hasSms by remember { mutableStateOf(checkSms(ctx)) }
-    // Seeded from a persisted flag (not just false), so a returning user doesn't
-    // see the full-screen "analyzing your messages for the first time" loader —
-    // and pay the cost of a full 120-day re-scan — on every single app launch.
     var scanned by remember { mutableStateOf(vm.hasCompletedInitialScan()) }
     var permissionAttempted by remember { mutableStateOf(false) }
+
+    // Theme preference is persisted in the same "mizan_prefs" file the rest of
+    // the app already uses. SYSTEM delegates to the OS; LIGHT/DARK force the
+    // app regardless of what the OS thinks.
+    var themeMode by remember { mutableStateOf(ThemePreference.load(ctx)) }
+    val isDark = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { hasSms = checkSms(ctx); permissionAttempted = true }
 
-    // The permission dialog's own callback only fires for a request made from
-    // inside this app. A user who denies here, opens system Settings, grants it
-    // there, then returns via the back/recents gesture never triggers that
-    // callback — so recheck whenever the app comes back to the foreground too.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -86,49 +93,69 @@ fun AppRoot() {
         }
     }
 
-    MaterialTheme(
-        colorScheme = lightColorScheme(
-            background = Paper,
-            surface = White,
-            surfaceTint = Color.Transparent,
-            primary = Indigo,
-            onPrimary = White,
-            onBackground = Ink,
-            onSurface = Ink,
-            error = Danger,
-            onError = White,
-        )
-    ) {
-        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-            Surface(Modifier.fillMaxSize(), color = PaperOuter) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                    Surface(
-                        Modifier.fillMaxWidth().fillMaxHeight(),
-                        color = Paper
-                    ) {
-                        if (!hasSms) PermissionScreen(
-                            showSettingsLink = permissionAttempted,
-                            onGrant = {
-                                launcher.launch(arrayOf(
-                                    Manifest.permission.READ_SMS,
-                                    Manifest.permission.RECEIVE_SMS
-                                ))
-                            },
-                            onOpenSettings = {
-                                ctx.startActivity(
-                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                                        .setData(Uri.fromParts("package", ctx.packageName, null))
+    ProvideMizanTheme(isDark = isDark) {
+        MaterialTheme(
+            colorScheme = if (isDark) darkColorScheme(
+                background = Paper,
+                surface = White,
+                surfaceVariant = PaperOuter,
+                surfaceTint = Color.Transparent,
+                primary = Indigo,
+                onPrimary = Color.White,
+                onBackground = Ink,
+                onSurface = Ink,
+                onSurfaceVariant = InkSoft,
+                error = Danger,
+                onError = Color.White,
+                outline = Line,
+            ) else lightColorScheme(
+                background = Paper,
+                surface = White,
+                surfaceVariant = PaperOuter,
+                surfaceTint = Color.Transparent,
+                primary = Indigo,
+                onPrimary = Color.White,
+                onBackground = Ink,
+                onSurface = Ink,
+                onSurfaceVariant = InkSoft,
+                error = Danger,
+                onError = Color.White,
+                outline = Line,
+            )
+        ) {
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                Surface(Modifier.fillMaxSize(), color = PaperOuter) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                        Surface(
+                            Modifier.fillMaxWidth().fillMaxHeight(),
+                            color = Paper
+                        ) {
+                            if (!hasSms) PermissionScreen(
+                                showSettingsLink = permissionAttempted,
+                                onGrant = {
+                                    launcher.launch(arrayOf(
+                                        Manifest.permission.READ_SMS,
+                                        Manifest.permission.RECEIVE_SMS
+                                    ))
+                                },
+                                onOpenSettings = {
+                                    ctx.startActivity(
+                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                            .setData(Uri.fromParts("package", ctx.packageName, null))
+                                    )
+                                }
+                            ) else if (!scanned) {
+                                ScanningScreen()
+                            } else {
+                                RootScaffold(
+                                    vm = vm,
+                                    themeMode = themeMode,
+                                    onThemeModeChange = { newMode ->
+                                        themeMode = newMode
+                                        ThemePreference.save(ctx, newMode)
+                                    }
                                 )
                             }
-                        ) else if (!scanned) {
-                            // Only the first-ever scan gets the full-screen loader.
-                            // A later rescan (from Settings) must not unmount the
-                            // whole app shell — RootScaffold shows its own inline
-                            // indicator for that via vm.isScanning instead, so tab/
-                            // month navigation state survives a routine rescan.
-                            ScanningScreen()
-                        } else {
-                            RootScaffold(vm)
                         }
                     }
                 }
@@ -140,26 +167,21 @@ fun AppRoot() {
 private fun checkSms(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) ==
         PackageManager.PERMISSION_GRANTED
-// READ_SMS alone is enough for the app to function (initial scan + manual
-// rescan), but without RECEIVE_SMS new transactions only show up after the
-// user rescans by hand — worth a light heads-up rather than blocking on it
-// like the main permission gate does.
+
 private fun checkReceiveSms(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECEIVE_SMS) ==
         PackageManager.PERMISSION_GRANTED
 
 // ============ SCAFFOLD ============
 @Composable
-private fun RootScaffold(vm: MainViewModel) {
+private fun RootScaffold(
+    vm: MainViewModel,
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit
+) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    // Shared across tabs so paging the month on the dashboard also updates
-    // what Budget/Advisor show, instead of them being stuck on the current month.
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
-    // Set when a Dashboard category chip is tapped, so Transactions opens
-    // pre-filtered to that category instead of just switching tabs blindly.
-    // rememberSaveable so a configuration change (e.g. rotation) doesn't drop
-    // the pending filter while the app is mid-navigation.
     var categoryFilter by rememberSaveable { mutableStateOf<String?>(null) }
     val isScanning by vm.isScanning.collectAsState()
     val ctx = LocalContext.current
@@ -191,10 +213,6 @@ private fun RootScaffold(vm: MainViewModel) {
                 when (tab) {
                     0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
                     1 -> TransactionsScreen(vm, initialQuery = categoryFilter)
-                    // Budget/Goals/Debts and Advisor/Reports are each folded behind
-                    // their own internal segmented control (see PlanningScreen /
-                    // InsightsScreen) instead of getting their own bottom-nav icons —
-                    // the tab count stays at 4 no matter how many features are added.
                     2 -> PlanningScreen(vm, monthOffset)
                     else -> InsightsScreen(vm, monthOffset)
                 }
@@ -205,6 +223,8 @@ private fun RootScaffold(vm: MainViewModel) {
     if (showSettings) {
         SettingsDialog(
             vm = vm,
+            themeMode = themeMode,
+            onThemeModeChange = onThemeModeChange,
             onDismiss = { showSettings = false },
             onRescan = { vm.scanInbox(); showSettings = false }
         )
@@ -235,7 +255,13 @@ private fun AppHeader(onSettingsClick: () -> Unit) {
 }
 
 @Composable
-private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: () -> Unit) {
+private fun SettingsDialog(
+    vm: MainViewModel,
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onDismiss: () -> Unit,
+    onRescan: () -> Unit
+) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val txs by vm.transactions.collectAsState()
@@ -329,6 +355,48 @@ private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: (
                 Spacer(Modifier.height(18.dp))
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
+
+                // ============ THEME ============
+                Text("المظهر", style = Body.copy(fontWeight = FontWeight.Bold))
+                Spacer(Modifier.height(4.dp))
+                Text("اختر بين الفاتح أو الداكن، أو اتباع إعدادات النظام.", style = Eyebrow)
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(RadiusMd))
+                        .background(PaperOuter)
+                        .padding(4.dp)
+                ) {
+                    val options = listOf(
+                        ThemeMode.SYSTEM to "النظام",
+                        ThemeMode.LIGHT to "فاتح",
+                        ThemeMode.DARK to "داكن",
+                    )
+                    options.forEach { (mode, label) ->
+                        val sel = themeMode == mode
+                        Box(
+                            Modifier.weight(1f)
+                                .clip(RoundedCornerShape(RadiusSm))
+                                .background(if (sel) White else Color.Transparent)
+                                .clickable { onThemeModeChange(mode) }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                label,
+                                style = Body.copy(
+                                    fontSize = 13.sp,
+                                    color = if (sel) Indigo else InkSoft,
+                                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium
+                                )
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                Spacer(Modifier.height(18.dp))
+
                 Text("راتبك الشهري", style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -443,7 +511,7 @@ private fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit, onRescan: (
     )
 }
 
-// ============ BOTTOM NAV — glass pill with a sliding lime indicator ============
+// ============ BOTTOM NAV ============
 @Composable
 private fun BottomNav(selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
     val items = listOf(
