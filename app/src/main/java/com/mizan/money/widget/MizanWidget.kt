@@ -13,11 +13,11 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
+import androidx.glance.layout.Arrangement
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
-import androidx.glance.layout.defaultWeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -34,9 +34,6 @@ import com.mizan.money.data.TOTAL_BUDGET
 import com.mizan.money.ui.Dates
 import kotlinx.coroutines.flow.first
 
-// Plain data holder — everything the composable needs is pre-resolved here
-// (including localized strings) so the Composable itself never needs to
-// reach for Context or stringResource, which Glance handles differently.
 data class WidgetData(
     val brand: String,
     val monthLabel: String,
@@ -124,12 +121,15 @@ private fun WidgetContent(data: WidgetData) {
             .padding(14.dp)
             .clickable(actionStartActivity<MainActivity>())
     ) {
-        Row(modifier = GlanceModifier.fillMaxWidth()) {
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 text = data.brand,
                 style = TextStyle(color = lime, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             )
-            Spacer(modifier = GlanceModifier.defaultWeight())
             Text(
                 text = data.monthLabel,
                 style = TextStyle(color = soft, fontSize = 11.sp)
