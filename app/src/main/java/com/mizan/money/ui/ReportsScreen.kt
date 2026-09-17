@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -29,15 +28,14 @@ import androidx.compose.ui.unit.sp
 import com.mizan.money.R
 import com.mizan.money.advisor.CategoryTotal
 import com.mizan.money.advisor.FinancialAdvisor
+import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
+import com.mizan.money.data.SELF_TRANSFER_CATEGORY
 import com.mizan.money.data.TOTAL_BUDGET
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.DateFormatSymbols
-import java.util.Calendar
-import java.util.Locale
 
-// ============ INSIGHTS ============
+// ============ INSIGHTS — Advisor / Reports under one bottom-nav slot ============
 @Composable
 fun InsightsScreen(vm: MainViewModel, offset: Int) {
     var subTab by rememberSaveable { mutableIntStateOf(0) }
@@ -46,10 +44,7 @@ fun InsightsScreen(vm: MainViewModel, offset: Int) {
             Text(stringResource(R.string.insights_title), style = H1)
             Spacer(Modifier.height(10.dp))
             TabSwitcher(
-                listOf(
-                    stringResource(R.string.insights_tab_advice),
-                    stringResource(R.string.insights_tab_reports),
-                ),
+                listOf(stringResource(R.string.insights_tab_advice), stringResource(R.string.insights_tab_reports)),
                 subTab
             ) { subTab = it }
         }
@@ -62,7 +57,6 @@ fun InsightsScreen(vm: MainViewModel, offset: Int) {
     }
 }
 
-// ============ REPORTS ============
 @Composable
 private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val txs by vm.transactions.collectAsState()
@@ -72,18 +66,11 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val shareChooserTitle = stringResource(R.string.reports_share_chooser)
-    // Locale is captured at @Composable scope so the (non-composable)
-    // monthShortLabel below can use it from inside remember{} lambdas.
-    val locale = LocalConfiguration.current.locales[0]
-    // Pre-computed at @Composable scope: the stringResource/mothName getters
-    // read from CompositionLocals, which the scope.launch below cannot access.
-    val categoryTitle = stringResource(
-        R.string.reports_categories_title_fmt,
-        monthName(offset, startDay)
-    )
-    val pdfPeriodLabel = "${monthName(offset, startDay)} (${Dates.monthKey(offset, startDay)})"
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
+    val pdfPeriodLabel = remember(offset, startDay) {
+        "${monthName(offset, startDay)} (${Dates.monthKey(offset, startDay)})"
+    }
     val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
     val monthKey = remember(offset, startDay) { Dates.monthKey(offset, startDay) }
     val manualBudget = remember(budgets, monthKey) {
@@ -92,12 +79,12 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val budget = remember(summary, txs, manualSalary, manualBudget) {
         manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0)
     }
-    val trend = remember(txs, offset, startDay, locale) {
+    val trend = remember(txs, offset, startDay) {
         (5 downTo 0).map { back ->
             val o = offset - back
             val r = Dates.monthRange(o, startDay)
             val s = FinancialAdvisor.summarize(txs, r.first, r.last)
-            Triple(monthShortLabel(o, startDay, locale), s.spent, s.income)
+            Triple(monthShortLabel(o, startDay), s.spent, s.income)
         }
     }
     val prevSummary = remember(txs, offset, startDay) {
@@ -129,7 +116,10 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
         if (summary.categoryTotals.isNotEmpty()) {
             item {
                 SoftCard {
-                    Text(categoryTitle, style = H2)
+                    Text(
+                        stringResource(R.string.reports_categories_title_fmt, monthName(offset, startDay)),
+                        style = H2
+                    )
                     Spacer(Modifier.height(16.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CategoryDonut(summary.categoryTotals)
@@ -139,7 +129,12 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(Modifier.size(8.dp).clip(RoundedCornerShape(Pill)).background(catColor(c.category)))
                                     Spacer(Modifier.width(6.dp))
-                                    Text(categoryDisplay(c.category), style = Eyebrow.copy(fontSize = 10.sp), modifier = Modifier.weight(1f), maxLines = 1)
+                                    Text(
+                                        categoryDisplay(c.category),
+                                        style = Eyebrow.copy(fontSize = 10.sp),
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1
+                                    )
                                     Text(
                                         stringResource(R.string.reports_percent_fmt, (c.share * 100).toInt()),
                                         style = Eyebrow.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -202,8 +197,85 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
                     ) {
                         exporting = true
                         val capturedLabel = pdfPeriodLabel
+                        val capturedSummary = summary
+                        val capturedPrev = prevSummary
+                        val capturedBudget = budget
+                        val capturedTxs = txs
+                        val capturedRange = range
+                        val capturedSalary = manualSalary
                         scope.launch(Dispatchers.IO) {
-                            val file = writePdfReport(ctx, capturedLabel, summary, budget)
+                            val monthTxs = capturedTxs.filter { it.timestamp in capturedRange }
+                            val advice = FinancialAdvisor.advise(
+                                capturedSummary, capturedBudget, capturedTxs,
+                                capturedRange.first, capturedRange.last,
+                                manualSalary = capturedSalary
+                            )
+                            val resolvedAdvice = advice.map {
+                                PdfAdvice(
+                                    title = if (it.titleArgs.isEmpty()) ctx.getString(it.titleRes)
+                                            else ctx.getString(it.titleRes, *it.titleArgs.toTypedArray()),
+                                    body = if (it.bodyArgs.isEmpty()) ctx.getString(it.bodyRes)
+                                           else ctx.getString(it.bodyRes, *it.bodyArgs.toTypedArray()),
+                                    level = when (it.level) {
+                                        com.mizan.money.advisor.Level.DANGER -> "danger"
+                                        com.mizan.money.advisor.Level.WARN -> "warn"
+                                        com.mizan.money.advisor.Level.GOOD -> "good"
+                                        else -> "info"
+                                    }
+                                )
+                            }
+                            val categoryMap = mapOf(
+                                "طعام وشراب" to ctx.getString(R.string.cat_food),
+                                "بقالة" to ctx.getString(R.string.cat_groceries),
+                                "مواصلات" to ctx.getString(R.string.cat_transport),
+                                "وقود" to ctx.getString(R.string.cat_fuel),
+                                "تسوق" to ctx.getString(R.string.cat_shopping),
+                                "فواتير" to ctx.getString(R.string.cat_bills),
+                                "اتصالات" to ctx.getString(R.string.cat_telecom),
+                                "صحة" to ctx.getString(R.string.cat_health),
+                                "ترفيه" to ctx.getString(R.string.cat_entertainment),
+                                "اشتراكات" to ctx.getString(R.string.cat_subscriptions),
+                                "تعليم" to ctx.getString(R.string.cat_education),
+                                "تحويلات" to ctx.getString(R.string.cat_transfers),
+                                CASH_WITHDRAWAL_CATEGORY to ctx.getString(R.string.cat_cash),
+                                SELF_TRANSFER_CATEGORY to ctx.getString(R.string.cat_self_transfer),
+                                "أخرى" to ctx.getString(R.string.cat_other),
+                            )
+                            val labels = PdfLabels(
+                                reportTitle = ctx.getString(R.string.pdf_report_title),
+                                netLabel = ctx.getString(R.string.pdf_net_label),
+                                incomeLabel = ctx.getString(R.string.dash_total_income),
+                                spendingLabel = ctx.getString(R.string.dash_total_spend),
+                                savingsRateLabel = ctx.getString(R.string.pdf_savings_rate),
+                                budgetUsageLabel = ctx.getString(R.string.pdf_budget_usage),
+                                budgetSpentOf = ctx.getString(R.string.pdf_budget_spent_of),
+                                compareLabel = ctx.getString(R.string.reports_comparison_title),
+                                thisMonthLabel = ctx.getString(R.string.reports_this_month),
+                                lastMonthLabel = ctx.getString(R.string.reports_last_month),
+                                higherFormat = ctx.getString(R.string.pdf_higher_fmt),
+                                lowerFormat = ctx.getString(R.string.pdf_lower_fmt),
+                                insightsTitle = ctx.getString(R.string.pdf_insights_title),
+                                categoriesTitle = ctx.getString(R.string.pdf_categories_title),
+                                noLimitLabel = ctx.getString(R.string.pdf_no_limit),
+                                overLimitFormat = ctx.getString(R.string.pdf_over_limit_fmt),
+                                remainingFormat = ctx.getString(R.string.pdf_remaining_fmt),
+                                topTransactionsTitle = ctx.getString(R.string.pdf_top_tx_title),
+                                allTransactionsTitle = ctx.getString(R.string.pdf_all_tx_title),
+                                pageLabelFormat = ctx.getString(R.string.pdf_page_fmt),
+                                generatedBy = ctx.getString(R.string.pdf_generated_by),
+                                currencyLabel = ctx.getString(R.string.currency_sar),
+                            )
+                            val file = writePdfReport(
+                                ctx = ctx,
+                                monthLabel = capturedLabel,
+                                summary = capturedSummary,
+                                prevSummary = capturedPrev,
+                                budget = capturedBudget,
+                                transactions = monthTxs,
+                                advice = resolvedAdvice,
+                                categoryNames = categoryMap,
+                                labels = labels,
+                            )
                             withContext(Dispatchers.Main) {
                                 shareExportFile(ctx, file, "application/pdf", shareChooserTitle)
                                 exporting = false
@@ -251,7 +323,6 @@ private fun TrendChart(points: List<Triple<String, Double, Double>>) {
 @Composable
 private fun CategoryDonut(categories: List<CategoryTotal>) {
     val total = categories.sumOf { it.amount }.coerceAtLeast(0.01)
-    // Resolve per-slice colors at @Composable scope, then pass into the draw lambda.
     val sliceColors = categories.map { catColor(it.category) }
     Canvas(Modifier.size(112.dp)) {
         var startAngle = -90f
@@ -274,7 +345,7 @@ private fun ComparisonColumn(label: String, amount: Double, modifier: Modifier =
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, style = Eyebrow)
         Spacer(Modifier.height(6.dp))
-        Text("${FinancialAdvisor.fmt(amount)} ${currencyLabel("SAR")}", style = NumBold.copy(fontSize = 16.sp))
+        Text("${FinancialAdvisor.fmt(amount)} ر.س", style = NumBold.copy(fontSize = 16.sp))
     }
 }
 
@@ -304,9 +375,8 @@ private fun LegendDot(color: Color, label: String) {
     }
 }
 
-// Non-composable so it can be safely called from inside remember{} lambdas.
-private fun monthShortLabel(offset: Int, startDay: Int, locale: Locale): String {
-    val c = Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
-    val symbols = DateFormatSymbols(locale)
-    return symbols.shortMonths[c.get(Calendar.MONTH)]
+private fun monthShortLabel(offset: Int, startDay: Int): String {
+    val c = java.util.Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
+    val names = listOf("ينا", "فبر", "مار", "أبر", "ماي", "يون", "يول", "أغس", "سبت", "أكت", "نوف", "ديس")
+    return names[c.get(java.util.Calendar.MONTH)]
 }
