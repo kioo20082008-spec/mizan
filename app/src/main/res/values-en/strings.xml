@@ -201,4 +201,125 @@
     <string name="reports_export_pdf">PDF</string>
     <string name="reports_share_chooser">Share report</string>
     <string name="reports_percent_fmt">%1$d%%</string>
+
+    <!-- Category display names -->
+    <string name="cat_food">Food &amp; Drink</string>
+    <string name="cat_groceries">Groceries</string>
+    <string name="cat_transport">Transport</string>
+    <string name="cat_fuel">Fuel</string>
+    <string name="cat_shopping">Shopping</string>
+    <string name="cat_bills">Bills</string>
+    <string name="cat_telecom">Telecom</string>
+    <string name="cat_health">Health</string>
+    <string name="cat_entertainment">Entertainment</string>
+    <string name="cat_subscriptions">Subscriptions</string>
+    <string name="cat_education">Education</string>
+    <string name="cat_transfers">Transfers</string>
+    <string name="cat_cash">Cash Withdrawal</string>
+    <string name="cat_self_transfer">Self Transfer</string>
+    <string name="cat_other">Other</string>
+
+    <!-- Currencies -->
+    <string name="currency_sar">SAR</string>
+    <string name="currency_usd">$</string>
+    <string name="currency_eur">€</string>
+    <string name="currency_aed">AED</string>
+
+    <!-- Months -->
+    <string name="month_jan">January</string>
+    <string name="month_feb">February</string>
+    <string name="month_mar">March</string>
+    <string name="month_apr">April</string>
+    <string name="month_may">May</string>
+    <string name="month_jun">June</string>
+    <string name="month_jul">July</string>
+    <string name="month_aug">August</string>
+    <string name="month_sep">September</string>
+    <string name="month_oct">October</string>
+    <string name="month_nov">November</string>
+    <string name="month_dec">December</string>
+
+    <string name="month_short_jan">Jan</string>
+    <string name="month_short_feb">Feb</string>
+    <string name="month_short_mar">Mar</string>
+    <string name="month_short_apr">Apr</string>
+    <string name="month_short_may">May</string>
+    <string name="month_short_jun">Jun</string>
+    <string name="month_short_jul">Jul</string>
+    <string name="month_short_aug">Aug</string>
+    <string name="month_short_sep">Sep</string>
+    <string name="month_short_oct">Oct</string>
+    <string name="month_short_nov">Nov</string>
+    <string name="month_short_dec">Dec</string>
+
+    <!-- ================== BUDGET SCREEN ================== -->
+    <string name="budget_title">Planning</string>
+    <string name="budget_tab_budget">Budget</string>
+    <string name="budget_tab_goals">Goals</string>
+    <string name="budget_tab_debts">Debts</string>
+
+    <string name="budget_screen_title">Budget &amp; categories — %1$s</string>
+    <string name="budget_screen_subtitle">Track your spending against your limits</string>
+    <string name="budget_copy_prev">Copy last month\'s budget</string>
+    <string name="budget_total_label">Monthly total budget</string>
+    <string name="budget_limit_hint">Monthly limit</string>
+    <string name="budget_save">Save</string>
+    <string name="budget_per_category">Budget per category</string>
+    <string name="budget_add_cat">+ Category</string>
+    <string name="budget_cancel_add">Cancel</string>
+    <string name="budget_new_cat_hint">Category name</string>
+    <string name="budget_add_action">Add</string>
+    <string name="budget_no_limit">%1$s SAR — no limit</string>
+    <string name="budget_with_rollover">%1$s / %2$s SAR  (+%3$s rolled over)</string>
+    <string name="budget_plain">%1$s / %2$s SAR</string>
+    <string name="budget_rollover_switch_title">Roll over last month\'s surplus</string>
+    <string name="budget_rollover_switch_desc">Any unspent amount from last month\'s limit is added to this month</string>
+    <string name="budget_save_action">Save</string>
+    <string name="budget_delete_cat">Delete %1$s</string>
+
+    <!-- Goals -->
+    <string name="goals_title">Savings goals</string>
+    <string name="goals_subtitle">Save for a specific goal, step by step</string>
+    <string name="goals_add">New goal</string>
+    <string name="goals_empty">No goals yet — add your first savings goal</string>
+    <string name="goals_progress">%1$s / %2$s SAR</string>
+    <string name="goals_until"> • until %1$s</string>
+    <string name="goals_reached">Goal reached 🎉</string>
+    <string name="goals_percent">%1$d%% of goal</string>
+    <string name="goals_add_money">+ Add amount</string>
+    <string name="goals_delete">Delete</string>
+    <string name="goals_add_title">New savings goal</string>
+    <string name="goals_name_hint">Goal name (e.g., Trip, Car)</string>
+    <string name="goals_target_hint">Target amount (%1$s)</string>
+    <string name="goals_months_hint">In how many months? (optional)</string>
+    <string name="goals_confirm_delete_title">Delete goal \"%1$s\"?</string>
+    <string name="goals_confirm_delete_desc">This action cannot be undone.</string>
+    <string name="goals_contribute_title">Add amount to \"%1$s\"</string>
+
+    <!-- Debts -->
+    <string name="debts_title">Debts &amp; installments</string>
+    <string name="debts_subtitle">Track your installments and debts in one place</string>
+    <string name="debts_add">New debt</string>
+    <string name="debts_empty">No tracked debts yet</string>
+    <string name="debts_settled">Fully settled ✅</string>
+    <string name="debts_remaining_fmt">Remaining %1$s of %2$s SAR</string>
+    <string name="debts_next_fmt"> • Installment %1$s</string>
+    <string name="debts_pay">Log payment</string>
+    <string name="debts_type_loan">Loan</string>
+    <string name="debts_type_bnpl">BNPL (Tabby/Tamara)</string>
+    <string name="debts_type_credit">Credit card</string>
+    <string name="debts_type_other">Other</string>
+    <string name="debts_add_title">New debt or installment</string>
+    <string name="debts_name_hint">Name (e.g., Tabby, Car loan)</string>
+    <string name="debts_total_hint">Total amount (%1$s)</string>
+    <string name="debts_remaining_hint">Remaining now (%1$s)</string>
+    <string name="debts_installment_hint">Installment amount (optional)</string>
+    <string name="debts_days_hint">Next installment in how many days? (optional)</string>
+    <string name="debts_confirm_delete_title">Stop tracking \"%1$s\"?</string>
+    <string name="debts_confirm_delete_desc">This action cannot be undone.</string>
+    <string name="debts_pay_title">Log payment for \"%1$s\"</string>
+    <string name="debts_suggest_title">We noticed recurring \"%1$s\" charges</string>
+    <string name="debts_suggest_desc">Track as an installment? (~%1$s SAR)</string>
+    <string name="debts_suggest_track">Track</string>
+    <string name="debts_suggest_dismiss">Dismiss</string>
 </resources>

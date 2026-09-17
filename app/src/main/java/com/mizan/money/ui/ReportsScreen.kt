@@ -139,7 +139,7 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(Modifier.size(8.dp).clip(RoundedCornerShape(Pill)).background(catColor(c.category)))
                                     Spacer(Modifier.width(6.dp))
-                                    Text(c.category, style = Eyebrow.copy(fontSize = 10.sp), modifier = Modifier.weight(1f), maxLines = 1)
+                                    Text(categoryDisplay(c.category), style = Eyebrow.copy(fontSize = 10.sp), modifier = Modifier.weight(1f), maxLines = 1)
                                     Text(
                                         stringResource(R.string.reports_percent_fmt, (c.share * 100).toInt()),
                                         style = Eyebrow.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold)

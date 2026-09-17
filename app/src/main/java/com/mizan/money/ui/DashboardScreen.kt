@@ -317,7 +317,7 @@ private fun CategoryChip(cat: com.mizan.money.advisor.CategoryTotal, onClick: ()
     ) {
         IconBadge(catIcon(cat.category), catColor(cat.category), catColorSoft(cat.category), size = 40.dp, iconSize = 18.dp)
         Spacer(Modifier.height(10.dp))
-        Text(cat.category, style = H2.copy(fontSize = 13.sp), maxLines = 1)
+        Text(categoryDisplay(cat.category), style = H2.copy(fontSize = 13.sp), maxLines = 1)
         Spacer(Modifier.height(2.dp))
         Text(FinancialAdvisor.fmt(cat.amount) + " " + currencyLabel("SAR"), style = NumBold.copy(fontSize = 12.sp))
         Spacer(Modifier.height(8.dp))

@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -24,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
 import com.mizan.money.data.SELF_TRANSFER_CATEGORY
@@ -167,7 +169,7 @@ fun TransactionCard(tx: TransactionEntity, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(tx.merchant ?: "غير معروف", style = H2.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(2.dp))
-                Text("${tx.category} • ${Dates.dayLabel(tx.timestamp)}", style = Eyebrow.copy(fontSize = 11.sp))
+                Text("${categoryDisplay(tx.category)} • ${Dates.dayLabel(tx.timestamp)}", style = Eyebrow.copy(fontSize = 11.sp))
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
@@ -181,6 +183,27 @@ fun TransactionCard(tx: TransactionEntity, onClick: () -> Unit) {
 }
 
 // ============ FORMATTING HELPERS ============
+// Maps the Arabic category key (stored in the DB) to a display name in the
+// user's chosen locale. The Arabic key itself never changes — it stays the
+// join point between parser rules, budgets, and stored transactions.
+
+fun categoryDisplay(cat: String): String = when (cat) {
+    "طعام وشراب" -> stringResource(R.string.cat_food)
+    "بقالة" -> stringResource(R.string.cat_groceries)
+    "مواصلات" -> stringResource(R.string.cat_transport)
+    "وقود" -> stringResource(R.string.cat_fuel)
+    "تسوق" -> stringResource(R.string.cat_shopping)
+    "فواتير" -> stringResource(R.string.cat_bills)
+    "اتصالات" -> stringResource(R.string.cat_telecom)
+    "صحة" -> stringResource(R.string.cat_health)
+    "ترفيه" -> stringResource(R.string.cat_entertainment)
+    "اشتراكات" -> stringResource(R.string.cat_subscriptions)
+    "تعليم" -> stringResource(R.string.cat_education)
+    "تحويلات" -> stringResource(R.string.cat_transfers)
+    CASH_WITHDRAWAL_CATEGORY -> stringResource(R.string.cat_cash)
+    SELF_TRANSFER_CATEGORY -> stringResource(R.string.cat_self_transfer)
+    else -> cat
+}
 // Category colors are semantic (health=red, groceries=green) and are designed
 // to read clearly on both light and dark backgrounds, so they stay fixed
 // rather than being swapped per theme.
@@ -206,6 +229,7 @@ fun catColor(cat: String): Color = when (cat) {
 @Composable
 fun catColorSoft(cat: String): Color = catColor(cat).copy(alpha = 0.12f)
 
+@Composable
 fun currencyLabel(code: String): String = when (code) {
     "SAR" -> "ر.س"
     "USD" -> "$"
