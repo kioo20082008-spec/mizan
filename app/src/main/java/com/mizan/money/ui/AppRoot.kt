@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -34,6 +35,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.LayoutDirection
@@ -45,16 +47,22 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mizan.money.MoneyApp
+import com.mizan.money.R
+import com.mizan.money.ui.theme.LanguageMode
+import com.mizan.money.ui.theme.LanguagePreference
 import com.mizan.money.ui.theme.ProvideMizanTheme
 import com.mizan.money.ui.theme.ThemeMode
 import com.mizan.money.ui.theme.ThemePreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 // ============ ENTRY ============
 @Composable
 fun AppRoot() {
+    // Capture the ORIGINAL context (before localization) so app-scoped casts
+    // and launchers keep working against the real application context.
     val ctx = LocalContext.current
     val app = ctx.applicationContext as MoneyApp
     val vm: MainViewModel = viewModel(factory = MainViewModel.factory(app, app.repository))
@@ -62,15 +70,31 @@ fun AppRoot() {
     var scanned by remember { mutableStateOf(vm.hasCompletedInitialScan()) }
     var permissionAttempted by remember { mutableStateOf(false) }
 
-    // Theme preference is persisted in the same "mizan_prefs" file the rest of
-    // the app already uses. SYSTEM delegates to the OS; LIGHT/DARK force the
-    // app regardless of what the OS thinks.
+    // Theme preference.
     var themeMode by remember { mutableStateOf(ThemePreference.load(ctx)) }
     val isDark = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
+
+    // Language preference.
+    var languageMode by remember { mutableStateOf(LanguagePreference.load(ctx)) }
+
+    // Localized context: needed for stringResource() to resolve strings against
+    // the chosen locale. We preserve the original uiMode (dark/light) by only
+    // overriding the locale on a copy of the current Configuration.
+    val localizedCtx = remember(languageMode, ctx) {
+        val locale = when (languageMode) {
+            LanguageMode.ARABIC -> Locale.forLanguageTag("ar")
+            LanguageMode.ENGLISH -> Locale.forLanguageTag("en")
+            LanguageMode.SYSTEM -> Locale.getDefault()
+        }
+        val baseConfig = Configuration(ctx.resources.configuration)
+        baseConfig.setLocale(locale)
+        ctx.createConfigurationContext(baseConfig)
+    }
+    val layoutDir = if (languageMode == LanguageMode.ENGLISH) LayoutDirection.Ltr else LayoutDirection.Rtl
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -93,37 +117,40 @@ fun AppRoot() {
         }
     }
 
-    ProvideMizanTheme(isDark = isDark) {
-        MaterialTheme(
-            colorScheme = if (isDark) darkColorScheme(
-                background = Paper,
-                surface = White,
-                surfaceVariant = PaperOuter,
-                surfaceTint = Color.Transparent,
-                primary = Indigo,
-                onPrimary = Color.White,
-                onBackground = Ink,
-                onSurface = Ink,
-                onSurfaceVariant = InkSoft,
-                error = Danger,
-                onError = Color.White,
-                outline = Line,
-            ) else lightColorScheme(
-                background = Paper,
-                surface = White,
-                surfaceVariant = PaperOuter,
-                surfaceTint = Color.Transparent,
-                primary = Indigo,
-                onPrimary = Color.White,
-                onBackground = Ink,
-                onSurface = Ink,
-                onSurfaceVariant = InkSoft,
-                error = Danger,
-                onError = Color.White,
-                outline = Line,
-            )
-        ) {
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    CompositionLocalProvider(
+        LocalContext provides localizedCtx,
+        LocalLayoutDirection provides layoutDir
+    ) {
+        ProvideMizanTheme(isDark = isDark) {
+            MaterialTheme(
+                colorScheme = if (isDark) darkColorScheme(
+                    background = Paper,
+                    surface = White,
+                    surfaceVariant = PaperOuter,
+                    surfaceTint = Color.Transparent,
+                    primary = Indigo,
+                    onPrimary = Color.White,
+                    onBackground = Ink,
+                    onSurface = Ink,
+                    onSurfaceVariant = InkSoft,
+                    error = Danger,
+                    onError = Color.White,
+                    outline = Line,
+                ) else lightColorScheme(
+                    background = Paper,
+                    surface = White,
+                    surfaceVariant = PaperOuter,
+                    surfaceTint = Color.Transparent,
+                    primary = Indigo,
+                    onPrimary = Color.White,
+                    onBackground = Ink,
+                    onSurface = Ink,
+                    onSurfaceVariant = InkSoft,
+                    error = Danger,
+                    onError = Color.White,
+                    outline = Line,
+                )
+            ) {
                 Surface(Modifier.fillMaxSize(), color = PaperOuter) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                         Surface(
@@ -153,6 +180,11 @@ fun AppRoot() {
                                     onThemeModeChange = { newMode ->
                                         themeMode = newMode
                                         ThemePreference.save(ctx, newMode)
+                                    },
+                                    languageMode = languageMode,
+                                    onLanguageModeChange = { newMode ->
+                                        languageMode = newMode
+                                        LanguagePreference.save(ctx, newMode)
                                     }
                                 )
                             }
@@ -177,7 +209,9 @@ private fun checkReceiveSms(ctx: Context) =
 private fun RootScaffold(
     vm: MainViewModel,
     themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit
+    onThemeModeChange: (ThemeMode) -> Unit,
+    languageMode: LanguageMode,
+    onLanguageModeChange: (LanguageMode) -> Unit
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
@@ -198,7 +232,7 @@ private fun RootScaffold(
                     Icon(Icons.Default.Info, null, Modifier.size(14.dp), tint = Amber)
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        "إذن استقبال الرسائل غير ممنوح — أعد المسح يدوياً من الإعدادات بعد كل عملية جديدة",
+                        stringResource(R.string.receive_sms_warning),
                         style = Eyebrow.copy(fontSize = 10.sp, color = Amber)
                     )
                 }
@@ -225,6 +259,8 @@ private fun RootScaffold(
             vm = vm,
             themeMode = themeMode,
             onThemeModeChange = onThemeModeChange,
+            languageMode = languageMode,
+            onLanguageModeChange = onLanguageModeChange,
             onDismiss = { showSettings = false },
             onRescan = { vm.scanInbox(); showSettings = false }
         )
@@ -240,8 +276,8 @@ private fun AppHeader(onSettingsClick: () -> Unit) {
         IconBadge(Icons.Default.Savings, Lime, Ink900, size = 46.dp, radius = RadiusSm)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text("أهلاً بك 👋", style = Eyebrow)
-            Text("ميزان", style = H1)
+            Text(stringResource(R.string.header_greeting), style = Eyebrow)
+            Text(stringResource(R.string.app_name), style = H1)
         }
         Box(
             Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(White)
@@ -249,7 +285,7 @@ private fun AppHeader(onSettingsClick: () -> Unit) {
                 .clickable(onClick = onSettingsClick),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Outlined.Settings, "الإعدادات", Modifier.size(20.dp), tint = InkSoft)
+            Icon(Icons.Outlined.Settings, stringResource(R.string.header_settings), Modifier.size(20.dp), tint = InkSoft)
         }
     }
 }
@@ -259,6 +295,8 @@ private fun SettingsDialog(
     vm: MainViewModel,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
+    languageMode: LanguageMode,
+    onLanguageModeChange: (LanguageMode) -> Unit,
     onDismiss: () -> Unit,
     onRescan: () -> Unit
 ) {
@@ -313,7 +351,7 @@ private fun SettingsDialog(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
-        title = { Text("الإعدادات", style = H2) },
+        title = { Text(stringResource(R.string.settings_title), style = H2) },
         text = {
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                 Row(
@@ -350,6 +388,47 @@ private fun SettingsDialog(
                             if (txs.isEmpty()) "لا توجد عمليات بعد" else "شارك ملف نصي بكل العمليات ورسائلها الأصلية",
                             style = Eyebrow.copy(fontSize = 11.sp)
                         )
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                Spacer(Modifier.height(18.dp))
+
+                // ============ LANGUAGE ============
+                Text(stringResource(R.string.settings_language), style = Body.copy(fontWeight = FontWeight.Bold))
+                Spacer(Modifier.height(4.dp))
+                Text(stringResource(R.string.settings_language_desc), style = Eyebrow)
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(RadiusMd))
+                        .background(PaperOuter)
+                        .padding(4.dp)
+                ) {
+                    val options = listOf(
+                        LanguageMode.SYSTEM to stringResource(R.string.settings_language_system),
+                        LanguageMode.ARABIC to stringResource(R.string.settings_language_arabic),
+                        LanguageMode.ENGLISH to stringResource(R.string.settings_language_english),
+                    )
+                    options.forEach { (mode, label) ->
+                        val sel = languageMode == mode
+                        Box(
+                            Modifier.weight(1f)
+                                .clip(RoundedCornerShape(RadiusSm))
+                                .background(if (sel) White else Color.Transparent)
+                                .clickable { onLanguageModeChange(mode) }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                label,
+                                style = Body.copy(
+                                    fontSize = 13.sp,
+                                    color = if (sel) Indigo else InkSoft,
+                                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium
+                                )
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.height(18.dp))
@@ -500,13 +579,13 @@ private fun SettingsDialog(
                 Spacer(Modifier.height(18.dp))
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
-                Text("ميزان", style = Body.copy(fontWeight = FontWeight.Bold))
+                Text(stringResource(R.string.app_name), style = Body.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.height(4.dp))
                 Text("جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي إلا إذا اخترت تصديرها ومشاركتها بنفسك.", style = Eyebrow)
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("إغلاق", style = Body.copy(color = InkSoft)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), style = Body.copy(color = InkSoft)) }
         }
     )
 }
@@ -515,10 +594,10 @@ private fun SettingsDialog(
 @Composable
 private fun BottomNav(selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
     val items = listOf(
-        Triple("الرئيسية",  Icons.Filled.Home,        0),
-        Triple("العمليات",  Icons.Filled.ReceiptLong, 1),
-        Triple("التخطيط",   Icons.Filled.AccountBalanceWallet, 2),
-        Triple("المستشار",  Icons.Filled.PieChart,    3)
+        Triple(stringResource(R.string.nav_home),         Icons.Filled.Home,                     0),
+        Triple(stringResource(R.string.nav_transactions), Icons.Filled.ReceiptLong,              1),
+        Triple(stringResource(R.string.nav_planning),     Icons.Filled.AccountBalanceWallet,     2),
+        Triple(stringResource(R.string.nav_advisor),      Icons.Filled.PieChart,                 3)
     )
     Box(modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)) {
         BoxWithConstraints(

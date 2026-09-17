@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mizan</string>
+
+    <!-- Permission screen -->
+    <string name="permission_tagline">Finance with full privacy</string>
+    <string name="permission_read_title">Read your bank messages</string>
+    <string name="permission_read_desc">To categorize your spending automatically</string>
+    <string name="permission_analyze_title">Analyze your habits</string>
+    <string name="permission_analyze_desc">See your spending patterns clearly</string>
+    <string name="permission_privacy_title">Privacy first</string>
+    <string name="permission_privacy_desc">Data stays on your device</string>
+    <string name="permission_start">Get started</string>
+    <string name="permission_settings_link">Didn\'t see the permission prompt? Open app settings and grant it manually.</string>
+
+    <!-- Scanning (first-run) -->
+    <string name="scanning_title">Analyzing your bank messages…</string>
+    <string name="scanning_desc">We\'re scanning for purchases and transfers to build your financial dashboard. This may take a few moments.</string>
+
+    <!-- Header -->
+    <string name="header_greeting">Welcome 👋</string>
+    <string name="header_settings">Settings</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_transactions">Transactions</string>
+    <string name="nav_planning">Planning</string>
+    <string name="nav_advisor">Advisor</string>
+
+    <!-- Receive-SMS warning banner -->
+    <string name="receive_sms_warning">SMS receive permission not granted — manually rescan from Settings after each new transaction.</string>
+
+    <!-- Settings (partial) -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_desc">Choose the app language.</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_language_arabic">العربية</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_close">Close</string>
+</resources>

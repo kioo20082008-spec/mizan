@@ -16,10 +16,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mizan.money.R
 
 @Composable
 fun PermissionScreen(showSettingsLink: Boolean, onGrant: () -> Unit, onOpenSettings: () -> Unit) {
@@ -40,9 +42,9 @@ fun PermissionScreen(showSettingsLink: Boolean, onGrant: () -> Unit, onOpenSetti
         }
 
         Spacer(Modifier.height(22.dp))
-        Text("ميزان", style = H1.copy(fontSize = 34.sp, fontWeight = FontWeight.Black))
+        Text(stringResource(R.string.app_name), style = H1.copy(fontSize = 34.sp, fontWeight = FontWeight.Black))
         Spacer(Modifier.height(6.dp))
-        Text("إدارة مالية بخصوصية تامة", style = BodyMuted)
+        Text(stringResource(R.string.permission_tagline), style = BodyMuted)
 
         Spacer(Modifier.height(44.dp))
 
@@ -54,11 +56,23 @@ fun PermissionScreen(showSettingsLink: Boolean, onGrant: () -> Unit, onOpenSetti
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            TrustPoint(Icons.Default.MarkEmailRead, Indigo, "اقرأ رسائل بنكك", "لتصنيف مصاريفك تلقائياً")
+            TrustPoint(
+                Icons.Default.MarkEmailRead, Indigo,
+                stringResource(R.string.permission_read_title),
+                stringResource(R.string.permission_read_desc)
+            )
             Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
-            TrustPoint(Icons.Default.Insights, Amber, "حلّل عاداتك", "اعرض أنماط صرفك بوضوح")
+            TrustPoint(
+                Icons.Default.Insights, Amber,
+                stringResource(R.string.permission_analyze_title),
+                stringResource(R.string.permission_analyze_desc)
+            )
             Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
-            TrustPoint(Icons.Default.Lock, Purple, "خصوصيتك أولاً", "البيانات على جهازك فقط")
+            TrustPoint(
+                Icons.Default.Lock, Purple,
+                stringResource(R.string.permission_privacy_title),
+                stringResource(R.string.permission_privacy_desc)
+            )
         }
 
         Spacer(Modifier.weight(1f))
@@ -70,7 +84,7 @@ fun PermissionScreen(showSettingsLink: Boolean, onGrant: () -> Unit, onOpenSetti
             shape = RoundedCornerShape(RadiusMd),
             colors = ButtonDefaults.buttonColors(containerColor = Ink900, contentColor = Lime)
         ) {
-            Text("ابدأ الآن", style = Body.copy(color = Lime, fontWeight = FontWeight.Bold, fontSize = 16.sp))
+            Text(stringResource(R.string.permission_start), style = Body.copy(color = Lime, fontWeight = FontWeight.Bold, fontSize = 16.sp))
             Spacer(Modifier.width(8.dp))
             Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(16.dp), tint = Lime)
         }
@@ -78,7 +92,7 @@ fun PermissionScreen(showSettingsLink: Boolean, onGrant: () -> Unit, onOpenSetti
         if (showSettingsLink) {
             Spacer(Modifier.height(14.dp))
             Text(
-                "ما ظهر لك طلب الصلاحية؟ افتح إعدادات التطبيق ومنحها يدوياً",
+                stringResource(R.string.permission_settings_link),
                 style = Eyebrow.copy(color = Indigo, fontSize = 12.sp),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenSettings).padding(8.dp)
@@ -87,8 +101,6 @@ fun PermissionScreen(showSettingsLink: Boolean, onGrant: () -> Unit, onOpenSetti
     }
 }
 
-// Shown once, right after the user grants SMS access, while the first scan
-// runs — so the first thing a new user sees isn't an empty dashboard.
 @Composable
 fun ScanningScreen() {
     Column(
@@ -107,13 +119,13 @@ fun ScanningScreen() {
         }
         Spacer(Modifier.height(28.dp))
         Text(
-            "جاري تحليل رسائلك المصرفية...",
+            stringResource(R.string.scanning_title),
             style = H1.copy(fontSize = 20.sp),
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "نبحث عن عمليات الشراء والتحويلات لنجهز لك لوحة مالية دقيقة. قد يستغرق هذا بضع لحظات.",
+            stringResource(R.string.scanning_desc),
             style = BodyMuted,
             textAlign = TextAlign.Center
         )

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ميزان</string>
+
+    <!-- Permission screen -->
+    <string name="permission_tagline">إدارة مالية بخصوصية تامة</string>
+    <string name="permission_read_title">اقرأ رسائل بنكك</string>
+    <string name="permission_read_desc">لتصنيف مصاريفك تلقائياً</string>
+    <string name="permission_analyze_title">حلّل عاداتك</string>
+    <string name="permission_analyze_desc">اعرض أنماط صرفك بوضوح</string>
+    <string name="permission_privacy_title">خصوصيتك أولاً</string>
+    <string name="permission_privacy_desc">البيانات على جهازك فقط</string>
+    <string name="permission_start">ابدأ الآن</string>
+    <string name="permission_settings_link">ما ظهر لك طلب الصلاحية؟ افتح إعدادات التطبيق ومنحها يدوياً</string>
+
+    <!-- Scanning (first-run) -->
+    <string name="scanning_title">جاري تحليل رسائلك المصرفية…</string>
+    <string name="scanning_desc">نبحث عن عمليات الشراء والتحويلات لنجهز لك لوحة مالية دقيقة. قد يستغرق هذا بضع لحظات.</string>
+
+    <!-- Header -->
+    <string name="header_greeting">أهلاً بك 👋</string>
+    <string name="header_settings">الإعدادات</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_transactions">العمليات</string>
+    <string name="nav_planning">التخطيط</string>
+    <string name="nav_advisor">المستشار</string>
+
+    <!-- Receive-SMS warning banner -->
+    <string name="receive_sms_warning">إذن استقبال الرسائل غير ممنوح — أعد المسح يدوياً من الإعدادات بعد كل عملية جديدة</string>
+
+    <!-- Settings (partial — rest is converted in later stages) -->
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_language">اللغة</string>
+    <string name="settings_language_desc">اختر لغة التطبيق.</string>
+    <string name="settings_language_system">النظام</string>
+    <string name="settings_language_arabic">العربية</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_close">إغلاق</string>
+</resources>
