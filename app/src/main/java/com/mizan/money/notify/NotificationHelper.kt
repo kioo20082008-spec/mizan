@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.mizan.money.MainActivity
 import com.mizan.money.R
+import com.mizan.money.ui.theme.localizedContext
 
 // Two channels — one per notification "reason" — so a user who only cares about
 // budget alerts can silence bill reminders from system settings without losing
@@ -21,14 +22,18 @@ object NotificationHelper {
     fun ensureChannels(ctx: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
+        // Channel names/descriptions are read from the user's chosen app
+        // language, not the system locale, so an English user doesn't see
+        // Arabic channel labels in system settings.
+        val lctx = localizedContext(ctx)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_BUDGET, "تنبيهات الميزانية", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "تنبيه عند اقترابك أو تجاوزك حد ميزانيتك الشهرية"
+            NotificationChannel(CHANNEL_BUDGET, lctx.getString(R.string.notif_channel_budget_name), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = lctx.getString(R.string.notif_channel_budget_desc)
             }
         )
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_BILLS, "تذكير الفواتير", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "تذكير قبل موعد فاتورة أو اشتراك متكرر بأيام قليلة"
+            NotificationChannel(CHANNEL_BILLS, lctx.getString(R.string.notif_channel_bills_name), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = lctx.getString(R.string.notif_channel_bills_desc)
             }
         )
     }

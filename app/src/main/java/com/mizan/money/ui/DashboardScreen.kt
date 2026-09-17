@@ -46,17 +46,18 @@ fun DashboardScreen(
     val manualSalary by vm.manualSalary.collectAsState()
     val startDay by vm.monthStartDay.collectAsState()
     val budgets by vm.budgets.collectAsState()
+    val rates by vm.exchangeRates.collectAsState()
     val recurringItems by vm.recurringItems.collectAsState()
     val upcomingBills = remember(recurringItems) { upcomingBillsWithinDays(recurringItems, 5) }
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
-    val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
+    val summary = remember(txs, offset, startDay, rates) { FinancialAdvisor.summarize(txs, range.first, range.last, rates) }
     val monthKey = remember(offset, startDay) { Dates.monthKey(offset, startDay) }
     val manualBudget = remember(budgets, monthKey) {
         budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }?.limitAmount?.takeIf { it > 0 }
     }
-    val planningIncome = remember(summary, txs, manualSalary, manualBudget) {
-        manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0)
+    val planningIncome = remember(summary, txs, manualSalary, manualBudget, rates) {
+        manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary, rates) ?: 0.0)
     }
     val monthTxs = remember(txs, range) { txs.filter { it.timestamp in range } }
 

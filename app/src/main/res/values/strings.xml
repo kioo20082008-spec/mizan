@@ -413,4 +413,23 @@
     <string name="widget_usage_label">استهلاك دخل الشهر</string>
     <string name="widget_spent_fmt">صرفت: %1$s %2$s</string>
     <string name="widget_no_data">لا توجد بيانات — افتح ميزان</string>
+
+    <!-- Exchange rates (Settings) -->
+    <string name="stg_rates_label">أسعار الصرف</string>
+    <string name="stg_rates_desc">تُستخدم لتحويل العمليات بالعملات الأجنبية إلى الريال لتُحتسب في الميزانية والمستشار. عدّلها إذا تغيّر السعر.</string>
+    <string name="stg_rate_fmt">1 %1$s =</string>
+    <string name="stg_rate_unit">ر.س</string>
+
+    <!-- Notifications -->
+    <string name="notif_budget_over_title">تجاوزت ميزانيتك ⚠️</string>
+    <string name="notif_budget_near_title">اقتربت من حد ميزانيتك 🟠</string>
+    <string name="notif_budget_body_fmt">صرفت %1$s من أصل %2$s ر.س (%3$d٪).</string>
+    <string name="notif_bill_title">فاتورة قربت 🔔</string>
+    <string name="notif_bill_body_fmt">متوقع دفع «%1$s» (~%2$s ر.س) %3$s.</string>
+    <string name="notif_bill_today">اليوم</string>
+    <string name="notif_bill_in_days_fmt">خلال %1$d يوم</string>
+    <string name="notif_channel_budget_name">تنبيهات الميزانية</string>
+    <string name="notif_channel_budget_desc">تنبيه عند اقترابك أو تجاوزك حد ميزانيتك الشهرية</string>
+    <string name="notif_channel_bills_name">تذكير الفواتير</string>
+    <string name="notif_channel_bills_desc">تذكير قبل موعد فاتورة أو اشتراك متكرر بأيام قليلة</string>
 </resources>

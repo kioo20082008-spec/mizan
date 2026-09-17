@@ -35,8 +35,9 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
     val startDay by vm.monthStartDay.collectAsState()
     val monthKey = Dates.monthKey(offset, startDay)
     val txs by vm.transactions.collectAsState()
+    val rates by vm.exchangeRates.collectAsState()
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
-    val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
+    val summary = remember(txs, offset, startDay, rates) { FinancialAdvisor.summarize(txs, range.first, range.last, rates) }
 
     fun Double.toBudgetInput() = if (this % 1.0 == 0.0) toInt().toString() else toString()
 
@@ -69,8 +70,8 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
 
     val prevMonthKey = Dates.monthKey(offset - 1, startDay)
     val prevRange = remember(offset, startDay) { Dates.monthRange(offset - 1, startDay) }
-    val prevSpentByCat = remember(txs, offset, startDay) {
-        FinancialAdvisor.summarize(txs, prevRange.first, prevRange.last)
+    val prevSpentByCat = remember(txs, offset, startDay, rates) {
+        FinancialAdvisor.summarize(txs, prevRange.first, prevRange.last, rates)
             .categoryTotals.associate { it.category to it.amount }
     }
     val rolloverByCat = remember(budgets, prevSpentByCat, monthKey, prevMonthKey, categories) {

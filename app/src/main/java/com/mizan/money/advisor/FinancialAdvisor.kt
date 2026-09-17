@@ -2,6 +2,7 @@ package com.mizan.money.advisor
 
 import com.mizan.money.R
 import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
+import com.mizan.money.data.ExchangeRates
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
 import java.util.Calendar
@@ -31,22 +32,32 @@ data class MonthSummary(
 object FinancialAdvisor {
     fun fmt(v: Double): String = String.format(Locale.US, "%,.2f", v)
 
-    fun summarize(txs: List<TransactionEntity>, monthStart: Long, monthEnd: Long): MonthSummary {
+    fun summarize(
+        txs: List<TransactionEntity>,
+        monthStart: Long,
+        monthEnd: Long,
+        rates: Map<String, Double> = ExchangeRates.DEFAULT
+    ): MonthSummary {
+        // Foreign-currency rows are included via their SAR equivalent; only a
+        // currency with no usable rate is skipped (rather than counting its raw
+        // number as SAR, which would badly understate e.g. a USD purchase).
+        fun sar(tx: TransactionEntity): Double = ExchangeRates.toSar(tx.amount, tx.currency, rates) ?: 0.0
         val inMonth = txs.filter {
-            it.timestamp in monthStart..monthEnd && it.currency == "SAR" && !it.isSelfTransfer
+            it.timestamp in monthStart..monthEnd && !it.isSelfTransfer &&
+                ExchangeRates.toSar(it.amount, it.currency, rates) != null
         }
         val expenses = inMonth.filter { it.type == TxType.EXPENSE }
         val incomes = inMonth.filter { it.type == TxType.INCOME }
-        val spent = expenses.sumOf { it.amount }
-        val income = incomes.sumOf { it.amount }
+        val spent = expenses.sumOf { sar(it) }
+        val income = incomes.sumOf { sar(it) }
         val daysPassed = max(1, ((System.currentTimeMillis().coerceAtMost(monthEnd) - monthStart) / 86_400_000L).toInt() + 1)
         val byCat = expenses.groupBy { it.category }
             .map { (cat, list) ->
-                val sum = list.sumOf { it.amount }
+                val sum = list.sumOf { sar(it) }
                 CategoryTotal(cat, sum, if (spent > 0) sum / spent else 0.0)
             }.sortedByDescending { it.amount }
-        val dailyAvgBasis = expenses.filter { !it.excludeFromDailyAvg }.sumOf { it.amount }
-        return MonthSummary(spent, income, income - spent, expenses.size, dailyAvgBasis / daysPassed, byCat, expenses.maxByOrNull { it.amount })
+        val dailyAvgBasis = expenses.filter { !it.excludeFromDailyAvg }.sumOf { sar(it) }
+        return MonthSummary(spent, income, income - spent, expenses.size, dailyAvgBasis / daysPassed, byCat, expenses.maxByOrNull { sar(it) })
     }
 
     fun advise(
@@ -56,7 +67,8 @@ object FinancialAdvisor {
         monthStart: Long,
         monthEnd: Long,
         now: Long = System.currentTimeMillis(),
-        manualSalary: Double = 0.0
+        manualSalary: Double = 0.0,
+        rates: Map<String, Double> = ExchangeRates.DEFAULT
     ): List<Advice> {
         val list = mutableListOf<Advice>()
 
@@ -129,7 +141,7 @@ object FinancialAdvisor {
             )
         }
 
-        val subs = detectSubscriptions(allTx)
+        val subs = detectSubscriptions(allTx, rates)
         if (subs.isNotEmpty()) {
             val total = subs.sumOf { it.second }
             val names = subs.joinToString("، ") { "${it.first} (${fmt(it.second)})" }
@@ -142,11 +154,12 @@ object FinancialAdvisor {
         }
 
         summary.largest?.let { big ->
-            if (summary.spent > 0 && big.amount / summary.spent >= 0.25) {
+            val bigSar = ExchangeRates.toSar(big.amount, big.currency, rates) ?: 0.0
+            if (summary.spent > 0 && bigSar / summary.spent >= 0.25) {
                 list += Advice(
                     titleRes = R.string.adv_large_tx_title,
                     bodyRes = R.string.adv_large_tx_body_fmt,
-                    bodyArgs = listOf(fmt(big.amount), big.merchant ?: "—", ((big.amount / summary.spent) * 100).toInt()),
+                    bodyArgs = listOf(fmt(bigSar), big.merchant ?: "—", ((bigSar / summary.spent) * 100).toInt()),
                     level = Level.INFO,
                 )
             }
@@ -177,7 +190,7 @@ object FinancialAdvisor {
             }
         }
 
-        val salary = manualSalary.takeIf { it > 0 } ?: detectSalary(allTx)
+        val salary = manualSalary.takeIf { it > 0 } ?: detectSalary(allTx, rates)
         if (salary != null) {
             val isManual = manualSalary > 0
             list += Advice(
@@ -206,21 +219,29 @@ object FinancialAdvisor {
         return list
     }
 
-    fun planningIncome(summary: MonthSummary, allTx: List<TransactionEntity>, manualSalary: Double = 0.0): Double? =
-        resolveIncome(summary, manualSalary.takeIf { it > 0 } ?: detectSalary(allTx))
+    fun planningIncome(
+        summary: MonthSummary,
+        allTx: List<TransactionEntity>,
+        manualSalary: Double = 0.0,
+        rates: Map<String, Double> = ExchangeRates.DEFAULT
+    ): Double? =
+        resolveIncome(summary, manualSalary.takeIf { it > 0 } ?: detectSalary(allTx, rates))
 
     private fun resolveIncome(summary: MonthSummary, salary: Double?): Double? =
         summary.income.takeIf { it > 0 } ?: salary
 
-    private fun detectSalary(allTx: List<TransactionEntity>): Double? {
-        val incomes = allTx.filter { it.type == TxType.INCOME && it.currency == "SAR" && !it.isSelfTransfer }
+    private fun detectSalary(allTx: List<TransactionEntity>, rates: Map<String, Double>): Double? {
+        val incomes = allTx.filter {
+            it.type == TxType.INCOME && !it.isSelfTransfer &&
+                ExchangeRates.toSar(it.amount, it.currency, rates) != null
+        }
         if (incomes.isEmpty()) return null
         fun monthKeyOf(ts: Long): Int {
             val c = Calendar.getInstance().apply { timeInMillis = ts }
             return c.get(Calendar.YEAR) * 100 + c.get(Calendar.MONTH)
         }
         val perMonth = incomes.groupBy { monthKeyOf(it.timestamp) }
-            .mapValues { (_, list) -> list.maxOf { it.amount } }
+            .mapValues { (_, list) -> list.maxOf { ExchangeRates.toSar(it.amount, it.currency, rates) ?: 0.0 } }
         if (perMonth.size < 2) return null
         val amounts = perMonth.values.toList()
         val avg = amounts.average()
@@ -234,15 +255,16 @@ object FinancialAdvisor {
             .replace(Regex("""[^a-z0-9؀-ۿ]+"""), " ")
             .trim()
 
-    private fun detectSubscriptions(allTx: List<TransactionEntity>): List<Pair<String, Double>> {
+    private fun detectSubscriptions(allTx: List<TransactionEntity>, rates: Map<String, Double>): List<Pair<String, Double>> {
         val recent = allTx.filter {
-            it.type == TxType.EXPENSE && it.merchant != null && it.currency == "SAR" &&
-                !it.isSelfTransfer && it.category == "اشتراكات"
+            it.type == TxType.EXPENSE && it.merchant != null &&
+                !it.isSelfTransfer && it.category == "اشتراكات" &&
+                ExchangeRates.toSar(it.amount, it.currency, rates) != null
         }
         val grouped = recent.groupBy { normalizeMerchantName(it.merchant!!) }
         return grouped.mapNotNull { (merchant, list) ->
             if (list.size < 2) return@mapNotNull null
-            val amounts = list.map { it.amount }
+            val amounts = list.map { ExchangeRates.toSar(it.amount, it.currency, rates)!! }
             val avg = amounts.average()
             val similar = amounts.count { abs(it - avg) / avg < 0.15 }
             if (similar >= 2) merchant.replaceFirstChar { it.uppercase() } to avg else null

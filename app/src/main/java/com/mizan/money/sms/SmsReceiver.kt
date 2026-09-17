@@ -19,14 +19,17 @@ class SmsReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val app = context.applicationContext as MoneyApp
+                var added = false
                 for (msg in messages) {
                     val sender = msg.originatingAddress ?: ""
                     val body = msg.messageBody ?: continue
                     val ts = msg.timestampMillis
                     val parsed = SmsParser.parse(sender, body, ts) ?: continue
                     app.repository.add(parsed.toEntity())
-                    WidgetUpdater.refresh(context)
+                    added = true
                 }
+                // Refresh the widget once per broadcast, not once per message.
+                if (added) WidgetUpdater.refresh(context)
             } catch (e: Exception) {
                 // Never let a malformed SMS crash the app in the background.
                 Log.e("Mizan", "failed to process an incoming SMS", e)

@@ -110,6 +110,15 @@ object SmsParser {
         """(?:رصيد|الرصيد|رصيدك|balance|متاح|available)[^\d]{0,80}[\d,]+(?:\.\d{1,2})?""",
         RegexOption.IGNORE_CASE
     )
+    // Fee/commission/VAT amounts ("رسوم: 0.58 SAR") that a bank appends to a
+    // transfer confirmation. They must not be mistaken for the transfer amount
+    // when the message has no explicit "مبلغ" label — but if a fee is the only
+    // amount in the message (a standalone "fee charged" SMS), extractAmount
+    // still falls back to it rather than dropping the transaction.
+    private val feeWord = Regex(
+        """(?<![a-z])(?:رسوم|عمولة|ضريبة|fee|commission|vat|tax)(?![a-z])[^\d]{0,20}[\d,]+(?:\.\d{1,2})?(?:\s*(?:SAR|SR|ر\.?س\.?|ريال))?""",
+        RegexOption.IGNORE_CASE
+    )
     // A foreign-currency purchase's own SAR-converted equivalent, e.g.
     // "Amount: 1348 THB (156.58 SAR)" — checked first and, when present,
     // wins over every other amount pattern below. Otherwise the raw foreign
@@ -175,7 +184,8 @@ object SmsParser {
         fa.forEachIndexed { i, c -> s = s.replace(c, ('0' + i)) }
         return s
     }
-    fun looksLikeTransaction(body: String): Boolean {
+    fun looksLikeTransaction(sender: String, body: String): Boolean {
+        if (!isAllowedSender(sender)) return false
         val n = normalizeDigits(body)
         val low = n.lowercase(Locale.ROOT)
         if (nonTransactionalWords.any { low.contains(it) }) return false
@@ -189,13 +199,16 @@ object SmsParser {
     // force the transaction's currency to SAR instead of trusting whatever
     // foreign-currency word appears elsewhere in the message.
     private fun extractAmount(normalized: String): Pair<Double, Boolean>? {
-        val cleaned = balanceWord.replace(normalized, " ")
-        parenSarPattern.find(cleaned)?.let { m ->
+        val withoutBalance = balanceWord.replace(normalized, " ")
+        return searchAmount(feeWord.replace(withoutBalance, " ")) ?: searchAmount(withoutBalance)
+    }
+    private fun searchAmount(text: String): Pair<Double, Boolean>? {
+        parenSarPattern.find(text)?.let { m ->
             val v = m.groupValues[1].replace(",", "").toDoubleOrNull()
             if (v != null && v > 0.0) return v to true
         }
         for (p in amountPatterns) {
-            val m = p.find(cleaned) ?: continue
+            val m = p.find(text) ?: continue
             val raw = m.groupValues[1].replace(",", "").trim()
             val v = raw.toDoubleOrNull()
             if (v != null && v > 0.0) return v to false

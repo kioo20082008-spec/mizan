@@ -413,4 +413,23 @@
     <string name="widget_usage_label">Income usage this month</string>
     <string name="widget_spent_fmt">Spent: %1$s %2$s</string>
     <string name="widget_no_data">No data — open Mizan</string>
+
+    <!-- Exchange rates (Settings) -->
+    <string name="stg_rates_label">Exchange rates</string>
+    <string name="stg_rates_desc">Used to convert foreign-currency transactions to SAR so they count in your budget and advisor. Adjust when the rate changes.</string>
+    <string name="stg_rate_fmt">1 %1$s =</string>
+    <string name="stg_rate_unit">SAR</string>
+
+    <!-- Notifications -->
+    <string name="notif_budget_over_title">You\'ve exceeded your budget ⚠️</string>
+    <string name="notif_budget_near_title">Approaching your budget limit 🟠</string>
+    <string name="notif_budget_body_fmt">You spent %1$s of %2$s SAR (%3$d%%).</string>
+    <string name="notif_bill_title">A bill is coming up 🔔</string>
+    <string name="notif_bill_body_fmt">Expected payment for \"%1$s\" (~%2$s SAR) %3$s.</string>
+    <string name="notif_bill_today">today</string>
+    <string name="notif_bill_in_days_fmt">in %1$d days</string>
+    <string name="notif_channel_budget_name">Budget alerts</string>
+    <string name="notif_channel_budget_desc">Alert when you approach or exceed your monthly budget</string>
+    <string name="notif_channel_bills_name">Bill reminders</string>
+    <string name="notif_channel_bills_desc">Reminder a few days before a recurring bill or subscription is due</string>
 </resources>

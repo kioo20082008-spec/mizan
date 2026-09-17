@@ -78,21 +78,21 @@ class SmsParserTest {
     @Test
     fun `rejects OTP messages even when they contain a number`() {
         val sms = "رمز التحقق الخاص بك هو 4821، لا تشارك هذا الرمز مع أي شخص"
-        assertFalse(SmsParser.looksLikeTransaction(sms))
+        assertFalse(SmsParser.looksLikeTransaction("alinma", sms))
         assertNull(SmsParser.parse("alinma", sms, 4_000L))
     }
 
     @Test
     fun `does not treat a balance-inquiry SMS as a transaction`() {
         val sms = "الرصيد المتاح في حسابك 500.00 ريال"
-        assertFalse(SmsParser.looksLikeTransaction(sms))
+        assertFalse(SmsParser.looksLikeTransaction("alinma", sms))
         assertNull(SmsParser.parse("alinma", sms, 5_000L))
     }
 
     @Test
     fun `rejects a plain message with a number but no financial keyword or bank`() {
         val sms = "اجتماع الساعة 3، الغرفة رقم 205"
-        assertFalse(SmsParser.looksLikeTransaction(sms))
+        assertFalse(SmsParser.looksLikeTransaction("alinma", sms))
     }
 
     @Test
@@ -240,8 +240,36 @@ class SmsParserTest {
     @Test
     fun `a beneficiary-added notice with no amount is still rejected as non-transactional`() {
         val sms = "تم إضافة مستفيد بنك محلي بنجاح"
-        assertFalse(SmsParser.looksLikeTransaction(sms))
+        assertFalse(SmsParser.looksLikeTransaction("alinma", sms))
         assertNull(SmsParser.parse("alinma", sms, 12_000L))
+    }
+
+    // A non-allowlisted sender must fail looksLikeTransaction too, matching
+    // parse() — previously this helper ignored the sender allowlist.
+    @Test
+    fun `looksLikeTransaction rejects a sender that is not Alinma or Barq`() {
+        val sms = "تم خصم مبلغ 250.00 ريال من بطاقتك لدى Tabby"
+        assertFalse(SmsParser.looksLikeTransaction("Tabby", sms))
+    }
+
+    @Test
+    fun `a transfer's fee line is not mistaken for the transferred amount`() {
+        // No "مبلغ" label on the real amount and the fee line comes first —
+        // without fee-skipping the raw "0.58 SAR" would be captured as the amount.
+        val sms = "حوالة صادرة محلية\nرسوم: 0.58 SAR\nبمبلغ 600 SAR\nلـ AHMED\nلحساب *5157"
+        val parsed = SmsParser.parse("alinma", sms, 30_000L)
+
+        assertNotNull(parsed)
+        assertEquals(600.0, parsed!!.amount, 0.001)
+    }
+
+    @Test
+    fun `a fee-only message still yields the fee as the amount`() {
+        val sms = "تم خصم رسوم شهرية بمبلغ 5.00 ريال من حسابك"
+        val parsed = SmsParser.parse("alinma", sms, 31_000L)
+
+        assertNotNull(parsed)
+        assertEquals(5.0, parsed!!.amount, 0.001)
     }
 
     @Test

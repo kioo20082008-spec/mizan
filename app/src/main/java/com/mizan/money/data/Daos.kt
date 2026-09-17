@@ -7,6 +7,11 @@ import kotlinx.coroutines.flow.Flow
 interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY timestamp DESC")
     fun observeAll(): Flow<List<TransactionEntity>>
+    // One-shot read for code that must see the post-write state immediately
+    // (e.g. the budget-threshold check), where the WhileSubscribed StateFlow
+    // may still be holding the previous emission.
+    @Query("SELECT * FROM transactions")
+    suspend fun getAllOnce(): List<TransactionEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(tx: TransactionEntity): Long
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -30,6 +35,8 @@ interface TransactionDao {
 interface BudgetDao {
     @Query("SELECT * FROM budgets")
     fun observeAll(): Flow<List<BudgetEntity>>
+    @Query("SELECT * FROM budgets")
+    suspend fun getAllOnce(): List<BudgetEntity>
     @Query("SELECT * FROM budgets WHERE monthKey = :monthKey AND category = :category LIMIT 1")
     suspend fun find(monthKey: String, category: String): BudgetEntity?
 

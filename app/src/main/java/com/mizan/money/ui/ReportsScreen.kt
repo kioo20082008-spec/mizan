@@ -63,31 +63,32 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val startDay by vm.monthStartDay.collectAsState()
     val budgets by vm.budgets.collectAsState()
     val manualSalary by vm.manualSalary.collectAsState()
+    val rates by vm.exchangeRates.collectAsState()
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val shareChooserTitle = stringResource(R.string.reports_share_chooser)
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val pdfPeriodLabel = "${monthName(offset, startDay)} (${Dates.monthKey(offset, startDay)})"
-    val summary = remember(txs, offset, startDay) { FinancialAdvisor.summarize(txs, range.first, range.last) }
+    val summary = remember(txs, offset, startDay, rates) { FinancialAdvisor.summarize(txs, range.first, range.last, rates) }
     val monthKey = remember(offset, startDay) { Dates.monthKey(offset, startDay) }
     val manualBudget = remember(budgets, monthKey) {
         budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }?.limitAmount?.takeIf { it > 0 }
     }
-    val budget = remember(summary, txs, manualSalary, manualBudget) {
-        manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0)
+    val budget = remember(summary, txs, manualSalary, manualBudget, rates) {
+        manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary, rates) ?: 0.0)
     }
-    val trend = remember(txs, offset, startDay) {
+    val trend = remember(txs, offset, startDay, rates) {
         (5 downTo 0).map { back ->
             val o = offset - back
             val r = Dates.monthRange(o, startDay)
-            val s = FinancialAdvisor.summarize(txs, r.first, r.last)
+            val s = FinancialAdvisor.summarize(txs, r.first, r.last, rates)
             Triple(monthShortLabel(o, startDay), s.spent, s.income)
         }
     }
-    val prevSummary = remember(txs, offset, startDay) {
+    val prevSummary = remember(txs, offset, startDay, rates) {
         val r = Dates.monthRange(offset - 1, startDay)
-        FinancialAdvisor.summarize(txs, r.first, r.last)
+        FinancialAdvisor.summarize(txs, r.first, r.last, rates)
     }
     var exporting by remember { mutableStateOf(false) }
 
@@ -201,12 +202,13 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
                         val capturedTxs = txs
                         val capturedRange = range
                         val capturedSalary = manualSalary
+                        val capturedRates = rates
                         scope.launch(Dispatchers.IO) {
                             val monthTxs = capturedTxs.filter { it.timestamp in capturedRange }
                             val advice = FinancialAdvisor.advise(
                                 capturedSummary, capturedBudget, capturedTxs,
                                 capturedRange.first, capturedRange.last,
-                                manualSalary = capturedSalary
+                                manualSalary = capturedSalary, rates = capturedRates
                             )
                             val resolvedAdvice = advice.map {
                                 PdfAdvice(

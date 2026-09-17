@@ -56,12 +56,13 @@ class FinancialAdvisorTest {
     }
 
     @Test
-    fun `summarize excludes non-SAR transactions from totals`() {
+    fun `summarize converts non-SAR transactions to SAR instead of dropping them`() {
         val sar = tx(100.0, currency = "SAR")
         val usd = tx(500.0, currency = "USD")
         val s = FinancialAdvisor.summarize(listOf(sar, usd), JAN_2024_START, JAN_2024_END)
 
-        assertEquals(100.0, s.spent, 0.001)
+        // 500 USD at the default 3.75 rate must move the budget, not vanish.
+        assertEquals(100.0 + 500.0 * 3.75, s.spent, 0.001)
     }
 
     @Test
@@ -185,11 +186,12 @@ class FinancialAdvisorTest {
     }
 
     @Test
-    fun `detectSubscriptions ignores non-SAR charges even at the same merchant`() {
+    fun `detectSubscriptions converts a foreign-currency charge to SAR`() {
         val allTx = listOf(
             tx(35.0, merchant = "Netflix", category = "اشتراكات", currency = "SAR", timestamp = JAN_2024_START + 1_000L),
             tx(35.0, merchant = "Netflix", category = "اشتراكات", currency = "SAR", timestamp = FEB_MARK),
-            tx(999.0, merchant = "Netflix", category = "اشتراكات", currency = "USD", timestamp = MAR_MARK)
+            // 9.33 USD * 3.75 = 34.99 SAR — same subscription, not a separate huge one.
+            tx(9.33, merchant = "Netflix", category = "اشتراكات", currency = "USD", timestamp = MAR_MARK)
         )
         val s = FinancialAdvisor.summarize(allTx, JAN_2024_START, JAN_2024_END)
         val advice = FinancialAdvisor.advise(s, monthlyBudget = 0.0, allTx = allTx, monthStart = JAN_2024_START, monthEnd = JAN_2024_END)
@@ -197,7 +199,6 @@ class FinancialAdvisorTest {
         val subsAdvice = advice.firstOrNull { it.titleRes == R.string.adv_subscriptions_title }
         assertTrue(subsAdvice != null)
         assertTrue(subsAdvice!!.bodyArgs.contains(FinancialAdvisor.fmt(35.0)))
-        assertFalse(subsAdvice.bodyArgs.contains(FinancialAdvisor.fmt(999.0)))
     }
 
     @Test

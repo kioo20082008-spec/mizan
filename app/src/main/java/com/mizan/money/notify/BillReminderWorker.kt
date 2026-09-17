@@ -7,7 +7,9 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.mizan.money.MoneyApp
+import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
+import com.mizan.money.ui.theme.localizedContext
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -27,6 +29,7 @@ class BillReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             val todayDay = today.get(Calendar.DAY_OF_MONTH)
             val daysInMonth = today.getActualMaximum(Calendar.DAY_OF_MONTH)
             val monthKey = "%04d-%02d".format(today.get(Calendar.YEAR), today.get(Calendar.MONTH) + 1)
+            val lctx = localizedContext(applicationContext)
 
             var notifId = NOTIF_ID_BASE
             items.forEach { item ->
@@ -40,11 +43,17 @@ class BillReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                     (daysInMonth - todayDay) + item.expectedDayOfMonth
                 }
                 if (daysUntil in 0..3) {
-                    val whenLabel = if (daysUntil == 0) "اليوم" else "خلال $daysUntil يوم"
+                    val whenLabel = if (daysUntil == 0) lctx.getString(R.string.notif_bill_today)
+                        else lctx.getString(R.string.notif_bill_in_days_fmt, daysUntil)
                     NotificationHelper.notifyBill(
                         applicationContext, notifId++,
-                        "فاتورة قربت 🔔",
-                        "متوقع دفع «${item.merchant}» (~${FinancialAdvisor.fmt(item.expectedAmount)} ر.س) $whenLabel."
+                        lctx.getString(R.string.notif_bill_title),
+                        lctx.getString(
+                            R.string.notif_bill_body_fmt,
+                            item.merchant,
+                            FinancialAdvisor.fmt(item.expectedAmount),
+                            whenLabel,
+                        )
                     )
                     app.repository.updateRecurringItem(item.copy(lastNotifiedMonthKey = monthKey))
                 }

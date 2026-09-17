@@ -10,7 +10,9 @@ class TransactionRepository(
     private val recurringDao: RecurringItemDao
 ) {
     fun allTransactions(): Flow<List<TransactionEntity>> = txDao.observeAll()
+    suspend fun allTransactionsOnce(): List<TransactionEntity> = txDao.getAllOnce()
     fun budgets(): Flow<List<BudgetEntity>> = budgetDao.observeAll()
+    suspend fun budgetsOnce(): List<BudgetEntity> = budgetDao.getAllOnce()
     suspend fun add(tx: TransactionEntity): Long = txDao.insert(tx)
 
     // A plain insert-and-ignore-conflicts would mean a parser/category bug fix

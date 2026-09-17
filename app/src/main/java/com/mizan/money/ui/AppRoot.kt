@@ -97,7 +97,8 @@ fun AppRoot() {
     LaunchedEffect(hasSms) {
         if (hasSms && !scanned) {
             scanned = true
-            vm.markInitialScanDone()
+            // MainViewModel.scanInbox marks the scan done only once it actually
+            // succeeds, so a failed first scan is retried on the next launch.
             vm.scanInbox()
         }
     }
@@ -187,6 +188,17 @@ private fun RootScaffold(
     val isScanning by vm.isScanning.collectAsState()
     val ctx = LocalContext.current
     var hasReceiveSms by remember { mutableStateOf(checkReceiveSms(ctx)) }
+    // RECEIVE_SMS can be granted/revoked from system settings while the app is
+    // backgrounded, so re-check on every resume (the READ_SMS flag in AppRoot
+    // already does this; the warning banner used to stay stale).
+    val rootLifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(rootLifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) hasReceiveSms = checkReceiveSms(ctx)
+        }
+        rootLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { rootLifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             AppHeader(onSettingsClick = { showSettings = true })
@@ -275,6 +287,7 @@ private fun SettingsDialog(
     val manualSalary by vm.manualSalary.collectAsState()
     val ownerName by vm.ownerName.collectAsState()
     val notificationsEnabled by vm.notificationsEnabled.collectAsState()
+    val rates by vm.exchangeRates.collectAsState()
     val notifPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> vm.setNotificationsEnabled(granted) }
@@ -285,6 +298,15 @@ private fun SettingsDialog(
         )
     }
     var nameInput by remember(ownerName) { mutableStateOf(ownerName) }
+    // Re-seeds itself whenever the saved rates change (i.e. right after a save),
+    // so the fields always show the persisted values.
+    var rateInputs by remember(rates) {
+        mutableStateOf(
+            rates.filterKeys { it != "SAR" }.mapValues {
+                if (it.value % 1.0 == 0.0) it.value.toInt().toString() else it.value.toString()
+            }
+        )
+    }
     var showExportConfirm by remember { mutableStateOf(false) }
 
     if (showExportConfirm) {
@@ -522,6 +544,41 @@ private fun SettingsDialog(
                     }
                 }
                 Spacer(Modifier.height(18.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                Spacer(Modifier.height(18.dp))
+
+                // ===== EXCHANGE RATES =====
+                Text(stringResource(R.string.stg_rates_label), style = Body.copy(fontWeight = FontWeight.Bold))
+                Spacer(Modifier.height(4.dp))
+                Text(stringResource(R.string.stg_rates_desc), style = Eyebrow)
+                Spacer(Modifier.height(10.dp))
+                com.mizan.money.data.ExchangeRates.supported.forEach { code ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.stg_rate_fmt, code), style = Body)
+                        Spacer(Modifier.width(10.dp))
+                        OutlinedTextField(
+                            value = rateInputs[code] ?: "",
+                            onValueChange = { rateInputs = rateInputs + (code to sanitizeAmountInput(it)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(RadiusSm),
+                            textStyle = Body
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.stg_rate_unit), style = BodyMuted)
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
+                                .clickable { vm.setExchangeRate(code, rateInputs[code]?.toDoubleOrNull() ?: 0.0) },
+                            contentAlignment = Alignment.Center
+                        ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = White, modifier = Modifier.size(20.dp)) }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                 Spacer(Modifier.height(18.dp))
 

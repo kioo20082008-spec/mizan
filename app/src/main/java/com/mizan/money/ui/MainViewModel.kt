@@ -6,10 +6,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.*
 import com.mizan.money.notify.NotificationHelper
 import com.mizan.money.sms.InboxScanner
+import com.mizan.money.ui.theme.localizedContext
 import com.mizan.money.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,6 +80,16 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         _manualSalary.value = v
     }
 
+    // User-editable fixed SAR conversion rates for foreign-currency
+    // transactions (see ExchangeRates). Persisted so the widget and the
+    // background worker can read the same values straight from prefs.
+    private val _exchangeRates = MutableStateFlow(ExchangeRates.load(prefs))
+    val exchangeRates: StateFlow<Map<String, Double>> = _exchangeRates
+    fun setExchangeRate(code: String, rate: Double) {
+        ExchangeRates.save(prefs, code, rate)
+        _exchangeRates.value = ExchangeRates.load(prefs)
+    }
+
     // Master switch for both notification types (budget alerts, bill reminders),
     // surfaced as a single toggle in Settings — NotificationHelper checks this
     // same key before showing anything, including from the background worker.
@@ -120,6 +132,10 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 val ctx = getApplication<Application>()
                 val result = withContext(Dispatchers.IO) { InboxScanner.readTransactions(ctx, sinceDays = 120) }
                 repo.reconcile(result.transactions, result.scannedHashes)
+                // Only recorded after a successful reconcile: if the SMS query
+                // fails on this device, the next launch must retry rather than
+                // treating a failed scan as "already scanned".
+                markInitialScanDone()
                 WidgetUpdater.refresh(getApplication())
                 checkBudgetThreshold()
             } catch (e: Exception) {
@@ -164,13 +180,20 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     private suspend fun checkBudgetThreshold() {
         val startDay = _monthStartDay.value
         val range = Dates.monthRange(0, startDay)
-        val txs = transactions.value
-        val summary = FinancialAdvisor.summarize(txs, range.first, range.last)
+        // One-shot DB reads instead of `transactions.value`/`budgets.value`:
+        // both are WhileSubscribed StateFlows, so reading .value immediately
+        // after an insert can return a stale list and fire (or skip) the alert
+        // for the wrong total.
+        val txs = repo.allTransactionsOnce()
+        val allBudgets = repo.budgetsOnce()
+        val rates = _exchangeRates.value
+        val summary = FinancialAdvisor.summarize(txs, range.first, range.last, rates)
         val monthKey = Dates.monthKey(0, startDay)
-        val manualBudget = budgets.value
+        val manualBudget = allBudgets
             .firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }
             ?.limitAmount?.takeIf { it > 0 }
-        val budget = manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, _manualSalary.value) ?: 0.0)
+        val budget = manualBudget
+            ?: (FinancialAdvisor.planningIncome(summary, txs, _manualSalary.value, rates) ?: 0.0)
         if (budget <= 0) return
         val pct = summary.spent / budget
         val prefKey = "budget_notified_pct_$monthKey"
@@ -181,10 +204,18 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
             else -> null
         } ?: return
         prefs.edit().putFloat(prefKey, threshold).apply()
-        val ctx = getApplication<Application>()
-        val title = if (threshold >= 1.0f) "تجاوزت ميزانيتك ⚠️" else "اقتربت من حد ميزانيتك 🟠"
-        val body = "صرفت ${FinancialAdvisor.fmt(summary.spent)} من أصل ${FinancialAdvisor.fmt(budget)} ر.س (${(pct * 100).toInt()}٪)."
-        NotificationHelper.notifyBudget(ctx, 1001, title, body)
+        val app = getApplication<Application>()
+        val lctx = localizedContext(app)
+        val title = lctx.getString(
+            if (threshold >= 1.0f) R.string.notif_budget_over_title else R.string.notif_budget_near_title
+        )
+        val body = lctx.getString(
+            R.string.notif_budget_body_fmt,
+            FinancialAdvisor.fmt(summary.spent),
+            FinancialAdvisor.fmt(budget),
+            (pct * 100).toInt(),
+        )
+        NotificationHelper.notifyBudget(app, 1001, title, body)
     }
 
     // ---- Savings goals ----

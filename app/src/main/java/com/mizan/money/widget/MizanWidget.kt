@@ -14,7 +14,9 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
+import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -27,9 +29,11 @@ import com.mizan.money.MainActivity
 import com.mizan.money.MoneyApp
 import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
+import com.mizan.money.data.ExchangeRates
 import com.mizan.money.data.TOTAL_BUDGET
 import com.mizan.money.ui.Dates
 import kotlinx.coroutines.flow.first
+import kotlin.math.roundToInt
 
 data class WidgetData(
     val headerLine: String,
@@ -54,14 +58,15 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
     val prefs = context.getSharedPreferences("mizan_prefs", Context.MODE_PRIVATE)
     val startDay = prefs.getInt("month_start_day", 1)
     val manualSalary = prefs.getString("manual_salary", null)?.toDoubleOrNull() ?: 0.0
+    val rates = ExchangeRates.load(prefs)
 
     val range = Dates.monthRange(0, startDay)
-    val summary = FinancialAdvisor.summarize(txs, range.first, range.last)
+    val summary = FinancialAdvisor.summarize(txs, range.first, range.last, rates)
     val monthKey = Dates.monthKey(0, startDay)
     val manualBudget = budgets.firstOrNull {
         it.monthKey == monthKey && it.category == TOTAL_BUDGET
     }?.limitAmount?.takeIf { it > 0 }
-    val budget = manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary) ?: 0.0)
+    val budget = manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary, rates) ?: 0.0)
     val pct = if (budget > 0) (summary.spent / budget).coerceIn(0.0, 1.2).toFloat() else 0f
     val currency = context.getString(R.string.currency_sar)
 
@@ -134,12 +139,18 @@ private fun WidgetContent(data: WidgetData) {
             style = TextStyle(color = accent, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         )
         Spacer(modifier = GlanceModifier.height(6.dp))
-        Box(
-            modifier = GlanceModifier.fillMaxWidth().height(3.dp).background(line)
-        ) {
-            Box(
-                modifier = GlanceModifier.fillMaxSize().background(accent)
-            ) { }
+        // Glance has no fractional fillMaxWidth, so the progress bar is drawn as
+        // 10 equal-weight segments — as many lit as the current percentage.
+        Row(modifier = GlanceModifier.fillMaxWidth().height(4.dp)) {
+            val filled = (data.pct.coerceIn(0f, 1f) * 10f).roundToInt()
+            repeat(10) { i ->
+                Box(
+                    modifier = GlanceModifier
+                        .defaultWeight()
+                        .fillMaxHeight()
+                        .background(if (i < filled) accent else line)
+                ) { }
+            }
         }
         Spacer(modifier = GlanceModifier.height(8.dp))
         Text(
