@@ -325,4 +325,9 @@
     <string name="adv_salary_detected_body_fmt">بناءً على تكرار الإيداعات خلال الأشهر الماضية، دخلك الثابت الشهري تقريباً %1$s ر.س.</string>
     <string name="adv_5030_20_title">قاعدة 50 / 30 / 20 💡</string>
     <string name="adv_5030_20_body_fmt">من دخل %1$s ر.س: %2$s للاحتياجات، %3$s للرغبات، %4$s للادخار.</string>
+
+    <!-- Advisor header -->
+    <string name="advisor_header_title">المستشار المالي</string>
+    <string name="advisor_header_subtitle">تحليل ذكي ومحلي لنمط إنفاقك</string>
+    <string name="advisor_empty">لا توجد نصائح بعد — أضف عمليات أو ميزانية لهذا الشهر</string>
 </resources>

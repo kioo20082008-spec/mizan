@@ -248,7 +248,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                             IconBadge(catIcon(cat), catColor(cat), catColorSoft(cat), size = 32.dp, iconSize = 15.dp)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(cat, style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
+                                Text(categoryDisplay(cat), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
                                 val rolloverSuffix = if (rollover > 0.0) stringResource(R.string.budget_rolled_fmt, FinancialAdvisor.fmt(rollover)) else ""
                                 Text(
                                     if (effectiveLimit > 0) {

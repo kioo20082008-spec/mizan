@@ -66,13 +66,13 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
                 IconBadge(Icons.Default.Lightbulb, Lime, White.copy(alpha = 0.08f), size = 40.dp, iconSize = 20.dp, radius = RadiusSm)
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text("المستشار المالي", style = H2.copy(color = White, fontSize = 15.sp))
-                    Text("تحليل ذكي ومحلي لنمط إنفاقك", style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
+                    Text(stringResource(R.string.advisor_header_title), style = H2.copy(color = White, fontSize = 15.sp))
+                    Text(stringResource(R.string.advisor_header_subtitle), style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
                 }
             }
         }
         if (advice.isEmpty()) {
-            item { EmptyState("لا توجد نصائح بعد — أضف عمليات أو ميزانية لهذا الشهر") }
+            item { EmptyState(stringResource(R.string.advisor_empty)) }
         } else {
             item {
                 Column(
@@ -95,9 +95,6 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
     }
 }
 
-// Resolves a string resource with optional format args. Calling
-// stringResource(id) directly (rather than with an empty vararg) avoids
-// running the String.format path on messages that have no format specifiers.
 @Composable
 private fun adviceText(resId: Int, args: List<Any>): String =
     if (args.isEmpty()) stringResource(resId)

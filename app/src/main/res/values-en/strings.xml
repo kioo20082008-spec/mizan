@@ -325,4 +325,9 @@
     <string name="adv_salary_detected_body_fmt">Based on recurring deposits over the past months, your fixed monthly income is roughly %1$s SAR.</string>
     <string name="adv_5030_20_title">50 / 30 / 20 rule 💡</string>
     <string name="adv_5030_20_body_fmt">From %1$s SAR income: %2$s for needs, %3$s for wants, %4$s for savings.</string>
+
+    <!-- Advisor header -->
+    <string name="advisor_header_title">Financial advisor</string>
+    <string name="advisor_header_subtitle">Smart local analysis of your spending pattern</string>
+    <string name="advisor_empty">No advice yet — add transactions or a budget for this month</string>
 </resources>
