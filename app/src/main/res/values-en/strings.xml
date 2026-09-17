@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">Mizan</string>
 
-    <!-- ============ Permission ============ -->
+    <!-- Permission screen -->
     <string name="permission_tagline">Finance with full privacy</string>
     <string name="permission_read_title">Read your bank messages</string>
     <string name="permission_read_desc">To categorize your spending automatically</string>
@@ -13,24 +13,19 @@
     <string name="permission_start">Get started</string>
     <string name="permission_settings_link">Didn\'t see the permission prompt? Open app settings and grant it manually.</string>
 
-    <!-- ============ Scanning ============ -->
     <string name="scanning_title">Analyzing your bank messages…</string>
     <string name="scanning_desc">We\'re scanning for purchases and transfers to build your financial dashboard. This may take a few moments.</string>
 
-    <!-- ============ Header ============ -->
     <string name="header_greeting">Welcome 👋</string>
     <string name="header_settings">Settings</string>
 
-    <!-- ============ Bottom nav ============ -->
     <string name="nav_home">Home</string>
     <string name="nav_transactions">Transactions</string>
     <string name="nav_planning">Planning</string>
     <string name="nav_advisor">Advisor</string>
 
-    <!-- ============ Receive SMS warning ============ -->
     <string name="receive_sms_warning">SMS receive permission not granted — manually rescan from Settings after each new transaction.</string>
 
-    <!-- ============ Settings ============ -->
     <string name="settings_title">Settings</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_desc">Choose the app language.</string>
@@ -39,7 +34,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_close">Close</string>
 
-    <!-- ============ Dashboard ============ -->
+    <!-- ================== DASHBOARD ================== -->
     <string name="dash_local_badge">100% local</string>
     <string name="dash_month_prev">Previous month</string>
     <string name="dash_month_next">Next month</string>
@@ -64,7 +59,7 @@
     <string name="dash_empty_ever">No transactions yet</string>
     <string name="dash_empty_month">No transactions this month</string>
 
-    <!-- ============ Transactions ============ -->
+    <!-- ================== TRANSACTIONS ================== -->
     <string name="tx_title">Transaction history</string>
     <string name="tx_subtitle">Extracted automatically from bank SMS</string>
     <string name="tx_search_hint">Search by merchant, category, or amount…</string>
@@ -72,6 +67,7 @@
     <string name="tx_add">Add manual transaction</string>
     <string name="tx_empty_ever">No transactions yet — add one or scan your bank SMS</string>
     <string name="tx_empty_search">No transactions match your search</string>
+
     <string name="tx_detail_title">Transaction details</string>
     <string name="tx_detail_edit">Edit transaction</string>
     <string name="tx_detail_edit_action">Edit</string>
@@ -82,127 +78,31 @@
     <string name="tx_detail_confirm_delete_title">Delete this transaction?</string>
     <string name="tx_detail_confirm_delete_desc">This action cannot be undone.</string>
     <string name="tx_detail_confirm_delete_yes">Delete</string>
+
     <string name="tx_unknown_merchant">Unknown</string>
     <string name="tx_unknown_bank">Bank</string>
     <string name="tx_original_sms">Original SMS</string>
+
     <string name="tx_type_expense">Expense</string>
     <string name="tx_type_income">Income</string>
     <string name="tx_field_amount_fmt">Amount (%1$s)</string>
     <string name="tx_field_merchant">Merchant / payee</string>
     <string name="tx_field_category">Category</string>
+
     <string name="tx_self_transfer_title">Transfer between your accounts</string>
     <string name="tx_self_transfer_desc">Not counted as income or spending</string>
     <string name="tx_self_transfer_note">Transfer between your accounts — not counted as income or spending</string>
+
     <string name="tx_exclude_daily_title">Exclude from daily average</string>
     <string name="tx_exclude_daily_desc">For large one-off bills like rent — still counted in totals and budgets</string>
     <string name="tx_exclude_daily_note">Excluded from daily average</string>
+
     <string name="tx_bill_reminder_title">Remind me monthly</string>
     <string name="tx_bill_reminder_desc">Alert a few days before the expected date</string>
+
     <string name="tx_add_title">Add manual transaction</string>
 
-    <!-- ============ Planning ============ -->
-    <string name="planning_title">Financial planning</string>
-    <string name="planning_tab_budget">Budget</string>
-    <string name="planning_tab_goals">Goals</string>
-    <string name="planning_tab_debts">Debts</string>
-
-    <!-- ============ Budget ============ -->
-    <string name="budget_title_fmt">Budget &amp; categories — %1$s</string>
-    <string name="budget_subtitle">Track your spending against the limits you set</string>
-    <string name="budget_copy_prev">Copy last month\'s budget</string>
-    <string name="budget_total_label">Total budget for the month</string>
-    <string name="budget_monthly_limit">Monthly limit</string>
-    <string name="budget_save">Save</string>
-    <string name="budget_per_category">Per-category budget</string>
-    <string name="budget_add_category">+ Category</string>
-    <string name="budget_cancel_add">Cancel</string>
-    <string name="budget_category_name_hint">Category name</string>
-    <string name="budget_add_action">Add</string>
-    <string name="budget_no_limit_fmt">%1$s SAR — no limit</string>
-    <string name="budget_amount_fmt">%1$s / %2$s SAR</string>
-    <string name="budget_rolled_fmt">  (+%1$s rolled over)</string>
-    <string name="budget_rollover_title">Roll over last month\'s leftover</string>
-    <string name="budget_rollover_desc">Adds any unspent amount from the previous limit to this month</string>
-    <string name="budget_delete_category_fmt">Delete %1$s</string>
-    <string name="budget_percent_fmt">%1$d%%</string>
-
-    <!-- ============ Goals ============ -->
-    <string name="goals_title">Savings goals</string>
-    <string name="goals_subtitle">Save up for a specific goal, step by step</string>
-    <string name="goals_add">New goal</string>
-    <string name="goals_empty">No goals yet — add your first savings goal</string>
-    <string name="goals_progress_fmt">%1$d%% of goal</string>
-    <string name="goals_reached">Goal reached 🎉</string>
-    <string name="goals_add_amount">+ Add amount</string>
-    <string name="goals_add_dialog_title">New savings goal</string>
-    <string name="goals_name_hint">Goal name (e.g. Trip, Car)</string>
-    <string name="goals_amount_hint_fmt">Target amount (%1$s)</string>
-    <string name="goals_months_hint">Within how many months? (optional)</string>
-    <string name="goals_add_action">Add</string>
-    <string name="goals_cancel">Cancel</string>
-    <string name="goals_delete_confirm_title_fmt">Delete goal \'%1$s\'?</string>
-    <string name="goals_delete_confirm_desc">This action cannot be undone.</string>
-    <string name="goals_delete">Delete</string>
-    <string name="goals_contribute_title_fmt">Add amount to goal \'%1$s\'</string>
-    <string name="goals_amount_label_fmt">Amount (%1$s)</string>
-    <string name="goals_save">Save</string>
-    <string name="goals_target_until_fmt"> • until %1$s</string>
-    <string name="goals_amount_fmt">%1$s / %2$s SAR%3$s</string>
-
-    <!-- ============ Debts ============ -->
-    <string name="debts_title">Debts &amp; installments</string>
-    <string name="debts_subtitle">Track your installments and debts in one place</string>
-    <string name="debts_add">New debt</string>
-    <string name="debts_empty">No debts tracked yet</string>
-    <string name="debts_remaining_fmt">Remaining %1$s of %2$s SAR%3$s</string>
-    <string name="debts_installment_suffix_fmt"> • installment on %1$s</string>
-    <string name="debts_settled">Fully paid off ✅</string>
-    <string name="debts_log_payment">Log payment</string>
-    <string name="debts_add_dialog_title">New debt or installment</string>
-    <string name="debts_name_hint">Name (e.g. Tabby, Car loan)</string>
-    <string name="debts_total_hint_fmt">Total amount (%1$s)</string>
-    <string name="debts_remaining_hint_fmt">Currently remaining (%1$s)</string>
-    <string name="debts_installment_hint">Installment amount (optional)</string>
-    <string name="debts_days_hint">Next installment in how many days? (optional)</string>
-    <string name="debts_add_action">Add</string>
-    <string name="debts_cancel">Cancel</string>
-    <string name="debts_delete_confirm_title_fmt">Stop tracking \'%1$s\'?</string>
-    <string name="debts_delete_confirm_desc">This action cannot be undone.</string>
-    <string name="debts_delete">Delete</string>
-    <string name="debts_pay_dialog_title_fmt">Log payment for \'%1$s\'</string>
-    <string name="debts_pay_amount_fmt">Amount (%1$s)</string>
-    <string name="debts_save">Save</string>
-    <string name="debts_type_loan">Loan</string>
-    <string name="debts_type_bnpl">Installments (Tabby/Tamara)</string>
-    <string name="debts_type_credit">Credit card</string>
-    <string name="debts_type_other">Other</string>
-    <string name="debts_bnpl_suggest_fmt">We noticed recurring \'%1$s\' purchases</string>
-    <string name="debts_bnpl_track_hint_fmt">Track as an installment? (~%1$s SAR)</string>
-    <string name="debts_bnpl_track">Track</string>
-    <string name="debts_bnpl_dismiss">Dismiss</string>
-
-    <!-- ============ Insights / Reports ============ -->
-    <string name="insights_title">Advisor &amp; reports</string>
-    <string name="insights_tab_advice">Advice</string>
-    <string name="insights_tab_reports">Reports</string>
-    <string name="reports_trend_title">Last 6 months trend</string>
-    <string name="reports_trend_subtitle">Spending vs. income</string>
-    <string name="reports_legend_spend">Spending</string>
-    <string name="reports_legend_income">Income</string>
-    <string name="reports_categories_title_fmt">Category breakdown — %1$s</string>
-    <string name="reports_comparison_title">Compared to last month</string>
-    <string name="reports_this_month">This month</string>
-    <string name="reports_last_month">Last month</string>
-    <string name="reports_diff_higher_fmt">%1$d%% higher than last month</string>
-    <string name="reports_diff_lower_fmt">%1$d%% lower than last month</string>
-    <string name="reports_export_title">Export report</string>
-    <string name="reports_export_subtitle">This month\'s summary, ready to share or archive — separate from the diagnostic export in Settings</string>
-    <string name="reports_export_csv">Excel (CSV)</string>
-    <string name="reports_export_pdf">PDF</string>
-    <string name="reports_share_chooser">Share report</string>
-    <string name="reports_percent_fmt">%1$d%%</string>
-
-    <!-- Category display names -->
+    <!-- ================== CATEGORIES ================== -->
     <string name="cat_food">Food &amp; Drink</string>
     <string name="cat_groceries">Groceries</string>
     <string name="cat_transport">Transport</string>
@@ -219,13 +119,13 @@
     <string name="cat_self_transfer">Self Transfer</string>
     <string name="cat_other">Other</string>
 
-    <!-- Currencies -->
+    <!-- ================== CURRENCIES ================== -->
     <string name="currency_sar">SAR</string>
     <string name="currency_usd">$</string>
     <string name="currency_eur">€</string>
     <string name="currency_aed">AED</string>
 
-    <!-- Months -->
+    <!-- ================== MONTHS ================== -->
     <string name="month_jan">January</string>
     <string name="month_feb">February</string>
     <string name="month_mar">March</string>
@@ -252,7 +152,7 @@
     <string name="month_short_nov">Nov</string>
     <string name="month_short_dec">Dec</string>
 
-    <!-- ================== BUDGET SCREEN ================== -->
+    <!-- ================== BUDGET ================== -->
     <string name="budget_title">Planning</string>
     <string name="budget_tab_budget">Budget</string>
     <string name="budget_tab_goals">Goals</string>
@@ -277,7 +177,7 @@
     <string name="budget_save_action">Save</string>
     <string name="budget_delete_cat">Delete %1$s</string>
 
-    <!-- Goals -->
+    <!-- ================== GOALS ================== -->
     <string name="goals_title">Savings goals</string>
     <string name="goals_subtitle">Save for a specific goal, step by step</string>
     <string name="goals_add">New goal</string>
@@ -296,7 +196,7 @@
     <string name="goals_confirm_delete_desc">This action cannot be undone.</string>
     <string name="goals_contribute_title">Add amount to \"%1$s\"</string>
 
-    <!-- Debts -->
+    <!-- ================== DEBTS ================== -->
     <string name="debts_title">Debts &amp; installments</string>
     <string name="debts_subtitle">Track your installments and debts in one place</string>
     <string name="debts_add">New debt</string>

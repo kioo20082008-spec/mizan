@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">ميزان</string>
 
-    <!-- ============ Permission ============ -->
+    <!-- Permission screen -->
     <string name="permission_tagline">إدارة مالية بخصوصية تامة</string>
     <string name="permission_read_title">اقرأ رسائل بنكك</string>
     <string name="permission_read_desc">لتصنيف مصاريفك تلقائياً</string>
@@ -13,24 +13,19 @@
     <string name="permission_start">ابدأ الآن</string>
     <string name="permission_settings_link">ما ظهر لك طلب الصلاحية؟ افتح إعدادات التطبيق ومنحها يدوياً</string>
 
-    <!-- ============ Scanning ============ -->
     <string name="scanning_title">جاري تحليل رسائلك المصرفية…</string>
     <string name="scanning_desc">نبحث عن عمليات الشراء والتحويلات لنجهز لك لوحة مالية دقيقة. قد يستغرق هذا بضع لحظات.</string>
 
-    <!-- ============ Header ============ -->
     <string name="header_greeting">أهلاً بك 👋</string>
     <string name="header_settings">الإعدادات</string>
 
-    <!-- ============ Bottom nav ============ -->
     <string name="nav_home">الرئيسية</string>
     <string name="nav_transactions">العمليات</string>
     <string name="nav_planning">التخطيط</string>
     <string name="nav_advisor">المستشار</string>
 
-    <!-- ============ Receive SMS warning ============ -->
     <string name="receive_sms_warning">إذن استقبال الرسائل غير ممنوح — أعد المسح يدوياً من الإعدادات بعد كل عملية جديدة</string>
 
-    <!-- ============ Settings ============ -->
     <string name="settings_title">الإعدادات</string>
     <string name="settings_language">اللغة</string>
     <string name="settings_language_desc">اختر لغة التطبيق.</string>
@@ -39,7 +34,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_close">إغلاق</string>
 
-    <!-- ============ Dashboard ============ -->
+    <!-- ================== DASHBOARD ================== -->
     <string name="dash_local_badge">محلي 100٪</string>
     <string name="dash_month_prev">الشهر السابق</string>
     <string name="dash_month_next">الشهر التالي</string>
@@ -64,7 +59,7 @@
     <string name="dash_empty_ever">لم نرصد عمليات بعد</string>
     <string name="dash_empty_month">لا توجد عمليات في هذا الشهر</string>
 
-    <!-- ============ Transactions ============ -->
+    <!-- ================== TRANSACTIONS ================== -->
     <string name="tx_title">سجل العمليات</string>
     <string name="tx_subtitle">مستخرجة تلقائياً من رسائل البنك</string>
     <string name="tx_search_hint">ابحث عن عملية، جهة، أو تصنيف…</string>
@@ -72,6 +67,7 @@
     <string name="tx_add">إضافة عملية يدوية</string>
     <string name="tx_empty_ever">لا توجد عمليات بعد — أضف عملية أو امسح رسائل البنك</string>
     <string name="tx_empty_search">لا توجد عمليات مطابقة لبحثك</string>
+
     <string name="tx_detail_title">تفاصيل العملية</string>
     <string name="tx_detail_edit">تعديل العملية</string>
     <string name="tx_detail_edit_action">تعديل</string>
@@ -82,127 +78,31 @@
     <string name="tx_detail_confirm_delete_title">حذف هذه العملية؟</string>
     <string name="tx_detail_confirm_delete_desc">لا يمكن التراجع عن هذا الإجراء.</string>
     <string name="tx_detail_confirm_delete_yes">حذف</string>
+
     <string name="tx_unknown_merchant">غير معروف</string>
     <string name="tx_unknown_bank">بنك</string>
     <string name="tx_original_sms">الرسالة الأصلية</string>
+
     <string name="tx_type_expense">مصروف</string>
     <string name="tx_type_income">دخل</string>
     <string name="tx_field_amount_fmt">المبلغ (%1$s)</string>
     <string name="tx_field_merchant">الجهة / التاجر</string>
     <string name="tx_field_category">التصنيف</string>
+
     <string name="tx_self_transfer_title">تحويل بين حساباتك</string>
     <string name="tx_self_transfer_desc">لا يُحتسب ضمن دخلك أو مصاريفك</string>
     <string name="tx_self_transfer_note">تحويل بين حساباتك — لا يُحتسب ضمن دخلك أو مصاريفك</string>
+
     <string name="tx_exclude_daily_title">استثنِ من معدل الصرف اليومي</string>
     <string name="tx_exclude_daily_desc">لمصروف كبير غير يومي مثل الإيجار — يبقى محسوباً في الإجمالي والميزانية</string>
     <string name="tx_exclude_daily_note">مستثناة من معدل الصرف اليومي</string>
+
     <string name="tx_bill_reminder_title">ذكّرني بهذي شهرياً</string>
     <string name="tx_bill_reminder_desc">تنبيه قبل الموعد المتوقع بأيام قليلة</string>
+
     <string name="tx_add_title">إضافة عملية يدوية</string>
 
-    <!-- ============ Planning ============ -->
-    <string name="planning_title">التخطيط المالي</string>
-    <string name="planning_tab_budget">الميزانية</string>
-    <string name="planning_tab_goals">الأهداف</string>
-    <string name="planning_tab_debts">الديون</string>
-
-    <!-- ============ Budget ============ -->
-    <string name="budget_title_fmt">الميزانية والتصنيفات — %1$s</string>
-    <string name="budget_subtitle">راقب إنفاقك وقارنه بالحدود المحددة</string>
-    <string name="budget_copy_prev">نسخ ميزانية الشهر الماضي</string>
-    <string name="budget_total_label">الميزانية الإجمالية للشهر</string>
-    <string name="budget_monthly_limit">الحد الشهري</string>
-    <string name="budget_save">حفظ</string>
-    <string name="budget_per_category">الميزانية لكل تصنيف</string>
-    <string name="budget_add_category">+ تصنيف</string>
-    <string name="budget_cancel_add">إلغاء</string>
-    <string name="budget_category_name_hint">اسم التصنيف</string>
-    <string name="budget_add_action">إضافة</string>
-    <string name="budget_no_limit_fmt">%1$s ر.س — بدون حد</string>
-    <string name="budget_amount_fmt">%1$s / %2$s ر.س</string>
-    <string name="budget_rolled_fmt">  (+%1$s مرحّل)</string>
-    <string name="budget_rollover_title">ترحيل فائض الشهر الماضي</string>
-    <string name="budget_rollover_desc">يُضاف أي مبلغ لم تصرفه من الحد السابق لهذا الشهر</string>
-    <string name="budget_delete_category_fmt">حذف %1$s</string>
-    <string name="budget_percent_fmt">%1$d٪</string>
-
-    <!-- ============ Goals ============ -->
-    <string name="goals_title">أهداف الادخار</string>
-    <string name="goals_subtitle">اجمع مبلغاً لهدف محدد بخطوات بسيطة</string>
-    <string name="goals_add">هدف جديد</string>
-    <string name="goals_empty">لا توجد أهداف بعد — أضف أول هدف ادخار</string>
-    <string name="goals_progress_fmt">%1$d٪ من الهدف</string>
-    <string name="goals_reached">وصلت لهدفك 🎉</string>
-    <string name="goals_add_amount">+ أضف مبلغ</string>
-    <string name="goals_add_dialog_title">هدف ادخار جديد</string>
-    <string name="goals_name_hint">اسم الهدف (مثال: رحلة، سيارة)</string>
-    <string name="goals_amount_hint_fmt">المبلغ المستهدف (%1$s)</string>
-    <string name="goals_months_hint">خلال كم شهر؟ (اختياري)</string>
-    <string name="goals_add_action">إضافة</string>
-    <string name="goals_cancel">إلغاء</string>
-    <string name="goals_delete_confirm_title_fmt">حذف هدف «%1$s»؟</string>
-    <string name="goals_delete_confirm_desc">لا يمكن التراجع عن هذا الإجراء.</string>
-    <string name="goals_delete">حذف</string>
-    <string name="goals_contribute_title_fmt">أضف مبلغاً لهدف «%1$s»</string>
-    <string name="goals_amount_label_fmt">المبلغ (%1$s)</string>
-    <string name="goals_save">حفظ</string>
-    <string name="goals_target_until_fmt"> • حتى %1$s</string>
-    <string name="goals_amount_fmt">%1$s / %2$s ر.س%3$s</string>
-
-    <!-- ============ Debts ============ -->
-    <string name="debts_title">الديون والأقساط</string>
-    <string name="debts_subtitle">تابع تقسيطك وديونك بمكان واحد</string>
-    <string name="debts_add">دين جديد</string>
-    <string name="debts_empty">لا توجد ديون متتبعة بعد</string>
-    <string name="debts_remaining_fmt">المتبقي %1$s من %2$s ر.س%3$s</string>
-    <string name="debts_installment_suffix_fmt"> • القسط %1$s</string>
-    <string name="debts_settled">تم السداد بالكامل ✅</string>
-    <string name="debts_log_payment">سجّل دفعة</string>
-    <string name="debts_add_dialog_title">دين أو قسط جديد</string>
-    <string name="debts_name_hint">الاسم (مثال: تابي، قرض السيارة)</string>
-    <string name="debts_total_hint_fmt">المبلغ الإجمالي (%1$s)</string>
-    <string name="debts_remaining_hint_fmt">المتبقي حالياً (%1$s)</string>
-    <string name="debts_installment_hint">قيمة القسط (اختياري)</string>
-    <string name="debts_days_hint">القسط القادم خلال كم يوم؟ (اختياري)</string>
-    <string name="debts_add_action">إضافة</string>
-    <string name="debts_cancel">إلغاء</string>
-    <string name="debts_delete_confirm_title_fmt">حذف «%1$s» من المتابعة؟</string>
-    <string name="debts_delete_confirm_desc">لا يمكن التراجع عن هذا الإجراء.</string>
-    <string name="debts_delete">حذف</string>
-    <string name="debts_pay_dialog_title_fmt">سجّل دفعة لـ «%1$s»</string>
-    <string name="debts_pay_amount_fmt">المبلغ (%1$s)</string>
-    <string name="debts_save">حفظ</string>
-    <string name="debts_type_loan">قرض</string>
-    <string name="debts_type_bnpl">تقسيط (تابي/تمارا)</string>
-    <string name="debts_type_credit">بطاقة ائتمان</string>
-    <string name="debts_type_other">أخرى</string>
-    <string name="debts_bnpl_suggest_fmt">لاحظنا مشتريات «%1$s» متكررة</string>
-    <string name="debts_bnpl_track_hint_fmt">تتبعها كقسط؟ (~%1$s ر.س)</string>
-    <string name="debts_bnpl_track">تتبع</string>
-    <string name="debts_bnpl_dismiss">تجاهل</string>
-
-    <!-- ============ Insights / Reports ============ -->
-    <string name="insights_title">المستشار والتقارير</string>
-    <string name="insights_tab_advice">نصائح</string>
-    <string name="insights_tab_reports">تقارير</string>
-    <string name="reports_trend_title">اتجاه آخر 6 أشهر</string>
-    <string name="reports_trend_subtitle">الصرف مقابل الدخل</string>
-    <string name="reports_legend_spend">صرف</string>
-    <string name="reports_legend_income">دخل</string>
-    <string name="reports_categories_title_fmt">توزيع الفئات — %1$s</string>
-    <string name="reports_comparison_title">مقارنة بالشهر الماضي</string>
-    <string name="reports_this_month">هذا الشهر</string>
-    <string name="reports_last_month">الشهر الماضي</string>
-    <string name="reports_diff_higher_fmt">أعلى بـ %1$d٪ من الشهر الماضي</string>
-    <string name="reports_diff_lower_fmt">أقل بـ %1$d٪ من الشهر الماضي</string>
-    <string name="reports_export_title">تصدير التقرير</string>
-    <string name="reports_export_subtitle">ملخص هذا الشهر بصيغة جاهزة للمشاركة أو الأرشفة — غير ملف التشخيص في الإعدادات</string>
-    <string name="reports_export_csv">Excel (CSV)</string>
-    <string name="reports_export_pdf">PDF</string>
-    <string name="reports_share_chooser">مشاركة التقرير</string>
-    <string name="reports_percent_fmt">%1$d٪</string>
-
-    <!-- Category display names (mapped from Arabic DB keys) -->
+    <!-- ================== CATEGORIES ================== -->
     <string name="cat_food">طعام وشراب</string>
     <string name="cat_groceries">بقالة</string>
     <string name="cat_transport">مواصلات</string>
@@ -219,13 +119,13 @@
     <string name="cat_self_transfer">تحويل بين حساباتي</string>
     <string name="cat_other">أخرى</string>
 
-    <!-- Currencies -->
+    <!-- ================== CURRENCIES ================== -->
     <string name="currency_sar">ر.س</string>
     <string name="currency_usd">$</string>
     <string name="currency_eur">€</string>
     <string name="currency_aed">د.إ</string>
 
-    <!-- Months -->
+    <!-- ================== MONTHS ================== -->
     <string name="month_jan">يناير</string>
     <string name="month_feb">فبراير</string>
     <string name="month_mar">مارس</string>
@@ -239,7 +139,6 @@
     <string name="month_nov">نوفمبر</string>
     <string name="month_dec">ديسمبر</string>
 
-    <!-- Month short -->
     <string name="month_short_jan">ينا</string>
     <string name="month_short_feb">فبر</string>
     <string name="month_short_mar">مار</string>
@@ -253,7 +152,7 @@
     <string name="month_short_nov">نوف</string>
     <string name="month_short_dec">ديس</string>
 
-    <!-- ================== BUDGET SCREEN ================== -->
+    <!-- ================== BUDGET ================== -->
     <string name="budget_title">التخطيط المالي</string>
     <string name="budget_tab_budget">الميزانية</string>
     <string name="budget_tab_goals">الأهداف</string>
@@ -278,7 +177,7 @@
     <string name="budget_save_action">حفظ</string>
     <string name="budget_delete_cat">حذف %1$s</string>
 
-    <!-- Goals -->
+    <!-- ================== GOALS ================== -->
     <string name="goals_title">أهداف الادخار</string>
     <string name="goals_subtitle">اجمع مبلغاً لهدف محدد بخطوات بسيطة</string>
     <string name="goals_add">هدف جديد</string>
@@ -297,7 +196,7 @@
     <string name="goals_confirm_delete_desc">لا يمكن التراجع عن هذا الإجراء.</string>
     <string name="goals_contribute_title">أضف مبلغاً لهدف «%1$s»</string>
 
-    <!-- Debts -->
+    <!-- ================== DEBTS ================== -->
     <string name="debts_title">الديون والأقساط</string>
     <string name="debts_subtitle">تابع تقسيطك وديونك بمكان واحد</string>
     <string name="debts_add">دين جديد</string>

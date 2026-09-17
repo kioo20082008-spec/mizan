@@ -230,11 +230,12 @@ fun catColor(cat: String): Color = when (cat) {
 fun catColorSoft(cat: String): Color = catColor(cat).copy(alpha = 0.12f)
 
 @Composable
+@Composable
 fun currencyLabel(code: String): String = when (code) {
-    "SAR" -> "ر.س"
-    "USD" -> "$"
-    "EUR" -> "€"
-    "AED" -> "د.إ"
+    "SAR" -> stringResource(R.string.currency_sar)
+    "USD" -> stringResource(R.string.currency_usd)
+    "EUR" -> stringResource(R.string.currency_eur)
+    "AED" -> stringResource(R.string.currency_aed)
     else -> code
 }
 
