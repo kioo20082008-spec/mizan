@@ -44,14 +44,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                 ?.limitAmount?.toBudgetInput() ?: ""
         )
     }
-    // Set while the user is actively typing in the total-budget field, so an
-    // unrelated write elsewhere (e.g. saving a per-category budget) doesn't
-    // resync this field mid-keystroke and wipe what they haven't saved yet —
-    // mirrors the same protection catInputs already has for editingCategory.
     var editingTotal by remember(monthKey) { mutableStateOf(false) }
-    // Seeded synchronously from the already-loaded `budgets` (not emptyMap()), so
-    // switching months doesn't flash every category to "0" for a frame before the
-    // effect below catches up.
     var catInputs by remember(monthKey) {
         mutableStateOf(
             categories.associateWith { c ->
@@ -60,34 +53,59 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
             }
         )
     }
-    // Only one category's editor is open at a time, so the list stays scannable
-    // instead of showing 13 always-open input rows. Keyed by month so switching
-    // months doesn't leave a stale category's editor expanded.
     var editingCategory by remember(monthKey) { mutableStateOf<String?>(null) }
     var addingCategory by remember { mutableStateOf(false) }
     var newCategoryInput by remember { mutableStateOf("") }
+    // Rollover toggle state per category — kept separate from the DB so a user
+    // can flip it before hitting save, and so it discards on collapse without
+    // saving (mirrors catInputs' behavior).
+    var catRollover by remember(monthKey) {
+        mutableStateOf(
+            categories.associateWith { c ->
+                budgets.firstOrNull { it.monthKey == monthKey && it.category == c }
+                    ?.rolloverEnabled ?: false
+            }
+        )
+    }
+
+    // Previous month's spending by category — needed to compute how much of
+    // last month's limit went unspent, which is what actually rolls forward.
+    val prevMonthKey = Dates.monthKey(offset - 1, startDay)
+    val prevRange = remember(offset, startDay) { Dates.monthRange(offset - 1, startDay) }
+    val prevSpentByCat = remember(txs, offset, startDay) {
+        FinancialAdvisor.summarize(txs, prevRange.first, prevRange.last)
+            .categoryTotals.associate { it.category to it.amount }
+    }
+    val rolloverByCat = remember(budgets, prevSpentByCat, monthKey, prevMonthKey, categories) {
+        categories.associateWith { c ->
+            val cur = budgets.firstOrNull { it.monthKey == monthKey && it.category == c }
+            if (cur?.rolloverEnabled != true) 0.0
+            else {
+                val prev = budgets.firstOrNull { it.monthKey == prevMonthKey && it.category == c }
+                if (prev == null) 0.0
+                else (prev.limitAmount - (prevSpentByCat[c] ?: 0.0)).coerceAtLeast(0.0)
+            }
+        }
+    }
 
     LaunchedEffect(budgets, monthKey, categories) {
-        // Previously only catInputs was resynced here, so saving the total budget
-        // (or copying last month's) never refreshed the hero card's own number —
-        // it stayed blank/stale until the user left and re-entered the screen.
         if (!editingTotal) {
             totalInput = budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }
                 ?.limitAmount?.toBudgetInput() ?: ""
         }
         catInputs = categories.associateWith { c ->
-            // Skip the category currently being typed into — otherwise an unrelated
-            // budget write elsewhere (e.g. saving the total) re-fires this effect
-            // and clobbers the in-progress, not-yet-saved keystrokes with what's
-            // still in the database.
             if (c == editingCategory) catInputs[c] ?: ""
             else budgets.firstOrNull { it.monthKey == monthKey && it.category == c }
                 ?.limitAmount?.toBudgetInput() ?: ""
         }
+        catRollover = categories.associateWith { c ->
+            if (c == editingCategory) catRollover[c] ?: false
+            else budgets.firstOrNull { it.monthKey == monthKey && it.category == c }
+                ?.rolloverEnabled ?: false
+        }
     }
 
     val spentByCat = remember(summary) { summary.categoryTotals.associate { it.category to it.amount } }
-    val prevMonthKey = Dates.monthKey(offset - 1, startDay)
     val hasPrevBudget = budgets.any { it.monthKey == prevMonthKey }
     val hasCurrentBudget = budgets.any { it.monthKey == monthKey }
 
@@ -109,7 +127,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                         .background(IndigoSoft)
                         .clickable {
                             budgets.filter { it.monthKey == prevMonthKey }
-                                .forEach { vm.setBudget(monthKey, it.category, it.limitAmount) }
+                                .forEach { vm.setBudget(monthKey, it.category, it.limitAmount, it.rolloverEnabled) }
                         }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -208,9 +226,6 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
             }
         }
 
-        // One flat bordered list instead of a separately-shadowed card per
-        // category — with 13+ categories the per-card shadow/border/18dp
-        // padding added up to a lot of scrolling for not much information.
         item {
             Column(
                 Modifier.fillMaxWidth()
@@ -221,8 +236,10 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                 categories.forEachIndexed { index, cat ->
                     val spentInCat = spentByCat[cat] ?: 0.0
                     val limit = catInputs[cat]?.toDoubleOrNull() ?: 0.0
-                    val pct = if (limit > 0) (spentInCat / limit).coerceIn(0.0, 1.0).toFloat() else 0f
-                    val isOver = limit > 0 && spentInCat > limit
+                    val rollover = rolloverByCat[cat] ?: 0.0
+                    val effectiveLimit = limit + rollover
+                    val pct = if (effectiveLimit > 0) (spentInCat / effectiveLimit).coerceIn(0.0, 1.0).toFloat() else 0f
+                    val isOver = effectiveLimit > 0 && spentInCat > effectiveLimit
                     val isEditing = editingCategory == cat
 
                     Column(
@@ -236,15 +253,25 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                             Column(Modifier.weight(1f)) {
                                 Text(cat, style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
                                 Text(
-                                    if (limit > 0) "${FinancialAdvisor.fmt(spentInCat)} / ${FinancialAdvisor.fmt(limit)} ر.س"
-                                    else "${FinancialAdvisor.fmt(spentInCat)} ر.س — بدون حد",
-                                    style = Eyebrow.copy(fontSize = 10.sp, color = if (isOver) Danger else InkFaint, fontWeight = if (isOver) FontWeight.Bold else FontWeight.Normal)
+                                    if (effectiveLimit > 0) {
+                                        "${FinancialAdvisor.fmt(spentInCat)} / ${FinancialAdvisor.fmt(effectiveLimit)} ر.س" +
+                                            (if (rollover > 0.0) "  (+${FinancialAdvisor.fmt(rollover)} مرحّل)" else "")
+                                    } else "${FinancialAdvisor.fmt(spentInCat)} ر.س — بدون حد",
+                                    style = Eyebrow.copy(
+                                        fontSize = 10.sp,
+                                        color = if (isOver) Danger else InkFaint,
+                                        fontWeight = if (isOver) FontWeight.Bold else FontWeight.Normal
+                                    )
                                 )
                             }
-                            if (limit > 0) {
+                            if (effectiveLimit > 0) {
                                 Text(
                                     "${(pct * 100).roundToInt()}٪",
-                                    style = Eyebrow.copy(fontSize = 10.sp, color = if (isOver) Danger else Indigo, fontWeight = FontWeight.Bold)
+                                    style = Eyebrow.copy(
+                                        fontSize = 10.sp,
+                                        color = if (isOver) Danger else Indigo,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 )
                                 Spacer(Modifier.width(6.dp))
                             }
@@ -253,7 +280,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                                 null, Modifier.size(18.dp), tint = InkFaint
                             )
                         }
-                        if (limit > 0) {
+                        if (effectiveLimit > 0) {
                             Spacer(Modifier.height(6.dp))
                             Box(
                                 Modifier.fillMaxWidth().height(4.dp)
@@ -268,6 +295,27 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                             }
                         }
                         if (isEditing) {
+                            Spacer(Modifier.height(10.dp))
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(RadiusSm))
+                                    .background(PaperOuter)
+                                    .clickable {
+                                        catRollover = catRollover + (cat to !(catRollover[cat] ?: false))
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("ترحيل فائض الشهر الماضي", style = Body.copy(fontWeight = FontWeight.Medium))
+                                    Text("يُضاف أي مبلغ لم تصرفه من الحد السابق لهذا الشهر", style = Eyebrow.copy(fontSize = 11.sp))
+                                }
+                                Switch(
+                                    checked = catRollover[cat] ?: false,
+                                    onCheckedChange = { v -> catRollover = catRollover + (cat to v) },
+                                    colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                                )
+                            }
                             Spacer(Modifier.height(10.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 OutlinedTextField(
@@ -286,7 +334,9 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                                 Box(
                                     Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
                                         .clickable {
-                                            (catInputs[cat]?.toDoubleOrNull() ?: 0.0).let { vm.setBudget(monthKey, cat, it) }
+                                            val amt = catInputs[cat]?.toDoubleOrNull() ?: 0.0
+                                            val roll = catRollover[cat] ?: false
+                                            vm.setBudget(monthKey, cat, amt, roll)
                                             editingCategory = null
                                         },
                                     contentAlignment = Alignment.Center

@@ -30,6 +30,9 @@ interface TransactionDao {
 interface BudgetDao {
     @Query("SELECT * FROM budgets")
     fun observeAll(): Flow<List<BudgetEntity>>
+    @Query("SELECT * FROM budgets WHERE monthKey = :monthKey AND category = :category LIMIT 1")
+    suspend fun find(monthKey: String, category: String): BudgetEntity?
+
     @Upsert
     suspend fun upsert(b: BudgetEntity)
     @Query("DELETE FROM budgets WHERE monthKey = :monthKey AND category = :category")

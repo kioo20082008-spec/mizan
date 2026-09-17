@@ -43,7 +43,8 @@ data class TransactionEntity(
 data class BudgetEntity(
     val monthKey: String,
     val category: String,
-    val limitAmount: Double
+    val limitAmount: Double,
+    val rolloverEnabled: Boolean = false
 )
 
 const val TOTAL_BUDGET = "__TOTAL__"

@@ -144,8 +144,14 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     }
     fun update(tx: TransactionEntity) = viewModelScope.launch { repo.update(tx); checkBudgetThreshold() }
     fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx) }
-    fun setBudget(monthKey: String, category: String, amount: Double) =
-        viewModelScope.launch { repo.setBudget(monthKey, category, amount) }
+    fun setBudget(
+        monthKey: String,
+        category: String,
+        amount: Double,
+        rolloverEnabled: Boolean? = null
+    ) = viewModelScope.launch {
+        repo.setBudget(monthKey, category, amount, rolloverEnabled)
+    }
 
     // Fires a local notification the first time this month's spend crosses 80%
     // then 100% of the effective budget (income-based, or the manually-set total

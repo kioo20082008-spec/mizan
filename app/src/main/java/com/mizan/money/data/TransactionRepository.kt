@@ -35,9 +35,19 @@ class TransactionRepository(
 
     suspend fun update(tx: TransactionEntity) = txDao.update(tx.copy(isEdited = true))
     suspend fun delete(tx: TransactionEntity) = txDao.delete(tx)
-    suspend fun setBudget(monthKey: String, category: String, amount: Double) {
-        if (amount <= 0) budgetDao.delete(monthKey, category)
-        else budgetDao.upsert(BudgetEntity(monthKey, category, amount))
+    suspend fun setBudget(
+        monthKey: String,
+        category: String,
+        amount: Double,
+        rolloverEnabled: Boolean? = null
+    ) {
+        if (amount <= 0) {
+            budgetDao.delete(monthKey, category)
+            return
+        }
+        val existing = budgetDao.find(monthKey, category)
+        val effectiveRollover = rolloverEnabled ?: existing?.rolloverEnabled ?: false
+        budgetDao.upsert(BudgetEntity(monthKey, category, amount, effectiveRollover))
     }
 
     // ---- Goals ----
