@@ -222,4 +222,74 @@
     <string name="debts_suggest_desc">Track as an installment? (~%1$s SAR)</string>
     <string name="debts_suggest_track">Track</string>
     <string name="debts_suggest_dismiss">Dismiss</string>
+
+    <!-- ================== Claude's names (Budget/Planning) ================== -->
+    <string name="planning_title">Planning</string>
+    <string name="planning_tab_budget">Budget</string>
+    <string name="planning_tab_goals">Goals</string>
+    <string name="planning_tab_debts">Debts</string>
+
+    <string name="budget_title_fmt">Budget &amp; categories — %1$s</string>
+    <string name="budget_subtitle">Track your spending against your limits</string>
+    <string name="budget_monthly_limit">Monthly limit</string>
+    <string name="budget_add_category">+ Category</string>
+    <string name="budget_category_name_hint">Category name</string>
+    <string name="budget_rolled_fmt">%1$s / %2$s SAR  (+%3$s rolled over)</string>
+    <string name="budget_amount_fmt">%1$s / %2$s SAR</string>
+    <string name="budget_no_limit_fmt">%1$s SAR — no limit</string>
+    <string name="budget_percent_fmt">%1$d%%</string>
+    <string name="budget_rollover_title">Roll over last month\'s surplus</string>
+    <string name="budget_rollover_desc">Any unspent amount from last month\'s limit is added to this month</string>
+    <string name="budget_delete_category_fmt">Delete %1$s</string>
+
+    <string name="goals_contribute_title_fmt">Add amount to \"%1$s\"</string>
+    <string name="goals_amount_label_fmt">Amount (%1$s)</string>
+    <string name="goals_delete_confirm_title_fmt">Delete goal \"%1$s\"?</string>
+    <string name="goals_delete_confirm_desc">This action cannot be undone.</string>
+    <string name="goals_cancel">Cancel</string>
+    <string name="goals_target_until_fmt"> • until %1$s</string>
+    <string name="goals_amount_fmt">%1$s / %2$s SAR</string>
+    <string name="goals_progress_fmt">%1$d%% of goal</string>
+    <string name="goals_add_amount">+ Add amount</string>
+    <string name="goals_add_dialog_title">New savings goal</string>
+    <string name="goals_amount_hint_fmt">Target amount (%1$s)</string>
+    <string name="goals_add_action">Add</string>
+    <string name="goals_save">Save</string>
+
+    <string name="debts_bnpl_suggest_fmt">We noticed recurring \"%1$s\" charges</string>
+    <string name="debts_bnpl_track_hint_fmt">Track as an installment? (~%1$s SAR)</string>
+    <string name="debts_bnpl_track">Track</string>
+    <string name="debts_bnpl_dismiss">Dismiss</string>
+    <string name="debts_pay_dialog_title_fmt">Log payment for \"%1$s\"</string>
+    <string name="debts_pay_amount_fmt">Amount (%1$s)</string>
+    <string name="debts_delete_confirm_title_fmt">Stop tracking \"%1$s\"?</string>
+    <string name="debts_delete_confirm_desc">This action cannot be undone.</string>
+    <string name="debts_delete">Delete</string>
+    <string name="debts_cancel">Cancel</string>
+    <string name="debts_installment_suffix_fmt"> • Installment %1$s</string>
+    <string name="debts_log_payment">Log payment</string>
+    <string name="debts_add_dialog_title">New debt or installment</string>
+    <string name="debts_total_hint_fmt">Total amount (%1$s)</string>
+    <string name="debts_remaining_hint_fmt">Remaining now (%1$s)</string>
+    <string name="debts_add_action">Add</string>
+
+    <string name="insights_title">Advisor &amp; reports</string>
+    <string name="insights_tab_advice">Advice</string>
+    <string name="insights_tab_reports">Reports</string>
+    <string name="reports_share_chooser">Share report</string>
+    <string name="reports_categories_title_fmt">Category breakdown — %1$s</string>
+    <string name="reports_trend_title">Last 6 months trend</string>
+    <string name="reports_trend_subtitle">Spending vs. income</string>
+    <string name="reports_legend_spend">Spending</string>
+    <string name="reports_legend_income">Income</string>
+    <string name="reports_percent_fmt">%1$d%%</string>
+    <string name="reports_comparison_title">Compared to last month</string>
+    <string name="reports_this_month">This month</string>
+    <string name="reports_last_month">Last month</string>
+    <string name="reports_diff_higher_fmt">%1$d%% higher than last month</string>
+    <string name="reports_diff_lower_fmt">%1$d%% lower than last month</string>
+    <string name="reports_export_title">Export report</string>
+    <string name="reports_export_subtitle">A ready-to-share summary of this month — separate from the diagnostic export in Settings</string>
+    <string name="reports_export_csv">Excel (CSV)</string>
+    <string name="reports_export_pdf">PDF</string>
 </resources>

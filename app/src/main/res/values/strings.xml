@@ -222,4 +222,74 @@
     <string name="debts_suggest_desc">تتبعها كقسط؟ (~%1$s ر.س)</string>
     <string name="debts_suggest_track">تتبع</string>
     <string name="debts_suggest_dismiss">تجاهل</string>
+
+    <!-- ================== Claude's names (Budget/Planning) ================== -->
+    <string name="planning_title">التخطيط المالي</string>
+    <string name="planning_tab_budget">الميزانية</string>
+    <string name="planning_tab_goals">الأهداف</string>
+    <string name="planning_tab_debts">الديون</string>
+
+    <string name="budget_title_fmt">الميزانية والتصنيفات — %1$s</string>
+    <string name="budget_subtitle">راقب إنفاقك وقارنه بالحدود المحددة</string>
+    <string name="budget_monthly_limit">الحد الشهري</string>
+    <string name="budget_add_category">+ تصنيف</string>
+    <string name="budget_category_name_hint">اسم التصنيف</string>
+    <string name="budget_rolled_fmt">%1$s / %2$s ر.س  (+%3$s مرحّل)</string>
+    <string name="budget_amount_fmt">%1$s / %2$s ر.س</string>
+    <string name="budget_no_limit_fmt">%1$s ر.س — بدون حد</string>
+    <string name="budget_percent_fmt">%1$d٪</string>
+    <string name="budget_rollover_title">ترحيل فائض الشهر الماضي</string>
+    <string name="budget_rollover_desc">يُضاف أي مبلغ لم تصرفه من الحد السابق لهذا الشهر</string>
+    <string name="budget_delete_category_fmt">حذف %1$s</string>
+
+    <string name="goals_contribute_title_fmt">أضف مبلغاً لهدف «%1$s»</string>
+    <string name="goals_amount_label_fmt">المبلغ (%1$s)</string>
+    <string name="goals_delete_confirm_title_fmt">حذف هدف «%1$s»؟</string>
+    <string name="goals_delete_confirm_desc">لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="goals_cancel">إلغاء</string>
+    <string name="goals_target_until_fmt"> • حتى %1$s</string>
+    <string name="goals_amount_fmt">%1$s / %2$s ر.س</string>
+    <string name="goals_progress_fmt">%1$d٪ من الهدف</string>
+    <string name="goals_add_amount">+ أضف مبلغ</string>
+    <string name="goals_add_dialog_title">هدف ادخار جديد</string>
+    <string name="goals_amount_hint_fmt">المبلغ المستهدف (%1$s)</string>
+    <string name="goals_add_action">إضافة</string>
+    <string name="goals_save">حفظ</string>
+
+    <string name="debts_bnpl_suggest_fmt">لاحظنا مشتريات «%1$s» متكررة</string>
+    <string name="debts_bnpl_track_hint_fmt">تتبعها كقسط؟ (~%1$s ر.س)</string>
+    <string name="debts_bnpl_track">تتبع</string>
+    <string name="debts_bnpl_dismiss">تجاهل</string>
+    <string name="debts_pay_dialog_title_fmt">سجّل دفعة لـ «%1$s»</string>
+    <string name="debts_pay_amount_fmt">المبلغ (%1$s)</string>
+    <string name="debts_delete_confirm_title_fmt">حذف «%1$s» من المتابعة؟</string>
+    <string name="debts_delete_confirm_desc">لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="debts_delete">حذف</string>
+    <string name="debts_cancel">إلغاء</string>
+    <string name="debts_installment_suffix_fmt"> • القسط %1$s</string>
+    <string name="debts_log_payment">سجّل دفعة</string>
+    <string name="debts_add_dialog_title">دين أو قسط جديد</string>
+    <string name="debts_total_hint_fmt">المبلغ الإجمالي (%1$s)</string>
+    <string name="debts_remaining_hint_fmt">المتبقي حالياً (%1$s)</string>
+    <string name="debts_add_action">إضافة</string>
+
+    <string name="insights_title">المستشار والتقارير</string>
+    <string name="insights_tab_advice">نصائح</string>
+    <string name="insights_tab_reports">تقارير</string>
+    <string name="reports_share_chooser">مشاركة التقرير</string>
+    <string name="reports_categories_title_fmt">توزيع الفئات — %1$s</string>
+    <string name="reports_trend_title">اتجاه آخر 6 أشهر</string>
+    <string name="reports_trend_subtitle">الصرف مقابل الدخل</string>
+    <string name="reports_legend_spend">صرف</string>
+    <string name="reports_legend_income">دخل</string>
+    <string name="reports_percent_fmt">%1$d٪</string>
+    <string name="reports_comparison_title">مقارنة بالشهر الماضي</string>
+    <string name="reports_this_month">هذا الشهر</string>
+    <string name="reports_last_month">الشهر الماضي</string>
+    <string name="reports_diff_higher_fmt">أعلى بـ %1$d٪ من الشهر الماضي</string>
+    <string name="reports_diff_lower_fmt">أقل بـ %1$d٪ من الشهر الماضي</string>
+    <string name="reports_export_title">تصدير التقرير</string>
+    <string name="reports_export_subtitle">ملخص هذا الشهر بصيغة جاهزة للمشاركة أو الأرشفة — غير ملف التشخيص في الإعدادات</string>
+    <string name="reports_export_csv">Excel (CSV)</string>
+    <string name="reports_export_pdf">PDF</string>
 </resources>
