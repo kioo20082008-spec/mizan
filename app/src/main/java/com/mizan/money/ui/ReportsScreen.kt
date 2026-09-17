@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +68,9 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val shareChooserTitle = stringResource(R.string.reports_share_chooser)
+    // Locale the whole screen is rendering with, so the trend chart's month
+    // abbreviations follow the chosen app language instead of a hardcoded list.
+    val locale = LocalConfiguration.current.locales[0]
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val pdfPeriodLabel = "${monthName(offset, startDay)} (${Dates.monthKey(offset, startDay)})"
@@ -78,12 +82,12 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
     val budget = remember(summary, txs, manualSalary, manualBudget, rates) {
         manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary, rates) ?: 0.0)
     }
-    val trend = remember(txs, offset, startDay, rates) {
+    val trend = remember(txs, offset, startDay, rates, locale) {
         (5 downTo 0).map { back ->
             val o = offset - back
             val r = Dates.monthRange(o, startDay)
             val s = FinancialAdvisor.summarize(txs, r.first, r.last, rates)
-            Triple(monthShortLabel(o, startDay), s.spent, s.income)
+            Triple(monthShortLabel(o, startDay, locale), s.spent, s.income)
         }
     }
     val prevSummary = remember(txs, offset, startDay, rates) {
@@ -345,7 +349,7 @@ private fun ComparisonColumn(label: String, amount: Double, modifier: Modifier =
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, style = Eyebrow)
         Spacer(Modifier.height(6.dp))
-        Text("${FinancialAdvisor.fmt(amount)} ر.س", style = NumBold.copy(fontSize = 16.sp))
+        Text("${FinancialAdvisor.fmt(amount)} ${currencyLabel("SAR")}", style = NumBold.copy(fontSize = 16.sp))
     }
 }
 
@@ -375,8 +379,7 @@ private fun LegendDot(color: Color, label: String) {
     }
 }
 
-private fun monthShortLabel(offset: Int, startDay: Int): String {
+private fun monthShortLabel(offset: Int, startDay: Int, locale: java.util.Locale): String {
     val c = java.util.Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
-    val names = listOf("ينا", "فبر", "مار", "أبر", "ماي", "يون", "يول", "أغس", "سبت", "أكت", "نوف", "ديس")
-    return names[c.get(java.util.Calendar.MONTH)]
+    return java.text.DateFormatSymbols(locale).shortMonths[c.get(java.util.Calendar.MONTH)]
 }

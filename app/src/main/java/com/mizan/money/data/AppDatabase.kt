@@ -21,6 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun debtDao(): DebtDao
     abstract fun recurringItemDao(): RecurringItemDao
+    abstract fun backupDao(): BackupDao
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
 

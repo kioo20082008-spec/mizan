@@ -66,4 +66,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("androidx.glance:glance-appwidget:1.1.0")
     testImplementation("junit:junit:4.13.2")
+    // Real org.json for local unit tests: the Android "mockable" jar ships
+    // stubbed org.json methods that throw, which would break BackupManagerTest.
+    testImplementation("org.json:json:20240303")
 }

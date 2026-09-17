@@ -68,6 +68,7 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
     }?.limitAmount?.takeIf { it > 0 }
     val budget = manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary, rates) ?: 0.0)
     val pct = if (budget > 0) (summary.spent / budget).coerceIn(0.0, 1.2).toFloat() else 0f
+    val hasBudget = budget > 0
     val currency = context.getString(R.string.currency_sar)
 
     val hasData = txs.isNotEmpty()
@@ -76,8 +77,9 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
 
     return WidgetData(
         headerLine = "$brand  ·  $month",
-        usageLabel = context.getString(R.string.widget_usage_label),
-        bigNumber = if (budget > 0) "${(pct * 100).toInt()}%" else "—",
+        usageLabel = if (hasBudget) context.getString(R.string.widget_usage_label)
+                     else context.getString(R.string.widget_no_budget),
+        bigNumber = if (hasBudget) "${(pct * 100).toInt()}%" else "—",
         spentLine = if (hasData)
             context.getString(R.string.widget_spent_fmt, FinancialAdvisor.fmt(summary.spent), currency)
         else context.getString(R.string.widget_no_data),

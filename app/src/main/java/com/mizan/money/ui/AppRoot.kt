@@ -48,6 +48,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mizan.money.MoneyApp
 import com.mizan.money.R
+import com.mizan.money.data.BackupData
+import com.mizan.money.data.BackupManager
+import com.mizan.money.widget.WidgetUpdater
 import com.mizan.money.ui.theme.LanguageMode
 import com.mizan.money.ui.theme.LanguagePreference
 import com.mizan.money.ui.theme.ProvideMizanTheme
@@ -308,6 +311,74 @@ private fun SettingsDialog(
         )
     }
     var showExportConfirm by remember { mutableStateOf(false) }
+    var pendingRestoreJson by remember { mutableStateOf<String?>(null) }
+    var restoreResult by remember { mutableStateOf<Boolean?>(null) }
+    val app = ctx.applicationContext as MoneyApp
+    val backupShareTitle = stringResource(R.string.stg_backup_share)
+    val restoreLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch(Dispatchers.IO) {
+                // Read fully first; only show the destructive confirm once we
+                // know the file is readable.
+                val text = try {
+                    ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                } catch (e: Exception) { null }
+                withContext(Dispatchers.Main) {
+                    if (text == null) restoreResult = false else pendingRestoreJson = text
+                }
+            }
+        }
+    }
+
+    if (pendingRestoreJson != null) {
+        AlertDialog(
+            onDismissRequest = { pendingRestoreJson = null },
+            containerColor = White,
+            shape = RoundedCornerShape(RadiusXl),
+            title = { Text(stringResource(R.string.stg_restore_confirm_title), style = H2) },
+            text = { Text(stringResource(R.string.stg_restore_confirm_body), style = BodyMuted) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val json = pendingRestoreJson!!
+                    pendingRestoreJson = null
+                    scope.launch(Dispatchers.IO) {
+                        val ok = try {
+                            BackupManager.fromJson(json).let { app.db.backupDao().restore(it) }
+                            WidgetUpdater.refresh(ctx)
+                            true
+                        } catch (e: Exception) { false }
+                        withContext(Dispatchers.Main) { restoreResult = ok }
+                    }
+                }) { Text(stringResource(R.string.stg_restore_action), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRestoreJson = null }) {
+                    Text(stringResource(R.string.stg_cancel), style = Body.copy(color = InkSoft))
+                }
+            }
+        )
+    }
+    restoreResult?.let { ok ->
+        AlertDialog(
+            onDismissRequest = { restoreResult = null },
+            containerColor = White,
+            shape = RoundedCornerShape(RadiusXl),
+            title = {
+                Text(
+                    if (ok) stringResource(R.string.stg_restore_ok) else stringResource(R.string.stg_restore_failed),
+                    style = H2
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { restoreResult = null }) {
+                    Text(stringResource(R.string.settings_close), style = Body.copy(color = InkSoft))
+                }
+            }
+        )
+    }
+
 
     if (showExportConfirm) {
         AlertDialog(
@@ -380,6 +451,57 @@ private fun SettingsDialog(
                             else stringResource(R.string.stg_export_subtitle),
                             style = Eyebrow.copy(fontSize = 11.sp)
                         )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+
+                // ===== FULL BACKUP =====
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(RadiusMd))
+                        .background(PaperOuter)
+                        .clickable {
+                            scope.launch(Dispatchers.IO) {
+                                val dao = app.db.backupDao()
+                                val data = BackupData(
+                                    transactions = dao.transactions(),
+                                    budgets = dao.budgets(),
+                                    goals = dao.goals(),
+                                    debts = dao.debts(),
+                                    recurringItems = dao.recurringItems(),
+                                )
+                                val file = writeBackupFile(ctx, BackupManager.toJson(data))
+                                withContext(Dispatchers.Main) {
+                                    shareExportFile(ctx, file, "application/json", backupShareTitle)
+                                }
+                            }
+                        }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconBadge(Icons.Default.Backup, Indigo, White, size = 40.dp, iconSize = 18.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(stringResource(R.string.stg_backup_title), style = Body.copy(fontWeight = FontWeight.Bold))
+                        Text(stringResource(R.string.stg_backup_subtitle), style = Eyebrow.copy(fontSize = 11.sp))
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+
+                // ===== RESTORE =====
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(RadiusMd))
+                        .background(PaperOuter)
+                        .clickable { restoreLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconBadge(Icons.Default.Restore, Danger, White, size = 40.dp, iconSize = 18.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(stringResource(R.string.stg_restore_title), style = Body.copy(fontWeight = FontWeight.Bold))
+                        Text(stringResource(R.string.stg_restore_subtitle), style = Eyebrow.copy(fontSize = 11.sp))
                     }
                 }
                 Spacer(Modifier.height(18.dp))

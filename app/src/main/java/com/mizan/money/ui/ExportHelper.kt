@@ -45,8 +45,18 @@ fun writeSmsExportFile(context: Context, transactions: List<TransactionEntity>):
     return file
 }
 
-fun shareExportFile(context: Context, file: File, mimeType: String = "text/plain", chooserTitle: String = "مشاركة ملف التشخيص") {
-    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+// ============ FULL JSON BACKUP ============
+// Writes the whole-database snapshot produced by BackupManager to a shareable
+// file. The file lives in cache/exports and is wiped on next app start.
+fun writeBackupFile(context: Context, json: String): File {
+    val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+    val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
+    val file = File(dir, "mizan-backup-$stamp.json")
+    file.writeText(json)
+    return file
+}
+
+fun shareExportFile(context: Context, file: File, mimeType: String = "text/plain", chooserTitle: String = "مشاركة ملف التشخيص") {    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = mimeType
         putExtra(Intent.EXTRA_STREAM, uri)

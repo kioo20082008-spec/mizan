@@ -5,16 +5,20 @@ import android.util.Log
 import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 // Fire-and-forget helper the rest of the app calls after any change that
 // could affect the widget's numbers (new SMS, manual transaction, budget
-// edit, etc). Runs on IO, swallows failures so a broken widget never
-// crashes the app.
+// edit, etc). A single process-wide supervisor scope is used instead of a new
+// throwaway scope on every call; failures are swallowed so a broken widget
+// never crashes the app.
 object WidgetUpdater {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     fun refresh(context: Context) {
         val appContext = context.applicationContext
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             try {
                 MizanWidget().updateAll(appContext)
             } catch (e: Exception) {

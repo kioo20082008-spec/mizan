@@ -343,6 +343,17 @@
     <string name="stg_share">Share</string>
     <string name="stg_cancel">Cancel</string>
 
+    <string name="stg_backup_title">Full backup</string>
+    <string name="stg_backup_subtitle">Export all your data (transactions, budgets, goals, debts, reminders) as a JSON file</string>
+    <string name="stg_backup_share">Share Mizan backup</string>
+    <string name="stg_restore_title">Restore from backup</string>
+    <string name="stg_restore_subtitle">Pick a JSON file — it will replace all current data</string>
+    <string name="stg_restore_confirm_title">Replace all your data?</string>
+    <string name="stg_restore_confirm_body">All current transactions, budgets, goals, debts, and reminders will be deleted and replaced with the file\'s contents. This cannot be undone.</string>
+    <string name="stg_restore_action">Restore</string>
+    <string name="stg_restore_ok">Restore completed</string>
+    <string name="stg_restore_failed">Could not read the file, or it isn\'t a valid Mizan backup</string>
+
     <string name="stg_theme_label">Appearance</string>
     <string name="stg_theme_desc">Choose light, dark, or follow the system setting.</string>
     <string name="stg_theme_system">System</string>
@@ -413,6 +424,7 @@
     <string name="widget_usage_label">Income usage this month</string>
     <string name="widget_spent_fmt">Spent: %1$s %2$s</string>
     <string name="widget_no_data">No data — open Mizan</string>
+    <string name="widget_no_budget">Set a budget or salary</string>
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">Exchange rates</string>

@@ -343,6 +343,17 @@
     <string name="stg_share">مشاركة</string>
     <string name="stg_cancel">إلغاء</string>
 
+    <string name="stg_backup_title">نسخة احتياطية كاملة</string>
+    <string name="stg_backup_subtitle">صدّر كل بياناتك (عمليات، ميزانيات، أهداف، ديون، تذكيرات) كملف JSON</string>
+    <string name="stg_backup_share">مشاركة نسخة ميزان</string>
+    <string name="stg_restore_title">استعادة من نسخة احتياطية</string>
+    <string name="stg_restore_subtitle">اختر ملف JSON — سيستبدل كل البيانات الحالية</string>
+    <string name="stg_restore_confirm_title">استبدال كل بياناتك؟</string>
+    <string name="stg_restore_confirm_body">سيتم حذف كل العمليات والميزانيات والأهداف والديون والتذكيرات الحالية، واستبدالها بمحتوى الملف. لا يمكن التراجع.</string>
+    <string name="stg_restore_action">استعادة</string>
+    <string name="stg_restore_ok">تمت الاستعادة بنجاح</string>
+    <string name="stg_restore_failed">تعذّرت قراءة الملف أو أنه ليس نسخة ميزان صالحة</string>
+
     <string name="stg_theme_label">المظهر</string>
     <string name="stg_theme_desc">اختر بين الفاتح أو الداكن، أو اتباع إعدادات النظام.</string>
     <string name="stg_theme_system">النظام</string>
@@ -413,6 +424,7 @@
     <string name="widget_usage_label">استهلاك دخل الشهر</string>
     <string name="widget_spent_fmt">صرفت: %1$s %2$s</string>
     <string name="widget_no_data">لا توجد بيانات — افتح ميزان</string>
+    <string name="widget_no_budget">حدّد ميزانية أو راتباً</string>
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">أسعار الصرف</string>
