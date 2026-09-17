@@ -66,9 +66,9 @@ val Pill     = 999.dp
 private val Sans = FontFamily.Default
 
 val Display: TextStyle @Composable @ReadOnlyComposable get() =
-    TextStyle(fontFamily = Sans, fontSize = 38.sp, fontWeight = FontWeight.Black, color = Lime)
+    TextStyle(fontFamily = Sans, fontSize = 38.sp, fontWeight = FontWeight.Black, color = Lime, letterSpacing = (-0.6).sp)
 val H1: TextStyle @Composable @ReadOnlyComposable get() =
-    TextStyle(fontFamily = Sans, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ink)
+    TextStyle(fontFamily = Sans, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ink, letterSpacing = (-0.3).sp)
 val H2: TextStyle @Composable @ReadOnlyComposable get() =
     TextStyle(fontFamily = Sans, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
 val Body: TextStyle @Composable @ReadOnlyComposable get() =
@@ -76,9 +76,9 @@ val Body: TextStyle @Composable @ReadOnlyComposable get() =
 val BodyMuted: TextStyle @Composable @ReadOnlyComposable get() =
     TextStyle(fontFamily = Sans, fontSize = 13.sp, color = InkSoft)
 val Eyebrow: TextStyle @Composable @ReadOnlyComposable get() =
-    TextStyle(fontFamily = Sans, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = InkFaint)
+    TextStyle(fontFamily = Sans, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = InkFaint, letterSpacing = 0.6.sp)
 val NumBold: TextStyle @Composable @ReadOnlyComposable get() =
-    TextStyle(fontFamily = Sans, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)
+    TextStyle(fontFamily = Sans, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink, letterSpacing = (-0.2).sp)
 
 // ============ SHARED PRIMITIVES ============
 @Composable
