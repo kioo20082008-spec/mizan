@@ -1,10 +1,10 @@
 package com.mizan.money.ui
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -56,13 +56,10 @@ import com.mizan.money.ui.theme.ThemePreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 // ============ ENTRY ============
 @Composable
 fun AppRoot() {
-    // Capture the ORIGINAL context (before localization) so app-scoped casts
-    // and launchers keep working against the real application context.
     val ctx = LocalContext.current
     val app = ctx.applicationContext as MoneyApp
     val vm: MainViewModel = viewModel(factory = MainViewModel.factory(app, app.repository))
@@ -78,23 +75,15 @@ fun AppRoot() {
         ThemeMode.DARK -> true
     }
 
-    // Language preference.
+    // Language preference. Changing it triggers an Activity recreate so
+    // attachBaseContext re-applies the new locale + layout direction to the
+    // whole tree (including future Dialogs).
     var languageMode by remember { mutableStateOf(LanguagePreference.load(ctx)) }
-
-    // Localized context: needed for stringResource() to resolve strings against
-    // the chosen locale. We preserve the original uiMode (dark/light) by only
-    // overriding the locale on a copy of the current Configuration.
-    val localizedCtx = remember(languageMode, ctx) {
-        val locale = when (languageMode) {
-            LanguageMode.ARABIC -> Locale.forLanguageTag("ar")
-            LanguageMode.ENGLISH -> Locale.forLanguageTag("en")
-            LanguageMode.SYSTEM -> Locale.getDefault()
-        }
-        val baseConfig = Configuration(ctx.resources.configuration)
-        baseConfig.setLocale(locale)
-        ctx.createConfigurationContext(baseConfig)
+    val layoutDir = when (languageMode) {
+        LanguageMode.ENGLISH -> LayoutDirection.Ltr
+        LanguageMode.ARABIC -> LayoutDirection.Rtl
+        LanguageMode.SYSTEM -> if (isRtlSystem(ctx)) LayoutDirection.Rtl else LayoutDirection.Ltr
     }
-    val layoutDir = if (languageMode == LanguageMode.ENGLISH) LayoutDirection.Ltr else LayoutDirection.Rtl
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -117,40 +106,37 @@ fun AppRoot() {
         }
     }
 
-    CompositionLocalProvider(
-        LocalContext provides localizedCtx,
-        LocalLayoutDirection provides layoutDir
-    ) {
-        ProvideMizanTheme(isDark = isDark) {
-            MaterialTheme(
-                colorScheme = if (isDark) darkColorScheme(
-                    background = Paper,
-                    surface = White,
-                    surfaceVariant = PaperOuter,
-                    surfaceTint = Color.Transparent,
-                    primary = Indigo,
-                    onPrimary = Color.White,
-                    onBackground = Ink,
-                    onSurface = Ink,
-                    onSurfaceVariant = InkSoft,
-                    error = Danger,
-                    onError = Color.White,
-                    outline = Line,
-                ) else lightColorScheme(
-                    background = Paper,
-                    surface = White,
-                    surfaceVariant = PaperOuter,
-                    surfaceTint = Color.Transparent,
-                    primary = Indigo,
-                    onPrimary = Color.White,
-                    onBackground = Ink,
-                    onSurface = Ink,
-                    onSurfaceVariant = InkSoft,
-                    error = Danger,
-                    onError = Color.White,
-                    outline = Line,
-                )
-            ) {
+    ProvideMizanTheme(isDark = isDark) {
+        MaterialTheme(
+            colorScheme = if (isDark) darkColorScheme(
+                background = Paper,
+                surface = White,
+                surfaceVariant = PaperOuter,
+                surfaceTint = Color.Transparent,
+                primary = Indigo,
+                onPrimary = Color.White,
+                onBackground = Ink,
+                onSurface = Ink,
+                onSurfaceVariant = InkSoft,
+                error = Danger,
+                onError = Color.White,
+                outline = Line,
+            ) else lightColorScheme(
+                background = Paper,
+                surface = White,
+                surfaceVariant = PaperOuter,
+                surfaceTint = Color.Transparent,
+                primary = Indigo,
+                onPrimary = Color.White,
+                onBackground = Ink,
+                onSurface = Ink,
+                onSurfaceVariant = InkSoft,
+                error = Danger,
+                onError = Color.White,
+                outline = Line,
+            )
+        ) {
+            CompositionLocalProvider(LocalLayoutDirection provides layoutDir) {
                 Surface(Modifier.fillMaxSize(), color = PaperOuter) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                         Surface(
@@ -183,8 +169,11 @@ fun AppRoot() {
                                     },
                                     languageMode = languageMode,
                                     onLanguageModeChange = { newMode ->
-                                        languageMode = newMode
                                         LanguagePreference.save(ctx, newMode)
+                                        languageMode = newMode
+                                        // Apply immediately by recreating the Activity —
+                                        // attachBaseContext will pick up the new locale.
+                                        (ctx as? Activity)?.recreate()
                                     }
                                 )
                             }
@@ -203,6 +192,9 @@ private fun checkSms(ctx: Context) =
 private fun checkReceiveSms(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECEIVE_SMS) ==
         PackageManager.PERMISSION_GRANTED
+
+private fun isRtlSystem(ctx: Context): Boolean =
+    ctx.resources.configuration.layoutDirection == android.util.LayoutDirection.RTL
 
 // ============ SCAFFOLD ============
 @Composable
@@ -405,10 +397,13 @@ private fun SettingsDialog(
                         .background(PaperOuter)
                         .padding(4.dp)
                 ) {
+                    val sysLabel = stringResource(R.string.settings_language_system)
+                    val arLabel = stringResource(R.string.settings_language_arabic)
+                    val enLabel = stringResource(R.string.settings_language_english)
                     val options = listOf(
-                        LanguageMode.SYSTEM to stringResource(R.string.settings_language_system),
-                        LanguageMode.ARABIC to stringResource(R.string.settings_language_arabic),
-                        LanguageMode.ENGLISH to stringResource(R.string.settings_language_english),
+                        LanguageMode.SYSTEM to sysLabel,
+                        LanguageMode.ARABIC to arLabel,
+                        LanguageMode.ENGLISH to enLabel,
                     )
                     options.forEach { (mode, label) ->
                         val sel = languageMode == mode
