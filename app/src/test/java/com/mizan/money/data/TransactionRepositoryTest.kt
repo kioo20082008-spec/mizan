@@ -78,9 +78,10 @@ class TransactionRepositoryTest {
         val edited = txDao.rows.first { it.smsHash == "a" }
 
         repo.applyCategoryToMerchant("بنده", "بقالة", edited.id)
+        repo.applyCategoryToMerchant("panda", "تسوق", edited.id)
 
         assertEquals("أخرى", txDao.rows.first { it.smsHash == "a" }.category)
-        assertEquals("بقالة", txDao.rows.first { it.smsHash == "b" }.category)
+        assertEquals("تسوق", txDao.rows.first { it.smsHash == "b" }.category)
         assertEquals("بقالة", txDao.rows.first { it.smsHash == "c" }.category)
     }
 }
