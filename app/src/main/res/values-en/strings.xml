@@ -33,6 +33,10 @@
     <string name="settings_language_arabic">العربية</string>
     <string name="settings_language_english">English</string>
     <string name="settings_close">Close</string>
+    <string name="stg_tab_data">Data</string>
+    <string name="stg_tab_appearance">Appearance</string>
+    <string name="stg_tab_finance">Finance</string>
+    <string name="stg_tab_about">About</string>
 
     <!-- ================== DASHBOARD ================== -->
     <string name="dash_local_badge">100% local</string>

@@ -33,6 +33,10 @@
     <string name="settings_language_arabic">العربية</string>
     <string name="settings_language_english">English</string>
     <string name="settings_close">إغلاق</string>
+    <string name="stg_tab_data">البيانات</string>
+    <string name="stg_tab_appearance">المظهر</string>
+    <string name="stg_tab_finance">المالية</string>
+    <string name="stg_tab_about">حول</string>
 
     <!-- ================== DASHBOARD ================== -->
     <string name="dash_local_badge">محلي 100٪</string>
