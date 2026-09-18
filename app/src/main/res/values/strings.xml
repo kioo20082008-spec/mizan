@@ -425,10 +425,12 @@
     <!-- Widget -->
     <string name="widget_label">ميزان — ملخص الشهر</string>
     <string name="widget_description">ملخص استهلاكك للشهر الحالي</string>
-    <string name="widget_usage_label">استهلاك دخل الشهر</string>
-    <string name="widget_spent_fmt">صرفت: %1$s %2$s</string>
-    <string name="widget_no_data">لا توجد بيانات — افتح ميزان</string>
-    <string name="widget_no_budget">حدّد ميزانية أو راتباً</string>
+    <string name="widget_monthly_budget">الميزانية الشهرية</string>
+    <string name="widget_spending_limit">حد الصرف الشهري</string>
+    <string name="widget_spent_label">صرفت</string>
+    <string name="widget_remaining_label">المتبقي</string>
+    <string name="widget_view_details">عرض التفاصيل</string>
+    <string name="widget_no_data">لا توجد بيانات</string>
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">أسعار الصرف</string>

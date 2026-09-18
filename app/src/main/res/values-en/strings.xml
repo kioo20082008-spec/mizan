@@ -425,10 +425,12 @@
     <!-- Widget -->
     <string name="widget_label">Mizan — Monthly summary</string>
     <string name="widget_description">Your spending summary for the current month</string>
-    <string name="widget_usage_label">Income usage this month</string>
-    <string name="widget_spent_fmt">Spent: %1$s %2$s</string>
-    <string name="widget_no_data">No data — open Mizan</string>
-    <string name="widget_no_budget">Set a budget or salary</string>
+    <string name="widget_monthly_budget">Monthly Budget</string>
+    <string name="widget_spending_limit">Monthly spending limit</string>
+    <string name="widget_spent_label">Spent</string>
+    <string name="widget_remaining_label">Remaining</string>
+    <string name="widget_view_details">View Details</string>
+    <string name="widget_no_data">No data</string>
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">Exchange rates</string>

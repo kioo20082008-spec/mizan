@@ -10,17 +10,20 @@ import androidx.glance.GlanceModifier
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.LinearProgressIndicator
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -33,14 +36,23 @@ import com.mizan.money.data.ExchangeRates
 import com.mizan.money.data.TOTAL_BUDGET
 import com.mizan.money.ui.Dates
 import kotlinx.coroutines.flow.first
-import kotlin.math.roundToInt
 
+// All strings are resolved in loadWidgetData (with a Context) rather than in
+// the composable, so the widget content has no dependency on Glance's
+// composition locals and stays trivially previewable.
 data class WidgetData(
-    val headerLine: String,
-    val usageLabel: String,
-    val bigNumber: String,
-    val spentLine: String,
+    val monthLabel: String,
+    val titleLabel: String,
+    val limitLabel: String,
+    val spentLabel: String,
+    val remainingLabel: String,
+    val viewDetailsLabel: String,
+    val budgetAmount: String,
+    val spentAmount: String,
+    val remainingAmount: String,
+    val pctLabel: String,
     val pct: Float,
+    val hasBudget: Boolean,
 )
 
 class MizanWidget : GlanceAppWidget() {
@@ -67,23 +79,26 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
         it.monthKey == monthKey && it.category == TOTAL_BUDGET
     }?.limitAmount?.takeIf { it > 0 }
     val budget = manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary, rates) ?: 0.0)
-    val pct = if (budget > 0) (summary.spent / budget).coerceIn(0.0, 1.2).toFloat() else 0f
-    val hasBudget = budget > 0
-    val currency = context.getString(R.string.currency_sar)
 
+    val hasBudget = budget > 0
     val hasData = txs.isNotEmpty()
-    val brand = context.getString(R.string.app_name)
-    val month = monthLabel(context, range.first)
+    val pct = if (hasBudget) (summary.spent / budget).toFloat() else 0f
+    val currency = context.getString(R.string.currency_sar)
+    val money = { v: Double -> "${FinancialAdvisor.fmt(v)} $currency" }
 
     return WidgetData(
-        headerLine = "$brand  ·  $month",
-        usageLabel = if (hasBudget) context.getString(R.string.widget_usage_label)
-                     else context.getString(R.string.widget_no_budget),
-        bigNumber = if (hasBudget) "${(pct * 100).toInt()}%" else "—",
-        spentLine = if (hasData)
-            context.getString(R.string.widget_spent_fmt, FinancialAdvisor.fmt(summary.spent), currency)
-        else context.getString(R.string.widget_no_data),
+        monthLabel = monthLabel(context, range.first),
+        titleLabel = context.getString(R.string.widget_monthly_budget),
+        limitLabel = context.getString(R.string.widget_spending_limit),
+        spentLabel = context.getString(R.string.widget_spent_label),
+        remainingLabel = context.getString(R.string.widget_remaining_label),
+        viewDetailsLabel = context.getString(R.string.widget_view_details),
+        budgetAmount = if (hasBudget) money(budget) else "—",
+        spentAmount = if (hasData) money(summary.spent) else context.getString(R.string.widget_no_data),
+        remainingAmount = if (hasBudget) money((budget - summary.spent).coerceAtLeast(0.0)) else "—",
+        pctLabel = if (hasBudget) "${(pct * 100).toInt()}%" else "",
         pct = pct,
+        hasBudget = hasBudget,
     )
 }
 
@@ -108,56 +123,151 @@ private fun monthLabel(context: Context, ts: Long): String {
 
 @Composable
 private fun WidgetContent(data: WidgetData) {
-    val bg = ColorProvider(Color(0xFF121017))
-    val lime = ColorProvider(Color(0xFFD7F26B))
+    val cardBg = ColorProvider(Color(0xFF16151C))
+    val pillBg = ColorProvider(Color(0xFF23222B))
+    val white = ColorProvider(Color(0xFFFFFFFF))
     val soft = ColorProvider(Color(0xFFACA9B8))
-    val line = ColorProvider(Color(0xFF2A2A36))
-    val accent = when {
-        data.pct >= 1.0f -> ColorProvider(Color(0xFFFF6B7D))
-        data.pct >= 0.8f -> ColorProvider(Color(0xFFFFB84D))
-        data.pct > 0f    -> ColorProvider(Color(0xFF34D399))
-        else             -> ColorProvider(Color(0xFF7C72F0))
-    }
+    val track = ColorProvider(Color(0xFF2A2A36))
+    val accent = ColorProvider(
+        when {
+            data.pct >= 1.0f -> Color(0xFFFF6B7D)
+            data.pct >= 0.8f -> Color(0xFFFFB84D)
+            data.pct > 0f    -> Color(0xFF34D399)
+            else             -> Color(0xFF7C72F0)
+        }
+    )
+    val badgeBg = ColorProvider(
+        when {
+            data.pct >= 1.0f -> Color(0x33FF6B7D)
+            data.pct >= 0.8f -> Color(0x33FFB84D)
+            data.pct > 0f    -> Color(0x3334D399)
+            else             -> Color(0x337C72F0)
+        }
+    )
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(bg)
-            .padding(14.dp)
+            .background(cardBg)
+            .cornerRadius(26.dp)
+            .padding(18.dp)
             .clickable(actionStartActivity<MainActivity>())
     ) {
-        Text(
-            text = data.headerLine,
-            style = TextStyle(color = lime, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        )
-        Spacer(modifier = GlanceModifier.height(12.dp))
-        Text(
-            text = data.usageLabel,
-            style = TextStyle(color = soft, fontSize = 10.sp)
-        )
-        Spacer(modifier = GlanceModifier.height(2.dp))
-        Text(
-            text = data.bigNumber,
-            style = TextStyle(color = accent, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        )
-        Spacer(modifier = GlanceModifier.height(6.dp))
-        // Glance has no fractional fillMaxWidth, so the progress bar is drawn as
-        // 10 equal-weight segments — as many lit as the current percentage.
-        Row(modifier = GlanceModifier.fillMaxWidth().height(4.dp)) {
-            val filled = (data.pct.coerceIn(0f, 1f) * 10f).roundToInt()
-            repeat(10) { i ->
-                Box(
-                    modifier = GlanceModifier
-                        .defaultWeight()
-                        .fillMaxHeight()
-                        .background(if (i < filled) accent else line)
-                ) { }
+        // ---- Header: title + month pill ----
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = data.titleLabel,
+                modifier = GlanceModifier.defaultWeight(),
+                style = TextStyle(color = soft, fontSize = 12.sp)
+            )
+            Box(
+                modifier = GlanceModifier
+                    .background(pillBg)
+                    .cornerRadius(10.dp)
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = data.monthLabel,
+                    style = TextStyle(color = soft, fontSize = 11.sp)
+                )
             }
         }
+
         Spacer(modifier = GlanceModifier.height(8.dp))
+
+        // ---- Big budget number ----
         Text(
-            text = data.spentLine,
+            text = data.budgetAmount,
+            style = TextStyle(color = white, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        )
+
+        Spacer(modifier = GlanceModifier.height(14.dp))
+
+        // ---- Spending-limit progress bar ----
+        Text(
+            text = data.limitLabel,
             style = TextStyle(color = soft, fontSize = 11.sp)
         )
+        Spacer(modifier = GlanceModifier.height(7.dp))
+        if (data.hasBudget) {
+            LinearProgressIndicator(
+                progress = data.pct.coerceIn(0f, 1f),
+                modifier = GlanceModifier.fillMaxWidth().height(6.dp).cornerRadius(3.dp),
+                color = accent,
+                backgroundColor = track
+            )
+        } else {
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .cornerRadius(3.dp)
+                    .background(track)
+            ) { }
+        }
+
+        Spacer(modifier = GlanceModifier.height(14.dp))
+
+        // ---- Spent (with %) vs Remaining ----
+        Row(modifier = GlanceModifier.fillMaxWidth()) {
+            Column(modifier = GlanceModifier.defaultWeight()) {
+                Text(
+                    text = data.spentLabel,
+                    style = TextStyle(color = soft, fontSize = 11.sp)
+                )
+                Spacer(modifier = GlanceModifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = data.spentAmount,
+                        style = TextStyle(color = white, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    )
+                    if (data.hasBudget) {
+                        Spacer(modifier = GlanceModifier.width(6.dp))
+                        Box(
+                            modifier = GlanceModifier
+                                .background(badgeBg)
+                                .cornerRadius(8.dp)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = data.pctLabel,
+                                style = TextStyle(color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = data.remainingLabel,
+                    style = TextStyle(color = soft, fontSize = 11.sp)
+                )
+                Spacer(modifier = GlanceModifier.height(4.dp))
+                Text(
+                    text = data.remainingAmount,
+                    style = TextStyle(color = white, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                )
+            }
+        }
+
+        Spacer(modifier = GlanceModifier.height(16.dp))
+
+        // ---- View details ----
+        Box(
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .background(pillBg)
+                .cornerRadius(14.dp)
+                .padding(vertical = 11.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = data.viewDetailsLabel,
+                style = TextStyle(color = white, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            )
+        }
     }
 }
