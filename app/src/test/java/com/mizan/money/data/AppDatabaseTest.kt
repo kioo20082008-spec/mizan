@@ -1,5 +1,6 @@
 package com.mizan.money.data
 
+import android.app.Application
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -15,8 +16,10 @@ import org.robolectric.annotation.Config
 
 // Opens a real, in-memory Room database under Robolectric so the generated DAO
 // SQL (not a hand-written fake) is exercised on CI via `testDebugUnitTest`.
+// The plain Application is intentional: the manifest's MoneyApp.onCreate calls
+// WorkManager, which is not initialized in a JVM unit test and would abort setup.
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = Application::class)
 class AppDatabaseTest {
 
     private lateinit var db: AppDatabase
