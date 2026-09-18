@@ -100,6 +100,9 @@
     <string name="tx_exclude_daily_title">Exclude from daily average</string>
     <string name="tx_exclude_daily_desc">For large one-off bills like rent — still counted in totals and budgets</string>
     <string name="tx_exclude_daily_note">Excluded from daily average</string>
+    <string name="tx_reimbursement_title">Shared expense refund</string>
+    <string name="tx_reimbursement_desc">Money returned by someone for a shared expense — subtracted from spending, not counted as income</string>
+    <string name="tx_reimbursement_note">Shared expense refund — subtracted from spending</string>
 
     <string name="tx_bill_reminder_title">Remind me monthly</string>
     <string name="tx_bill_reminder_desc">Alert a few days before the expected date</string>

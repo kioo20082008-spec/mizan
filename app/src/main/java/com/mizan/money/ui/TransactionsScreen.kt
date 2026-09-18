@@ -537,6 +537,7 @@ private fun TxDetailDialog(
     var type by remember(tx.id) { mutableStateOf(tx.type) }
     var isSelfTransfer by remember(tx.id) { mutableStateOf(tx.isSelfTransfer) }
     var excludeFromDailyAvg by remember(tx.id) { mutableStateOf(tx.excludeFromDailyAvg) }
+    var isReimbursement by remember(tx.id) { mutableStateOf(tx.isReimbursement) }
     var confirmingDelete by remember(tx.id) { mutableStateOf(false) }
     val hasExistingReminder = remember(tx.id, tx.merchant, recurringItems) {
         val m = tx.merchant?.trim()
@@ -644,6 +645,25 @@ private fun TxDetailDialog(
                             colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
                         )
                     }
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(RadiusSm))
+                            .background(PaperOuter)
+                            .clickable { isReimbursement = !isReimbursement }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.tx_reimbursement_title), style = Body.copy(fontWeight = FontWeight.Medium))
+                            Text(stringResource(R.string.tx_reimbursement_desc), style = Eyebrow.copy(fontSize = 11.sp))
+                        }
+                        Switch(
+                            checked = isReimbursement,
+                            onCheckedChange = { isReimbursement = it },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                        )
+                    }
                     if (!isSelfTransfer && merchant.isNotBlank()) {
                         Spacer(Modifier.height(10.dp))
                         Row(
@@ -738,6 +758,15 @@ private fun TxDetailDialog(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+                        if (tx.isReimbursement) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                stringResource(R.string.tx_reimbursement_note),
+                                style = Eyebrow.copy(fontSize = 11.sp),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                     Spacer(Modifier.height(16.dp))
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
@@ -763,7 +792,8 @@ private fun TxDetailDialog(
                         onSave(
                             tx.copy(
                                 amount = it, merchant = merchant.ifBlank { null }, category = category, type = type,
-                                isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg
+                                isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg,
+                                isReimbursement = isReimbursement
                             ),
                             billReminder
                         )

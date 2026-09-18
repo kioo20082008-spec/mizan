@@ -100,6 +100,9 @@
     <string name="tx_exclude_daily_title">استثنِ من معدل الصرف اليومي</string>
     <string name="tx_exclude_daily_desc">لمصروف كبير غير يومي مثل الإيجار — يبقى محسوباً في الإجمالي والميزانية</string>
     <string name="tx_exclude_daily_note">مستثناة من معدل الصرف اليومي</string>
+    <string name="tx_reimbursement_title">دفعة مشتركة (تعويض)</string>
+    <string name="tx_reimbursement_desc">مبلغ رجعه لك شخص مقابل مصروف مشترك — يُخصم من الصرف ولا يُحسب دخل</string>
+    <string name="tx_reimbursement_note">دفعة مشتركة — خُصمت من إجمالي الصرف</string>
 
     <string name="tx_bill_reminder_title">ذكّرني بهذي شهرياً</string>
     <string name="tx_bill_reminder_desc">تنبيه قبل الموعد المتوقع بأيام قليلة</string>

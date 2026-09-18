@@ -46,17 +46,28 @@ object FinancialAdvisor {
             it.timestamp in monthStart..monthEnd && !it.isSelfTransfer &&
                 ExchangeRates.toSar(it.amount, it.currency, rates) != null
         }
-        val expenses = inMonth.filter { it.type == TxType.EXPENSE }
-        val incomes = inMonth.filter { it.type == TxType.INCOME }
-        val spent = expenses.sumOf { sar(it) }
+        // A reimbursement is money returned for a shared expense: it is not
+        // income, it reduces spending. It only offsets the expense side, so it
+        // is split out of both expenses and incomes.
+        val expenses = inMonth.filter { it.type == TxType.EXPENSE && !it.isReimbursement }
+        val incomes = inMonth.filter { it.type == TxType.INCOME && !it.isReimbursement }
+        val offsets = inMonth.filter { it.isReimbursement && it.type == TxType.INCOME }
+        val spent = expenses.sumOf { sar(it) } - offsets.sumOf { sar(it) }
         val income = incomes.sumOf { sar(it) }
         val daysPassed = max(1, ((System.currentTimeMillis().coerceAtMost(monthEnd) - monthStart) / 86_400_000L).toInt() + 1)
+        // Reimbursements are subtracted from the category they were filed under
+        // so the donut and per-category budgets show the net (own) share.
+        val offsetsByCat = offsets.groupBy { it.category }.mapValues { (_, l) -> l.sumOf { sar(it) } }
         val byCat = expenses.groupBy { it.category }
-            .map { (cat, list) ->
-                val sum = list.sumOf { sar(it) }
-                CategoryTotal(cat, sum, if (spent > 0) sum / spent else 0.0)
+            .mapNotNull { (cat, list) ->
+                val sum = list.sumOf { sar(it) } - (offsetsByCat[cat] ?: 0.0)
+                if (sum <= 0.005) null
+                else CategoryTotal(cat, sum, if (spent > 0) sum / spent else 0.0)
             }.sortedByDescending { it.amount }
-        val dailyAvgBasis = expenses.filter { !it.excludeFromDailyAvg }.sumOf { sar(it) }
+        val dailyAvgBasis = (
+            expenses.filter { !it.excludeFromDailyAvg }.sumOf { sar(it) } -
+                offsets.filter { !it.excludeFromDailyAvg }.sumOf { sar(it) }
+            ).coerceAtLeast(0.0)
         return MonthSummary(spent, income, income - spent, expenses.size, dailyAvgBasis / daysPassed, byCat, expenses.maxByOrNull { sar(it) })
     }
 
@@ -232,7 +243,7 @@ object FinancialAdvisor {
 
     private fun detectSalary(allTx: List<TransactionEntity>, rates: Map<String, Double>): Double? {
         val incomes = allTx.filter {
-            it.type == TxType.INCOME && !it.isSelfTransfer &&
+            it.type == TxType.INCOME && !it.isSelfTransfer && !it.isReimbursement &&
                 ExchangeRates.toSar(it.amount, it.currency, rates) != null
         }
         if (incomes.isEmpty()) return null
@@ -258,7 +269,7 @@ object FinancialAdvisor {
     private fun detectSubscriptions(allTx: List<TransactionEntity>, rates: Map<String, Double>): List<Pair<String, Double>> {
         val recent = allTx.filter {
             it.type == TxType.EXPENSE && it.merchant != null &&
-                !it.isSelfTransfer && it.category == "اشتراكات" &&
+                !it.isSelfTransfer && !it.isReimbursement && it.category == "اشتراكات" &&
                 ExchangeRates.toSar(it.amount, it.currency, rates) != null
         }
         val grouped = recent.groupBy { normalizeMerchantName(it.merchant!!) }

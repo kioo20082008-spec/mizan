@@ -46,6 +46,7 @@ object BackupManager {
                     put("isSelfTransfer", t.isSelfTransfer)
                     put("isEdited", t.isEdited)
                     put("excludeFromDailyAvg", t.excludeFromDailyAvg)
+                    put("isReimbursement", t.isReimbursement)
                 })
             }
         })
@@ -130,6 +131,7 @@ object BackupManager {
                 isSelfTransfer = o.optBoolean("isSelfTransfer", false),
                 isEdited = o.optBoolean("isEdited", false),
                 excludeFromDailyAvg = o.optBoolean("excludeFromDailyAvg", false),
+                isReimbursement = o.optBoolean("isReimbursement", false),
             )
         }
         val budgets = root.optJSONArray("budgets").mapObjects { o ->

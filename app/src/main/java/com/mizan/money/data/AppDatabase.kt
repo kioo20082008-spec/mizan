@@ -12,7 +12,7 @@ import androidx.room.migration.Migration
         TransactionEntity::class, BudgetEntity::class,
         GoalEntity::class, DebtEntity::class, RecurringItemEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -86,13 +86,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Marks an incoming transfer as reimbursing a shared expense so it is
+        // excluded from income and subtracted from spending totals.
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN isReimbursement INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         // No fallbackToDestructiveMigration: this holds a user's financial history,
         // so a future schema change must ship a real Migration rather than silently
         // wipe their data. exportSchema keeps the schema history to write one from.
         fun get(ctx: Context): AppDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(
                 ctx.applicationContext, AppDatabase::class.java, "mizan.db"
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { INSTANCE = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build().also { INSTANCE = it }
         }
     }
 }

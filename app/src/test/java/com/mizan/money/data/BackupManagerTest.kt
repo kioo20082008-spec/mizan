@@ -20,7 +20,7 @@ class BackupManagerTest {
             TransactionEntity(
                 id = 8, amount = 9500.0, currency = "SAR", merchant = null,
                 category = "أخرى", type = TxType.INCOME, timestamp = 1_700_000_001_000L,
-                smsHash = "def", isManual = true,
+                smsHash = "def", isManual = true, isReimbursement = true,
             ),
         ),
         budgets = listOf(BudgetEntity("2026-09", TOTAL_BUDGET, 8000.0, true)),

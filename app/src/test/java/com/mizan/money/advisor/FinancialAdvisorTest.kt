@@ -22,14 +22,29 @@ private fun tx(
     merchant: String? = "Test",
     timestamp: Long = JAN_2024_START + 1_000L,
     isSelfTransfer: Boolean = false,
-    excludeFromDailyAvg: Boolean = false
+    excludeFromDailyAvg: Boolean = false,
+    isReimbursement: Boolean = false
 ): TransactionEntity = TransactionEntity(
     amount = amount, currency = currency, merchant = merchant, category = category,
     type = type, rawSms = "", smsHash = "h-${System.nanoTime()}-${(0..999999).random()}",
-    timestamp = timestamp, isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg
+    timestamp = timestamp, isSelfTransfer = isSelfTransfer, excludeFromDailyAvg = excludeFromDailyAvg,
+    isReimbursement = isReimbursement
 )
 
 class FinancialAdvisorTest {
+
+    @Test
+    fun `reimbursements reduce spending and category totals without counting as income`() {
+        val txs = listOf(
+            tx(100.0, TxType.EXPENSE, category = "طعام وشراب"),
+            tx(50.0, TxType.INCOME, category = "طعام وشراب", isReimbursement = true)
+        )
+        val s = FinancialAdvisor.summarize(txs, JAN_2024_START, JAN_2024_END)
+
+        assertEquals(50.0, s.spent, 0.001)
+        assertEquals(0.0, s.income, 0.001)
+        assertEquals(50.0, s.categoryTotals.first { it.category == "طعام وشراب" }.amount, 0.001)
+    }
 
     @Test
     fun `summarize sums SAR expenses and incomes within the month range`() {
