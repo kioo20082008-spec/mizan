@@ -40,6 +40,10 @@ class TransactionRepository(
     // set isEdited, or a later rescan would stop refreshing this row from the
     // (possibly improved) parser output as if the user had hand-edited it.
     suspend fun setCategory(tx: TransactionEntity, category: String) = txDao.update(tx.copy(category = category))
+    // Propagates a category correction to every other transaction from the same
+    // merchant (see TransactionDao.updateCategoryByMerchant).
+    suspend fun applyCategoryToMerchant(merchant: String, category: String, excludeId: Long) =
+        txDao.updateCategoryByMerchant(merchant, category, excludeId)
     suspend fun delete(tx: TransactionEntity) = txDao.delete(tx)
     suspend fun setBudget(
         monthKey: String,

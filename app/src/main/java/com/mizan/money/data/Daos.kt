@@ -29,6 +29,14 @@ interface TransactionDao {
     // that a rescan must not silently discard.
     @Query("DELETE FROM transactions WHERE smsHash = :hash AND isManual = 0 AND isEdited = 0")
     suspend fun deleteStaleByHash(hash: String)
+    // Applies a user's category correction to every transaction from the same
+    // merchant so past rows stay consistent with the new rule. Deliberately a
+    // bare category UPDATE (rather than re-saving each whole entity) so it does
+    // not flip isEdited: a later rescan must still be free to refresh these
+    // rows from the parser, which now yields the same category via the custom
+    // rule saved alongside this change.
+    @Query("UPDATE transactions SET category = :category WHERE merchant IS NOT NULL AND LOWER(merchant) = LOWER(:merchant) AND id != :excludeId")
+    suspend fun updateCategoryByMerchant(merchant: String, category: String, excludeId: Long)
 }
 
 @Dao

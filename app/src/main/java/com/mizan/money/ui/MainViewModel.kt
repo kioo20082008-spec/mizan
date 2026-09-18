@@ -158,6 +158,13 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         saveCustomRules(current.filterIndexed { i, _ -> i != index })
     }
 
+    // Same keyword replaces its previous rule so re-categorizing a merchant
+    // twice doesn't pile up duplicate entries in Settings.
+    private fun setMerchantRule(keyword: String, category: String) {
+        val without = _customRules.value.filterNot { it.first.equals(keyword, ignoreCase = true) }
+        saveCustomRules(without + (keyword to category))
+    }
+
     // Re-runs CategoryClassifier over every SMS-sourced, unedited, non-self-
     // transfer transaction — e.g. after defining new custom keywords — without
     // touching isEdited (that flag is reserved for the user's own corrections).
@@ -215,7 +222,21 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
             checkBudgetThreshold()
         }
     }
-    fun update(tx: TransactionEntity) = viewModelScope.launch { repo.update(tx); checkBudgetThreshold(); WidgetUpdater.refresh(getApplication()) }
+    // Changing a transaction's category is treated as "this merchant belongs in
+    // this category": the correction is pushed to every existing transaction
+    // from the same merchant (past) and saved as a custom rule so future SMS
+    // from that merchant classify the same way.
+    fun update(tx: TransactionEntity) = viewModelScope.launch {
+        val previous = repo.allTransactionsOnce().firstOrNull { it.id == tx.id }
+        repo.update(tx)
+        val merchant = tx.merchant?.trim()?.takeIf { it.isNotEmpty() }
+        if (previous != null && merchant != null && previous.category != tx.category) {
+            repo.applyCategoryToMerchant(merchant, tx.category, tx.id)
+            setMerchantRule(merchant, tx.category)
+        }
+        checkBudgetThreshold()
+        WidgetUpdater.refresh(getApplication())
+    }
     fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx); WidgetUpdater.refresh(getApplication()) }
     fun setBudget(
         monthKey: String,

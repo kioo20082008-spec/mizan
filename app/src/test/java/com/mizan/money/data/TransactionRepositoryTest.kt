@@ -69,6 +69,20 @@ class TransactionRepositoryTest {
         repo.reconcile(emptyList(), emptySet())
         assertEquals(1, txDao.rows.size)
     }
+
+    @Test
+    fun `applyCategoryToMerchant updates matching rows and skips the edited one`() = runBlocking {
+        txDao.insert(TransactionEntity(amount = 1.0, merchant = "بنده", category = "أخرى", smsHash = "a", timestamp = 1))
+        txDao.insert(TransactionEntity(amount = 2.0, merchant = "Panda", category = "أخرى", smsHash = "b", timestamp = 2))
+        txDao.insert(TransactionEntity(amount = 3.0, merchant = "بنده", category = "أخرى", smsHash = "c", timestamp = 3))
+        val edited = txDao.rows.first { it.smsHash == "a" }
+
+        repo.applyCategoryToMerchant("بنده", "بقالة", edited.id)
+
+        assertEquals("أخرى", txDao.rows.first { it.smsHash == "a" }.category)
+        assertEquals("بقالة", txDao.rows.first { it.smsHash == "b" }.category)
+        assertEquals("بقالة", txDao.rows.first { it.smsHash == "c" }.category)
+    }
 }
 
 private class FakeTransactionDao : TransactionDao {
@@ -92,6 +106,14 @@ private class FakeTransactionDao : TransactionDao {
     override suspend fun findByHash(hash: String): TransactionEntity? = rows.firstOrNull { it.smsHash == hash }
     override suspend fun deleteStaleByHash(hash: String) {
         rows.removeAll { it.smsHash == hash && !it.isManual && !it.isEdited }
+    }
+    override suspend fun updateCategoryByMerchant(merchant: String, category: String, excludeId: Long) {
+        for (i in rows.indices) {
+            val r = rows[i]
+            if (r.id != excludeId && r.merchant?.equals(merchant, ignoreCase = true) == true) {
+                rows[i] = r.copy(category = category)
+            }
+        }
     }
 }
 
