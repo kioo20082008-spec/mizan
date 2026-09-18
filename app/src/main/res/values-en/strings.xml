@@ -179,8 +179,18 @@
     <string name="debts_type_credit">Credit card</string>
     <string name="debts_type_other">Other</string>
     <string name="debts_name_hint">Name (e.g., Tabby, Car loan)</string>
-    <string name="debts_installment_hint">Installment amount (optional)</string>
-    <string name="debts_days_hint">Next installment in how many days? (optional)</string>
+    <string name="debts_months_hint">Number of months</string>
+    <string name="debts_paid_months_hint">Months paid</string>
+    <string name="debts_installment_preview_fmt">Monthly installment: %1$s SAR</string>
+    <string name="debts_remaining_preview_fmt">Remaining: %1$s SAR</string>
+    <string name="debts_due_date_hint">Next installment date</string>
+    <string name="debts_date_none">Choose date</string>
+    <string name="debts_date_confirm">OK</string>
+    <string name="debts_payment_date_hint">Payment date</string>
+    <string name="debts_months_progress_fmt">%1$d of %2$d months</string>
+    <string name="debts_edit">Edit</string>
+    <string name="debts_edit_dialog_title">Edit debt</string>
+    <string name="debts_save_action">Save</string>
 
     <!-- ================== Claude's names (Budget/Planning) ================== -->
     <string name="planning_title">Planning</string>
@@ -276,7 +286,6 @@
     <string name="debts_log_payment">Log payment</string>
     <string name="debts_add_dialog_title">New debt or installment</string>
     <string name="debts_total_hint_fmt">Total amount (%1$s)</string>
-    <string name="debts_remaining_hint_fmt">Remaining now (%1$s)</string>
     <string name="debts_add_action">Add</string>
 
     <string name="insights_title">Advisor &amp; reports</string>

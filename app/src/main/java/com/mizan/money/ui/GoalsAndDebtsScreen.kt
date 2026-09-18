@@ -587,6 +587,7 @@ private fun DebtsSection(vm: MainViewModel) {
     val txs by vm.transactions.collectAsState()
     val dismissed by vm.dismissedBnplSuggestions.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<DebtEntity?>(null) }
     var payingOn by remember { mutableStateOf<DebtEntity?>(null) }
     var confirmingDelete by remember { mutableStateOf<DebtEntity?>(null) }
 
@@ -647,22 +648,22 @@ private fun DebtsSection(vm: MainViewModel) {
             item { EmptyState(stringResource(R.string.debts_empty)) }
         } else {
             items(debts, key = { it.id }) { debt ->
-                DebtCard(debt = debt, onPay = { payingOn = debt }, onDelete = { confirmingDelete = debt })
+                DebtCard(debt = debt, onPay = { payingOn = debt }, onEdit = { editing = debt }, onDelete = { confirmingDelete = debt })
             }
         }
     }
 
     if (showAdd) {
-        AddDebtDialog(onDismiss = { showAdd = false }, onSave = { name, type, total, remaining, installment, days ->
-            vm.addDebt(name, type, total, remaining, installment, days); showAdd = false
-        })
+        DebtEditorDialog(initial = null, onDismiss = { showAdd = false }, onSave = { vm.saveDebt(it); showAdd = false })
+    }
+    editing?.let { debt ->
+        DebtEditorDialog(initial = debt, onDismiss = { editing = null }, onSave = { vm.saveDebt(it); editing = null })
     }
     payingOn?.let { debt ->
-        ContributeDialog(
-            title = stringResource(R.string.debts_pay_dialog_title_fmt, debt.name),
-            amountLabel = stringResource(R.string.debts_pay_amount_fmt, currencyLabel("SAR")),
+        DebtPaymentDialog(
+            debt = debt,
             onDismiss = { payingOn = null },
-            onSave = { amount -> vm.logDebtPayment(debt, amount); payingOn = null }
+            onSave = { amount, date -> vm.logDebtPayment(debt, amount, date); payingOn = null }
         )
     }
     confirmingDelete?.let { debt ->
@@ -695,7 +696,7 @@ private fun debtTypeLabel(type: DebtType): String = when (type) {
 }
 
 @Composable
-private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onDelete: () -> Unit) {
+private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
     val paid = (debt.totalAmount - debt.remainingAmount).coerceAtLeast(0.0)
     val pct = if (debt.totalAmount > 0) (paid / debt.totalAmount).coerceIn(0.0, 1.0).toFloat() else 0f
     val dueSoon = debt.nextDueDate != null && debt.nextDueDate - System.currentTimeMillis() in 0..(3L * 86_400_000L)
@@ -713,7 +714,19 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onDelete: () -> Unit) 
                     }
                 }
                 Text(debtTypeLabel(debt.type), style = Eyebrow.copy(fontSize = 10.sp))
+                if (debt.termMonths > 0) {
+                    Text(
+                        stringResource(R.string.debts_months_progress_fmt, debt.paidMonths, debt.termMonths),
+                        style = Eyebrow.copy(fontSize = 10.sp, color = InkFaint)
+                    )
+                }
             }
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(RadiusSm)).background(IndigoSoft)
+                    .clickable(onClick = onEdit),
+                contentAlignment = Alignment.Center
+            ) { Icon(Icons.Default.Edit, stringResource(R.string.debts_edit), tint = Indigo, modifier = Modifier.size(16.dp)) }
+            Spacer(Modifier.width(6.dp))
             Box(
                 Modifier.size(36.dp).clip(RoundedCornerShape(RadiusSm)).background(Danger.copy(alpha = 0.08f))
                     .clickable(onClick = onDelete),
@@ -754,26 +767,44 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onDelete: () -> Unit) 
     }
 }
 
+// Formats an amount for a text field: no decimals for whole numbers, and empty
+// for 0 so an optional field shows its placeholder instead of "0".
+private fun moneyInput(v: Double): String =
+    if (v <= 0.0) "" else if (v % 1.0 == 0.0) v.toLong().toString() else v.toString()
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddDebtDialog(
+private fun DebtEditorDialog(
+    initial: DebtEntity?,
     onDismiss: () -> Unit,
-    onSave: (String, DebtType, Double, Double, Double, Int?) -> Unit
+    onSave: (DebtEntity) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var type by remember { mutableStateOf(DebtType.OTHER) }
-    var total by remember { mutableStateOf("") }
-    var remaining by remember { mutableStateOf("") }
-    var installment by remember { mutableStateOf("") }
-    var days by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(initial?.name ?: "") }
+    var type by remember { mutableStateOf(initial?.type ?: DebtType.OTHER) }
+    var total by remember { mutableStateOf(initial?.totalAmount?.let { moneyInput(it) } ?: "") }
+    var termMonths by remember { mutableStateOf(initial?.termMonths?.takeIf { it > 0 }?.toString() ?: "") }
+    var paidMonths by remember { mutableStateOf(initial?.paidMonths?.takeIf { it > 0 }?.toString() ?: "") }
+    var dueDate by remember { mutableStateOf(initial?.nextDueDate) }
     val types = listOf(DebtType.LOAN, DebtType.BNPL, DebtType.CREDIT_CARD, DebtType.OTHER)
+
+    val totalVal = total.toDoubleOrNull()
+    val monthsVal = termMonths.filter { it.isDigit() }.toIntOrNull() ?: 0
+    val paidRaw = paidMonths.filter { it.isDigit() }.toIntOrNull() ?: 0
+    val paidVal = if (monthsVal > 0) paidRaw.coerceIn(0, monthsVal) else paidRaw
+    val installment = if (monthsVal > 0 && totalVal != null) totalVal / monthsVal else (initial?.installmentAmount ?: 0.0)
+    val remaining = when {
+        monthsVal > 0 && totalVal != null -> (totalVal - installment * paidVal).coerceIn(0.0, totalVal)
+        initial != null -> initial.remainingAmount
+        else -> totalVal ?: 0.0
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
-        title = { Text(stringResource(R.string.debts_add_dialog_title), style = H2) },
+        title = { Text(stringResource(if (initial == null) R.string.debts_add_dialog_title else R.string.debts_edit_dialog_title), style = H2) },
         text = {
-            Column {
+            Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = name, onValueChange = { name = it },
                     label = { Text(stringResource(R.string.debts_name_hint)) },
@@ -805,46 +836,157 @@ private fun AddDebtDialog(
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
-                    value = total, onValueChange = { v -> total = sanitizeAmountInput(v); if (remaining.isBlank()) remaining = total },
+                    value = total, onValueChange = { total = sanitizeAmountInput(it) },
                     label = { Text(stringResource(R.string.debts_total_hint_fmt, currencyLabel("SAR"))) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(), singleLine = true,
                     shape = RoundedCornerShape(RadiusSm), textStyle = Body
                 )
                 Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = remaining, onValueChange = { remaining = sanitizeAmountInput(it) },
-                    label = { Text(stringResource(R.string.debts_remaining_hint_fmt, currencyLabel("SAR"))) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    shape = RoundedCornerShape(RadiusSm), textStyle = Body
-                )
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = installment, onValueChange = { installment = sanitizeAmountInput(it) },
-                    label = { Text(stringResource(R.string.debts_installment_hint)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    shape = RoundedCornerShape(RadiusSm), textStyle = Body
-                )
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = days, onValueChange = { days = it.filter { c -> c.isDigit() } },
-                    label = { Text(stringResource(R.string.debts_days_hint)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    shape = RoundedCornerShape(RadiusSm), textStyle = Body
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = termMonths, onValueChange = { termMonths = it.filter { c -> c.isDigit() } },
+                        label = { Text(stringResource(R.string.debts_months_hint)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f), singleLine = true,
+                        shape = RoundedCornerShape(RadiusSm), textStyle = Body
+                    )
+                    OutlinedTextField(
+                        value = paidMonths, onValueChange = { paidMonths = it.filter { c -> c.isDigit() } },
+                        label = { Text(stringResource(R.string.debts_paid_months_hint)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f), singleLine = true,
+                        shape = RoundedCornerShape(RadiusSm), textStyle = Body
+                    )
+                }
+                if (monthsVal > 0 && totalVal != null) {
+                    Spacer(Modifier.height(10.dp))
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(RadiusSm)).background(PaperOuter).padding(12.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.debts_installment_preview_fmt, FinancialAdvisor.fmt(installment)),
+                            style = Eyebrow.copy(fontSize = 11.sp, color = Indigo, fontWeight = FontWeight.Bold)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            stringResource(R.string.debts_remaining_preview_fmt, FinancialAdvisor.fmt(remaining)),
+                            style = Eyebrow.copy(fontSize = 11.sp)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                DebtDateField(
+                    label = stringResource(R.string.debts_due_date_hint),
+                    value = dueDate,
+                    onPick = { dueDate = it }
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 val t = total.toDoubleOrNull()
-                val r = remaining.toDoubleOrNull() ?: t
-                if (name.isNotBlank() && t != null && t > 0 && r != null) {
-                    onSave(name.trim(), type, t, r, installment.toDoubleOrNull() ?: 0.0, days.toIntOrNull())
+                if (name.isNotBlank() && t != null && t > 0) {
+                    val base = initial ?: DebtEntity(name = "", totalAmount = 0.0, remainingAmount = 0.0)
+                    onSave(
+                        base.copy(
+                            name = name.trim(),
+                            type = type,
+                            totalAmount = t,
+                            remainingAmount = remaining,
+                            installmentAmount = installment,
+                            termMonths = monthsVal,
+                            paidMonths = paidVal,
+                            nextDueDate = dueDate
+                        )
+                    )
                 }
-            }) { Text(stringResource(R.string.debts_add_action), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
+            }) { Text(stringResource(if (initial == null) R.string.debts_add_action else R.string.debts_save_action), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.debts_cancel), style = Body.copy(color = InkSoft)) }
+        }
+    )
+}
+
+// A read-only field that opens a calendar when tapped. A disabled TextField
+// swallows taps, so this mirrors the input styling with a plain clickable row.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DebtDateField(label: String, value: Long?, onPick: (Long) -> Unit) {
+    var show by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Text(label, style = Eyebrow.copy(fontSize = 10.sp))
+        Spacer(Modifier.height(4.dp))
+        Row(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(RadiusSm))
+                .border(1.dp, PaperOuter, RoundedCornerShape(RadiusSm))
+                .clickable { show = true }
+                .padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                value?.let { Dates.dayLabel(it) } ?: stringResource(R.string.debts_date_none),
+                style = Body.copy(color = if (value != null) Ink900 else InkFaint, fontSize = 13.sp)
+            )
+            Spacer(Modifier.weight(1f))
+            Icon(Icons.Default.CalendarMonth, null, tint = InkFaint, modifier = Modifier.size(18.dp))
+        }
+    }
+    if (show) {
+        val state = rememberDatePickerState(initialSelectedDateMillis = value)
+        DatePickerDialog(
+            onDismissRequest = { show = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let(onPick)
+                    show = false
+                }) { Text(stringResource(R.string.debts_date_confirm), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { show = false }) { Text(stringResource(R.string.debts_cancel), style = Body.copy(color = InkSoft)) }
+            }
+        ) { DatePicker(state = state) }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DebtPaymentDialog(
+    debt: DebtEntity,
+    onDismiss: () -> Unit,
+    onSave: (Double, Long) -> Unit
+) {
+    var amount by remember { mutableStateOf(moneyInput(debt.installmentAmount)) }
+    var date by remember { mutableStateOf(System.currentTimeMillis()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = White,
+        shape = RoundedCornerShape(RadiusXl),
+        title = { Text(stringResource(R.string.debts_pay_dialog_title_fmt, debt.name), style = H2) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = amount, onValueChange = { amount = sanitizeAmountInput(it) },
+                    label = { Text(stringResource(R.string.debts_pay_amount_fmt, currencyLabel("SAR"))) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    shape = RoundedCornerShape(RadiusSm), textStyle = Body
+                )
+                Spacer(Modifier.height(14.dp))
+                DebtDateField(
+                    label = stringResource(R.string.debts_payment_date_hint),
+                    value = date,
+                    onPick = { date = it }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val a = amount.toDoubleOrNull()
+                if (a != null && a > 0) onSave(a, date)
+            }) { Text(stringResource(R.string.debts_log_payment), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.debts_cancel), style = Body.copy(color = InkSoft)) }

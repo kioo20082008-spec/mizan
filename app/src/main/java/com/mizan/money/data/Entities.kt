@@ -89,6 +89,11 @@ data class DebtEntity(
     val installmentAmount: Double = 0.0,
     val nextDueDate: Long? = null,
     val lender: String? = null,
+    // Terms of the installment plan: total months and how many the user has
+    // already paid. 0 termMonths means "no plan set", in which case the debt
+    // is tracked purely by remainingAmount as before.
+    val termMonths: Int = 0,
+    val paidMonths: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
     val isArchived: Boolean = false
 )

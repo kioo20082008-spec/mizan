@@ -84,6 +84,8 @@ object BackupManager {
                     put("installmentAmount", d.installmentAmount)
                     put("nextDueDate", d.nextDueDate ?: JSONObject.NULL)
                     put("lender", d.lender ?: JSONObject.NULL)
+                    put("termMonths", d.termMonths)
+                    put("paidMonths", d.paidMonths)
                     put("createdAt", d.createdAt)
                     put("isArchived", d.isArchived)
                 })
@@ -163,6 +165,8 @@ object BackupManager {
                 installmentAmount = o.optDouble("installmentAmount", 0.0),
                 nextDueDate = o.longOrNull("nextDueDate"),
                 lender = o.stringOrNull("lender"),
+                termMonths = o.optInt("termMonths", 0),
+                paidMonths = o.optInt("paidMonths", 0),
                 createdAt = o.optLong("createdAt", System.currentTimeMillis()),
                 isArchived = o.optBoolean("isArchived", false),
             )

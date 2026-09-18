@@ -302,13 +302,28 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 remainingAmount = remainingAmount, installmentAmount = installmentAmount, nextDueDate = nextDue
             ))
         }
-    fun logDebtPayment(debt: DebtEntity, amount: Double) = viewModelScope.launch {
-        val newRemaining = (debt.remainingAmount - amount).coerceAtLeast(0.0)
-        // Rolls the next due date forward by ~a month on payment, rather than
-        // leaving a now-stale date — good enough for a monthly installment
-        // without needing a full recurrence-rule engine.
-        val newDue = debt.nextDueDate?.let { it + 30L * 86_400_000L }
-        repo.updateDebt(debt.copy(remainingAmount = newRemaining, nextDueDate = newDue))
+    fun logDebtPayment(debt: DebtEntity, amount: Double, paidOn: Long = System.currentTimeMillis()) = viewModelScope.launch {
+        // With a month plan, a logged payment advances the paid-months counter
+        // and re-derives the remainder from the installment; otherwise fall back
+        // to the old "subtract the amount" behaviour.
+        val newPaid = if (debt.termMonths > 0) (debt.paidMonths + 1).coerceAtMost(debt.termMonths) else debt.paidMonths
+        val newRemaining = if (debt.termMonths > 0 && debt.installmentAmount > 0.0) {
+            (debt.totalAmount - debt.installmentAmount * newPaid).coerceAtLeast(0.0)
+        } else {
+            (debt.remainingAmount - amount).coerceAtLeast(0.0)
+        }
+        repo.updateDebt(
+            debt.copy(
+                remainingAmount = newRemaining,
+                nextDueDate = paidOn + 30L * 86_400_000L,
+                paidMonths = newPaid
+            )
+        )
+    }
+    // Used by both "add" and "edit": a fresh entity has id 0, an edited one keeps
+    // its row id, so the DAO choice follows from that instead of two entry points.
+    fun saveDebt(debt: DebtEntity) = viewModelScope.launch {
+        if (debt.id == 0L) repo.addDebt(debt) else repo.updateDebt(debt)
     }
     fun deleteDebt(debt: DebtEntity) = viewModelScope.launch { repo.deleteDebt(debt) }
 

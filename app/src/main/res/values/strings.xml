@@ -179,8 +179,18 @@
     <string name="debts_type_credit">بطاقة ائتمان</string>
     <string name="debts_type_other">أخرى</string>
     <string name="debts_name_hint">الاسم (مثال: تابي، قرض السيارة)</string>
-    <string name="debts_installment_hint">قيمة القسط (اختياري)</string>
-    <string name="debts_days_hint">القسط القادم خلال كم يوم؟ (اختياري)</string>
+    <string name="debts_months_hint">عدد الأشهر</string>
+    <string name="debts_paid_months_hint">الأشهر المسددة</string>
+    <string name="debts_installment_preview_fmt">القسط الشهري: %1$s ر.س</string>
+    <string name="debts_remaining_preview_fmt">المتبقي: %1$s ر.س</string>
+    <string name="debts_due_date_hint">تاريخ القسط القادم</string>
+    <string name="debts_date_none">اختر التاريخ</string>
+    <string name="debts_date_confirm">تم</string>
+    <string name="debts_payment_date_hint">تاريخ الدفعة</string>
+    <string name="debts_months_progress_fmt">%1$d من %2$d شهر</string>
+    <string name="debts_edit">تعديل</string>
+    <string name="debts_edit_dialog_title">تعديل الدين</string>
+    <string name="debts_save_action">حفظ</string>
 
     <!-- ================== Claude's names (Budget/Planning) ================== -->
     <string name="planning_title">التخطيط المالي</string>
@@ -276,7 +286,6 @@
     <string name="debts_log_payment">سجّل دفعة</string>
     <string name="debts_add_dialog_title">دين أو قسط جديد</string>
     <string name="debts_total_hint_fmt">المبلغ الإجمالي (%1$s)</string>
-    <string name="debts_remaining_hint_fmt">المتبقي حالياً (%1$s)</string>
     <string name="debts_add_action">إضافة</string>
 
     <string name="insights_title">المستشار والتقارير</string>
