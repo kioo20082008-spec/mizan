@@ -146,62 +146,26 @@
     <string name="month_nov">نوفمبر</string>
     <string name="month_dec">ديسمبر</string>
 
-    <string name="month_short_jan">ينا</string>
-    <string name="month_short_feb">فبر</string>
-    <string name="month_short_mar">مار</string>
-    <string name="month_short_apr">أبر</string>
-    <string name="month_short_may">ماي</string>
-    <string name="month_short_jun">يون</string>
-    <string name="month_short_jul">يول</string>
-    <string name="month_short_aug">أغس</string>
-    <string name="month_short_sep">سبت</string>
-    <string name="month_short_oct">أكت</string>
-    <string name="month_short_nov">نوف</string>
-    <string name="month_short_dec">ديس</string>
 
     <!-- ================== BUDGET ================== -->
-    <string name="budget_title">التخطيط المالي</string>
-    <string name="budget_tab_budget">الميزانية</string>
-    <string name="budget_tab_goals">الأهداف</string>
-    <string name="budget_tab_debts">الديون</string>
 
-    <string name="budget_screen_title">الميزانية والتصنيفات — %1$s</string>
-    <string name="budget_screen_subtitle">راقب إنفاقك وقارنه بالحدود المحددة</string>
     <string name="budget_copy_prev">نسخ ميزانية الشهر الماضي</string>
     <string name="budget_total_label">الميزانية الإجمالية للشهر</string>
-    <string name="budget_limit_hint">الحد الشهري</string>
     <string name="budget_save">حفظ</string>
     <string name="budget_per_category">الميزانية لكل تصنيف</string>
-    <string name="budget_add_cat">+ تصنيف</string>
     <string name="budget_cancel_add">إلغاء</string>
-    <string name="budget_new_cat_hint">اسم التصنيف</string>
     <string name="budget_add_action">إضافة</string>
-    <string name="budget_no_limit">%1$s ر.س — بدون حد</string>
-    <string name="budget_with_rollover">%1$s / %2$s ر.س  (+%3$s مرحّل)</string>
-    <string name="budget_plain">%1$s / %2$s ر.س</string>
-    <string name="budget_rollover_switch_title">ترحيل فائض الشهر الماضي</string>
-    <string name="budget_rollover_switch_desc">يُضاف أي مبلغ لم تصرفه من الحد السابق لهذا الشهر</string>
-    <string name="budget_save_action">حفظ</string>
-    <string name="budget_delete_cat">حذف %1$s</string>
+    <string name="cd_expand">توسيع</string>
+    <string name="cd_collapse">طي</string>
 
     <!-- ================== GOALS ================== -->
     <string name="goals_title">أهداف الادخار</string>
     <string name="goals_subtitle">اجمع مبلغاً لهدف محدد بخطوات بسيطة</string>
     <string name="goals_add">هدف جديد</string>
-    <string name="goals_empty">لا توجد أهداف بعد — أضف أول هدف ادخار</string>
-    <string name="goals_progress">%1$s / %2$s ر.س</string>
-    <string name="goals_until"> • حتى %1$s</string>
     <string name="goals_reached">وصلت لهدفك 🎉</string>
-    <string name="goals_percent">%1$d٪ من الهدف</string>
-    <string name="goals_add_money">+ أضف مبلغ</string>
     <string name="goals_delete">حذف</string>
-    <string name="goals_add_title">هدف ادخار جديد</string>
     <string name="goals_name_hint">اسم الهدف (مثال: رحلة، سيارة)</string>
-    <string name="goals_target_hint">المبلغ المستهدف (%1$s)</string>
     <string name="goals_months_hint">خلال كم شهر؟ (اختياري)</string>
-    <string name="goals_confirm_delete_title">حذف هدف «%1$s»؟</string>
-    <string name="goals_confirm_delete_desc">لا يمكن التراجع عن هذا الإجراء.</string>
-    <string name="goals_contribute_title">أضف مبلغاً لهدف «%1$s»</string>
 
     <!-- ================== DEBTS ================== -->
     <string name="debts_title">الديون والأقساط</string>
@@ -210,31 +174,38 @@
     <string name="debts_empty">لا توجد ديون متتبعة بعد</string>
     <string name="debts_settled">تم السداد بالكامل ✅</string>
     <string name="debts_remaining_fmt">المتبقي %1$s من %2$s ر.س</string>
-    <string name="debts_next_fmt"> • القسط %1$s</string>
-    <string name="debts_pay">سجّل دفعة</string>
     <string name="debts_type_loan">قرض</string>
     <string name="debts_type_bnpl">تقسيط (تابي/تمارا)</string>
     <string name="debts_type_credit">بطاقة ائتمان</string>
     <string name="debts_type_other">أخرى</string>
-    <string name="debts_add_title">دين أو قسط جديد</string>
     <string name="debts_name_hint">الاسم (مثال: تابي، قرض السيارة)</string>
-    <string name="debts_total_hint">المبلغ الإجمالي (%1$s)</string>
-    <string name="debts_remaining_hint">المتبقي حالياً (%1$s)</string>
     <string name="debts_installment_hint">قيمة القسط (اختياري)</string>
     <string name="debts_days_hint">القسط القادم خلال كم يوم؟ (اختياري)</string>
-    <string name="debts_confirm_delete_title">حذف «%1$s» من المتابعة؟</string>
-    <string name="debts_confirm_delete_desc">لا يمكن التراجع عن هذا الإجراء.</string>
-    <string name="debts_pay_title">سجّل دفعة لـ «%1$s»</string>
-    <string name="debts_suggest_title">لاحظنا مشتريات «%1$s» متكررة</string>
-    <string name="debts_suggest_desc">تتبعها كقسط؟ (~%1$s ر.س)</string>
-    <string name="debts_suggest_track">تتبع</string>
-    <string name="debts_suggest_dismiss">تجاهل</string>
 
     <!-- ================== Claude's names (Budget/Planning) ================== -->
     <string name="planning_title">التخطيط المالي</string>
     <string name="planning_tab_budget">الميزانية</string>
     <string name="planning_tab_goals">الأهداف</string>
     <string name="planning_tab_debts">الديون</string>
+    <string name="planning_tab_reminders">التذكيرات</string>
+
+    <!-- ================== REMINDERS ================== -->
+    <string name="reminders_title">تذكيرات الفواتير</string>
+    <string name="reminders_count_fmt">%1$d تذكير</string>
+    <string name="reminders_empty_title">لا توجد تذكيرات بعد</string>
+    <string name="reminders_day_fmt">يوم %1$d</string>
+    <string name="reminders_edit_title">تعديل التذكير</string>
+    <string name="reminders_add_title">تذكير جديد</string>
+    <string name="reminders_save">حفظ</string>
+    <string name="reminders_delete">حذف</string>
+    <string name="reminders_delete_confirm">حذف تذكير «%1$s»؟</string>
+    <string name="reminders_delete_confirm_desc">لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="reminders_cancel">إلغاء</string>
+    <string name="reminders_field_merchant">الجهة / التاجر</string>
+    <string name="reminders_field_amount">المبلغ (%1$s)</string>
+    <string name="reminders_field_day">يوم الاستحقاق (1-28)</string>
+    <string name="reminders_field_category">التصنيف</string>
+    <string name="reminders_enabled_label">تفعيل التذكير</string>
 
     <string name="budget_title_fmt">الميزانية والتصنيفات — %1$s</string>
     <string name="budget_subtitle">راقب إنفاقك وقارنه بالحدود المحددة</string>
@@ -468,6 +439,17 @@
     <string name="stg_rates_desc">تُستخدم لتحويل العمليات بالعملات الأجنبية إلى الريال لتُحتسب في الميزانية والمستشار. عدّلها إذا تغيّر السعر.</string>
     <string name="stg_rate_fmt">1 %1$s =</string>
     <string name="stg_rate_unit">ر.س</string>
+
+    <!-- Custom classification keywords (Settings) -->
+    <string name="stg_custom_rules_title">كلمات التصنيف المخصصة</string>
+    <string name="stg_custom_rules_desc">اربط كلمة تظهر في رسالة البنك بتصنيف معيّن، وتُطبّق قبل القواعد الجاهزة عند تحليل الرسائل.</string>
+    <string name="stg_custom_rules_empty">لا توجد قواعد مخصصة بعد.</string>
+    <string name="stg_custom_rule_keyword_hint">الكلمة (مثال: نون)</string>
+    <string name="stg_custom_rule_add">إضافة</string>
+    <string name="stg_custom_rule_delete">حذف</string>
+    <string name="stg_recategorize_title">إعادة تصنيف المعاملات</string>
+    <string name="stg_recategorize_desc">أعد تطبيق كل القواعد على معاملاتك الحالية بعد إضافة كلمات جديدة.</string>
+    <string name="stg_recategorize_done_fmt">تم تصنيف %1$d معاملة</string>
 
     <!-- Notifications -->
     <string name="notif_budget_over_title">تجاوزت ميزانيتك ⚠️</string>

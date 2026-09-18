@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -150,7 +152,7 @@ fun EmptyState(text: String) {
         Modifier.fillMaxWidth().padding(vertical = 60.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        IconBadge(Icons.Outlined.ReceiptLong, InkFaint, PaperOuter, size = 72.dp, iconSize = 30.dp, radius = RadiusMd)
+        IconBadge(Icons.AutoMirrored.Outlined.ReceiptLong, InkFaint, PaperOuter, size = 72.dp, iconSize = 30.dp, radius = RadiusMd)
         Spacer(Modifier.height(14.dp))
         Text(text, style = BodyMuted)
     }
@@ -254,7 +256,7 @@ fun catIcon(cat: String): ImageVector = when (cat) {
     "تعليم" -> Icons.Default.School
     "تحويلات" -> Icons.Default.SwapHoriz
     CASH_WITHDRAWAL_CATEGORY -> Icons.Default.LocalAtm
-    SELF_TRANSFER_CATEGORY -> Icons.Default.CompareArrows
+    SELF_TRANSFER_CATEGORY -> Icons.AutoMirrored.Filled.CompareArrows
     else -> Icons.Default.Category
 }
 

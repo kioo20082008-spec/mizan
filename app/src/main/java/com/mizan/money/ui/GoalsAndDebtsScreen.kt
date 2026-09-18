@@ -46,6 +46,7 @@ fun PlanningScreen(vm: MainViewModel, offset: Int) {
                     stringResource(R.string.planning_tab_budget),
                     stringResource(R.string.planning_tab_goals),
                     stringResource(R.string.planning_tab_debts),
+                    stringResource(R.string.planning_tab_reminders),
                 ),
                 subTab
             ) { subTab = it }
@@ -54,7 +55,9 @@ fun PlanningScreen(vm: MainViewModel, offset: Int) {
             when (subTab) {
                 0 -> BudgetScreen(vm, offset)
                 1 -> GoalsSection(vm)
-                else -> DebtsSection(vm)
+                2 -> DebtsSection(vm)
+                3 -> RemindersSection(vm)
+                else -> BudgetScreen(vm, offset)
             }
         }
     }

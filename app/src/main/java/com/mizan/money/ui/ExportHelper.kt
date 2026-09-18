@@ -131,11 +131,11 @@ data class PdfAdvice(
     val level: String, // "danger" | "warn" | "good" | "info"
 )
 
-private const val PAGE_W = 595
-private const val PAGE_H = 842
-private const val PAD = 40f
+internal const val PAGE_W = 595
+internal const val PAGE_H = 842
+internal const val PAD = 40f
 
-private const val C_BG = 0xFFFAF9F6.toInt()
+internal const val C_BG = 0xFFFAF9F6.toInt()
 private const val C_INK = 0xFF15141A.toInt()
 private const val C_SOFT = 0xFF6F6D76.toInt()
 private const val C_FAINT = 0xFFA4A2AA.toInt()
@@ -147,43 +147,6 @@ private const val C_AMBER = 0xFFF59E0B.toInt()
 private const val C_INK_BG = 0xFF121017.toInt()
 private const val C_LIME = 0xFFD7F26B.toInt()
 private const val C_INK_2 = 0xFF1E1B26.toInt()
-
-private fun paint(size: Float, color: Int, bold: Boolean = false, align: Paint.Align = Paint.Align.RIGHT): Paint =
-    Paint().apply {
-        isAntiAlias = true
-        typeface = Typeface.create("sans-serif", if (bold) Typeface.BOLD else Typeface.NORMAL)
-        textSize = size
-        this.color = color
-        textAlign = align
-    }
-
-private class PdfBuilder {
-    val doc = PdfDocument()
-    var pageNum = 0
-    lateinit var page: PdfDocument.Page
-    lateinit var canvas: Canvas
-    var y = 0f
-
-    fun newPage(bg: Int = C_BG): Canvas {
-        if (pageNum > 0) doc.finishPage(page)
-        pageNum++
-        val info = PdfDocument.PageInfo.Builder(PAGE_W, PAGE_H, pageNum).create()
-        page = doc.startPage(info)
-        canvas = page.canvas
-        canvas.drawColor(bg)
-        y = PAD
-        return canvas
-    }
-
-    fun ensureSpace(needed: Float, bg: Int = C_BG) {
-        if (y + needed > PAGE_H - PAD - 30) newPage(bg)
-    }
-
-    fun finish(): PdfDocument {
-        if (pageNum > 0) doc.finishPage(page)
-        return doc
-    }
-}
 
 fun writePdfReport(
     ctx: Context,

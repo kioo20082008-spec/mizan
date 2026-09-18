@@ -146,62 +146,26 @@
     <string name="month_nov">November</string>
     <string name="month_dec">December</string>
 
-    <string name="month_short_jan">Jan</string>
-    <string name="month_short_feb">Feb</string>
-    <string name="month_short_mar">Mar</string>
-    <string name="month_short_apr">Apr</string>
-    <string name="month_short_may">May</string>
-    <string name="month_short_jun">Jun</string>
-    <string name="month_short_jul">Jul</string>
-    <string name="month_short_aug">Aug</string>
-    <string name="month_short_sep">Sep</string>
-    <string name="month_short_oct">Oct</string>
-    <string name="month_short_nov">Nov</string>
-    <string name="month_short_dec">Dec</string>
 
     <!-- ================== BUDGET ================== -->
-    <string name="budget_title">Planning</string>
-    <string name="budget_tab_budget">Budget</string>
-    <string name="budget_tab_goals">Goals</string>
-    <string name="budget_tab_debts">Debts</string>
 
-    <string name="budget_screen_title">Budget &amp; categories — %1$s</string>
-    <string name="budget_screen_subtitle">Track your spending against your limits</string>
     <string name="budget_copy_prev">Copy last month\'s budget</string>
     <string name="budget_total_label">Monthly total budget</string>
-    <string name="budget_limit_hint">Monthly limit</string>
     <string name="budget_save">Save</string>
     <string name="budget_per_category">Budget per category</string>
-    <string name="budget_add_cat">+ Category</string>
     <string name="budget_cancel_add">Cancel</string>
-    <string name="budget_new_cat_hint">Category name</string>
     <string name="budget_add_action">Add</string>
-    <string name="budget_no_limit">%1$s SAR — no limit</string>
-    <string name="budget_with_rollover">%1$s / %2$s SAR  (+%3$s rolled over)</string>
-    <string name="budget_plain">%1$s / %2$s SAR</string>
-    <string name="budget_rollover_switch_title">Roll over last month\'s surplus</string>
-    <string name="budget_rollover_switch_desc">Any unspent amount from last month\'s limit is added to this month</string>
-    <string name="budget_save_action">Save</string>
-    <string name="budget_delete_cat">Delete %1$s</string>
+    <string name="cd_expand">Expand</string>
+    <string name="cd_collapse">Collapse</string>
 
     <!-- ================== GOALS ================== -->
     <string name="goals_title">Savings goals</string>
     <string name="goals_subtitle">Save for a specific goal, step by step</string>
     <string name="goals_add">New goal</string>
-    <string name="goals_empty">No goals yet — add your first savings goal</string>
-    <string name="goals_progress">%1$s / %2$s SAR</string>
-    <string name="goals_until"> • until %1$s</string>
     <string name="goals_reached">Goal reached 🎉</string>
-    <string name="goals_percent">%1$d%% of goal</string>
-    <string name="goals_add_money">+ Add amount</string>
     <string name="goals_delete">Delete</string>
-    <string name="goals_add_title">New savings goal</string>
     <string name="goals_name_hint">Goal name (e.g., Trip, Car)</string>
-    <string name="goals_target_hint">Target amount (%1$s)</string>
     <string name="goals_months_hint">In how many months? (optional)</string>
-    <string name="goals_confirm_delete_title">Delete goal \"%1$s\"?</string>
-    <string name="goals_confirm_delete_desc">This action cannot be undone.</string>
-    <string name="goals_contribute_title">Add amount to \"%1$s\"</string>
 
     <!-- ================== DEBTS ================== -->
     <string name="debts_title">Debts &amp; installments</string>
@@ -210,31 +174,38 @@
     <string name="debts_empty">No tracked debts yet</string>
     <string name="debts_settled">Fully settled ✅</string>
     <string name="debts_remaining_fmt">Remaining %1$s of %2$s SAR</string>
-    <string name="debts_next_fmt"> • Installment %1$s</string>
-    <string name="debts_pay">Log payment</string>
     <string name="debts_type_loan">Loan</string>
     <string name="debts_type_bnpl">BNPL (Tabby/Tamara)</string>
     <string name="debts_type_credit">Credit card</string>
     <string name="debts_type_other">Other</string>
-    <string name="debts_add_title">New debt or installment</string>
     <string name="debts_name_hint">Name (e.g., Tabby, Car loan)</string>
-    <string name="debts_total_hint">Total amount (%1$s)</string>
-    <string name="debts_remaining_hint">Remaining now (%1$s)</string>
     <string name="debts_installment_hint">Installment amount (optional)</string>
     <string name="debts_days_hint">Next installment in how many days? (optional)</string>
-    <string name="debts_confirm_delete_title">Stop tracking \"%1$s\"?</string>
-    <string name="debts_confirm_delete_desc">This action cannot be undone.</string>
-    <string name="debts_pay_title">Log payment for \"%1$s\"</string>
-    <string name="debts_suggest_title">We noticed recurring \"%1$s\" charges</string>
-    <string name="debts_suggest_desc">Track as an installment? (~%1$s SAR)</string>
-    <string name="debts_suggest_track">Track</string>
-    <string name="debts_suggest_dismiss">Dismiss</string>
 
     <!-- ================== Claude's names (Budget/Planning) ================== -->
     <string name="planning_title">Planning</string>
     <string name="planning_tab_budget">Budget</string>
     <string name="planning_tab_goals">Goals</string>
     <string name="planning_tab_debts">Debts</string>
+    <string name="planning_tab_reminders">Reminders</string>
+
+    <!-- ================== REMINDERS ================== -->
+    <string name="reminders_title">Bill reminders</string>
+    <string name="reminders_count_fmt">%1$d reminders</string>
+    <string name="reminders_empty_title">No reminders yet</string>
+    <string name="reminders_day_fmt">Day %1$d</string>
+    <string name="reminders_edit_title">Edit reminder</string>
+    <string name="reminders_add_title">New reminder</string>
+    <string name="reminders_save">Save</string>
+    <string name="reminders_delete">Delete</string>
+    <string name="reminders_delete_confirm">Delete reminder for \"%1$s\"?</string>
+    <string name="reminders_delete_confirm_desc">This action cannot be undone.</string>
+    <string name="reminders_cancel">Cancel</string>
+    <string name="reminders_field_merchant">Merchant / payee</string>
+    <string name="reminders_field_amount">Amount (%1$s)</string>
+    <string name="reminders_field_day">Due day (1-28)</string>
+    <string name="reminders_field_category">Category</string>
+    <string name="reminders_enabled_label">Enable reminder</string>
 
     <string name="budget_title_fmt">Budget &amp; categories — %1$s</string>
     <string name="budget_subtitle">Track your spending against your limits</string>
@@ -468,6 +439,17 @@
     <string name="stg_rates_desc">Used to convert foreign-currency transactions to SAR so they count in your budget and advisor. Adjust when the rate changes.</string>
     <string name="stg_rate_fmt">1 %1$s =</string>
     <string name="stg_rate_unit">SAR</string>
+
+    <!-- Custom classification keywords (Settings) -->
+    <string name="stg_custom_rules_title">Custom keywords</string>
+    <string name="stg_custom_rules_desc">Map a word that appears in a bank message to a category. Applied before the built-in rules when parsing.</string>
+    <string name="stg_custom_rules_empty">No custom rules yet.</string>
+    <string name="stg_custom_rule_keyword_hint">Keyword (e.g., Noon)</string>
+    <string name="stg_custom_rule_add">Add</string>
+    <string name="stg_custom_rule_delete">Delete</string>
+    <string name="stg_recategorize_title">Recategorize transactions</string>
+    <string name="stg_recategorize_desc">Re-apply all rules to your existing transactions after adding new keywords.</string>
+    <string name="stg_recategorize_done_fmt">Reclassified %1$d transactions</string>
 
     <!-- Notifications -->
     <string name="notif_budget_over_title">You\'ve exceeded your budget ⚠️</string>

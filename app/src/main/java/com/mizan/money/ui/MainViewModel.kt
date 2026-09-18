@@ -10,6 +10,8 @@ import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.*
 import com.mizan.money.notify.NotificationHelper
+import com.mizan.money.sms.CategoryClassifier
+import com.mizan.money.sms.CustomCategoryRules
 import com.mizan.money.sms.InboxScanner
 import com.mizan.money.ui.theme.localizedContext
 import com.mizan.money.widget.WidgetUpdater
@@ -122,6 +124,58 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     fun deleteCategory(name: String) {
         if (name == "أخرى") return // always keep a fallback category to classify into
         saveCategories(_categories.value.filter { it != name })
+    }
+
+    // User-defined keyword -> category rules, seeded from prefs and pushed into
+    // CategoryClassifier so both live parsing and recategorizeAll honor them
+    // ahead of the built-in rules. MoneyApp also loads these at app start, so
+    // the background SmsReceiver path sees them even before this VM exists.
+    private val _customRules = MutableStateFlow(CustomCategoryRules.load(app))
+    val customRules: StateFlow<List<Pair<String, String>>> = _customRules
+
+    private val _lastRecategorizeCount = MutableStateFlow(0)
+    val lastRecategorizeCount: StateFlow<Int> = _lastRecategorizeCount
+
+    init {
+        CategoryClassifier.setCustomRules(_customRules.value)
+    }
+
+    private fun saveCustomRules(list: List<Pair<String, String>>) {
+        CustomCategoryRules.save(getApplication<Application>(), list)
+        _customRules.value = list
+        CategoryClassifier.setCustomRules(list)
+    }
+
+    fun addCustomRule(keyword: String, category: String) {
+        val trimmed = keyword.trim()
+        if (trimmed.isBlank() || category.isBlank()) return
+        saveCustomRules(_customRules.value + (trimmed to category))
+    }
+
+    fun removeCustomRule(index: Int) {
+        val current = _customRules.value
+        if (index !in current.indices) return
+        saveCustomRules(current.filterIndexed { i, _ -> i != index })
+    }
+
+    // Re-runs CategoryClassifier over every SMS-sourced, unedited, non-self-
+    // transfer transaction — e.g. after defining new custom keywords — without
+    // touching isEdited (that flag is reserved for the user's own corrections).
+    fun recategorizeAll() {
+        viewModelScope.launch {
+            val all = repo.allTransactionsOnce()
+            var changed = 0
+            for (tx in all) {
+                if (tx.isManual || tx.isEdited || tx.isSelfTransfer) continue
+                val newCategory = CategoryClassifier.classify(tx.merchant, tx.rawSms)
+                if (newCategory != tx.category) {
+                    repo.setCategory(tx, newCategory)
+                    changed++
+                }
+            }
+            _lastRecategorizeCount.value = changed
+            WidgetUpdater.refresh(getApplication())
+        }
     }
 
     fun scanInbox() {
@@ -291,6 +345,28 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 repo.deleteRecurringItem(existing)
             }
         }
+    }
+
+    // ---- Bill reminders management (Planning > Reminders) ----
+    fun addRecurringItem(merchant: String, amount: Double, dayOfMonth: Int, category: String, enabled: Boolean) =
+        viewModelScope.launch {
+            repo.upsertRecurringItem(
+                RecurringItemEntity(
+                    merchant = merchant,
+                    expectedAmount = amount,
+                    expectedDayOfMonth = dayOfMonth.coerceIn(1, 28),
+                    category = category,
+                    reminderEnabled = enabled
+                )
+            )
+        }
+
+    fun updateRecurringItem(item: RecurringItemEntity) = viewModelScope.launch {
+        repo.updateRecurringItem(item)
+    }
+
+    fun deleteRecurringItem(item: RecurringItemEntity) = viewModelScope.launch {
+        repo.deleteRecurringItem(item)
     }
 
     companion object {

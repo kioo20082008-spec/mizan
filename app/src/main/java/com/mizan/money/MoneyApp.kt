@@ -6,6 +6,8 @@ import com.mizan.money.data.AppDatabase
 import com.mizan.money.data.TransactionRepository
 import com.mizan.money.notify.BillReminderWorker
 import com.mizan.money.notify.NotificationHelper
+import com.mizan.money.sms.CategoryClassifier
+import com.mizan.money.sms.CustomCategoryRules
 import com.mizan.money.sms.SmsParser
 import com.mizan.money.widget.WidgetUpdater
 import java.io.File
@@ -31,6 +33,10 @@ class MoneyApp : Application() {
         val prefs = getSharedPreferences("mizan_prefs", Context.MODE_PRIVATE)
         SmsParser.ownerNameTokens = prefs.getString("owner_name", null)
             ?.lowercase()?.split(Regex("\\s+"))?.filter { it.isNotBlank() } ?: emptyList()
+        // Same reasoning as ownerNameTokens: a background SmsReceiver can classify
+        // a message in a process where MainViewModel never ran, so custom rules
+        // must be in CategoryClassifier from Application.onCreate onward.
+        CategoryClassifier.setCustomRules(CustomCategoryRules.load(this))
 
         NotificationHelper.ensureChannels(this)
         // enqueueUniquePeriodicWork(..., KEEP, ...) makes this a no-op if the

@@ -36,6 +36,10 @@ class TransactionRepository(
     }
 
     suspend fun update(tx: TransactionEntity) = txDao.update(tx.copy(isEdited = true))
+    // Auto-recategorization only changes the category — crucially it must NOT
+    // set isEdited, or a later rescan would stop refreshing this row from the
+    // (possibly improved) parser output as if the user had hand-edited it.
+    suspend fun setCategory(tx: TransactionEntity, category: String) = txDao.update(tx.copy(category = category))
     suspend fun delete(tx: TransactionEntity) = txDao.delete(tx)
     suspend fun setBudget(
         monthKey: String,

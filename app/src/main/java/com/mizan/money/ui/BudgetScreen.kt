@@ -279,7 +279,8 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                             }
                             Icon(
                                 if (isEditing) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                null, Modifier.size(18.dp), tint = InkFaint
+                                stringResource(if (isEditing) R.string.cd_collapse else R.string.cd_expand),
+                                Modifier.size(18.dp), tint = InkFaint
                             )
                         }
                         if (effectiveLimit > 0) {

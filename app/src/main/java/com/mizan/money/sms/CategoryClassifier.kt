@@ -29,8 +29,22 @@ object CategoryClassifier {
         // should land here, never override a restaurant/grocery/etc. match above.
         CASH_WITHDRAWAL_CATEGORY to listOf("سحب نقدي","صراف آلي","ماكينة صراف","atm","cash withdrawal")
     )
+    // User-defined keyword -> category rules, checked before the built-in ones
+    // above. @Volatile because it's written from the UI thread (MainViewModel)
+    // and read from whichever thread parses/categorizes an SMS.
+    @Volatile private var custom: List<Pair<String, String>> = emptyList()
+
+    fun setCustomRules(rules: List<Pair<String, String>>) {
+        custom = rules.toList()
+    }
+
+    fun customRules(): List<Pair<String, String>> = custom
+
     fun classify(merchant: String?, rawSms: String): String {
         val text = ((merchant ?: "") + " " + rawSms).lowercase()
+        for ((keyword, cat) in custom) {
+            if (keyword.isNotBlank() && text.contains(keyword.lowercase())) return cat
+        }
         for ((cat, keys) in rules) {
             if (keys.any { text.contains(it) }) return cat
         }
