@@ -145,8 +145,12 @@ class FinancialAdvisorTest {
 
         val salaryAdvice = advice.first { it.titleRes == R.string.adv_salary_manual_title }
         assertTrue(salaryAdvice.bodyArgs.contains(FinancialAdvisor.fmt(12000.0)))
+        // The 50/30/20 plan is driven by this month's *actual* income (9500)
+        // once it has posted; the manual salary only overrides the
+        // auto-detected figure when no income has landed yet. This mirrors the
+        // dedicated `planningIncome prefers this month's real income` test.
         val plan = advice.first { it.titleRes == R.string.adv_5030_20_title }
-        assertTrue(plan.bodyArgs.contains(FinancialAdvisor.fmt(12000.0)))
+        assertTrue(plan.bodyArgs.contains(FinancialAdvisor.fmt(9500.0)))
     }
 
     @Test
