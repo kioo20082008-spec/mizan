@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- SMS is the app's data source, but it must still install on devices
+         without telephony (tablets/ChromeOS) rather than being marked as
+         requiring the hardware. -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false"/>
     <uses-permission android:name="android.permission.READ_SMS"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
     <!-- Android 13+ requires this explicit permission before any notification

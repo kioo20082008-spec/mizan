@@ -219,14 +219,21 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     }
 
     // ---- Savings goals ----
-    fun addGoal(name: String, targetAmount: Double, months: Int?) = viewModelScope.launch {
-        val targetDate = months?.takeIf { it > 0 }?.let {
-            System.currentTimeMillis() + it.toLong() * 30L * 86_400_000L
-        }
+    // targetDate is computed by the UI (see monthsBetweenNow/GoalEditorDialog) so
+    // the "خلال كم شهر" chips and the edit form share one source of truth.
+    fun addGoal(name: String, targetAmount: Double, targetDate: Long?) = viewModelScope.launch {
         repo.addGoal(GoalEntity(name = name, targetAmount = targetAmount, targetDate = targetDate))
+    }
+    fun editGoal(goal: GoalEntity, name: String, targetAmount: Double, targetDate: Long?) = viewModelScope.launch {
+        repo.updateGoal(goal.copy(name = name, targetAmount = targetAmount, targetDate = targetDate))
     }
     fun contributeToGoal(goal: GoalEntity, amount: Double) = viewModelScope.launch {
         repo.updateGoal(goal.copy(currentAmount = goal.currentAmount + amount))
+    }
+    // Never lets a goal fall below zero: the UI already caps the input, this is
+    // the authoritative clamp so a stale goal object can't corrupt the ledger.
+    fun withdrawFromGoal(goal: GoalEntity, amount: Double) = viewModelScope.launch {
+        repo.updateGoal(goal.copy(currentAmount = (goal.currentAmount - amount).coerceAtLeast(0.0)))
     }
     fun deleteGoal(goal: GoalEntity) = viewModelScope.launch { repo.deleteGoal(goal) }
 

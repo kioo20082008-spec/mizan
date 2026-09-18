@@ -6,8 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,6 +18,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -57,10 +61,28 @@ fun PlanningScreen(vm: MainViewModel, offset: Int) {
 }
 
 // ============ SAVINGS GOALS ============
+// Goals store an absolute targetDate, but the UI thinks in "how many months".
+// One shared constant + helper keeps the create chips and the edit form honest.
+private const val MONTH_MS = 30L * 86_400_000L
+
+private fun monthsBetweenNow(targetDate: Long?): Int? {
+    if (targetDate == null) return null
+    val diff = targetDate - System.currentTimeMillis()
+    if (diff <= 0L) return 0
+    return ((diff + MONTH_MS - 1) / MONTH_MS).toInt()
+}
+
+private fun monthsToTargetDate(months: Int): Long = System.currentTimeMillis() + months * MONTH_MS
+
+private fun editableAmount(v: Double): String =
+    if (v % 1.0 == 0.0) v.toLong().toString() else v.toString()
+
 @Composable
 private fun GoalsSection(vm: MainViewModel) {
     val goals by vm.goals.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
+    var suggestedName by remember { mutableStateOf("") }
+    var editing by remember { mutableStateOf<GoalEntity?>(null) }
     var contributingTo by remember { mutableStateOf<GoalEntity?>(null) }
     var confirmingDelete by remember { mutableStateOf<GoalEntity?>(null) }
 
@@ -77,18 +99,21 @@ private fun GoalsSection(vm: MainViewModel) {
                 }
                 Box(
                     Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Ink900)
-                        .clickable { showAdd = true },
+                        .clickable { suggestedName = ""; showAdd = true },
                     contentAlignment = Alignment.Center
                 ) { Icon(Icons.Default.Add, stringResource(R.string.goals_add), tint = Lime, modifier = Modifier.size(20.dp)) }
             }
         }
         if (goals.isEmpty()) {
-            item { EmptyState(stringResource(R.string.goals_empty)) }
+            item {
+                GoalsEmptyState(onCreate = { name -> suggestedName = name; showAdd = true })
+            }
         } else {
             items(goals, key = { it.id }) { goal ->
                 GoalCard(
                     goal = goal,
                     onContribute = { contributingTo = goal },
+                    onEdit = { editing = goal },
                     onDelete = { confirmingDelete = goal }
                 )
             }
@@ -96,16 +121,30 @@ private fun GoalsSection(vm: MainViewModel) {
     }
 
     if (showAdd) {
-        AddGoalDialog(onDismiss = { showAdd = false }, onSave = { name, amount, months ->
-            vm.addGoal(name, amount, months); showAdd = false
-        })
+        GoalEditorDialog(
+            initial = null,
+            initialName = suggestedName,
+            onDismiss = { showAdd = false },
+            onSave = { name, amount, targetDate ->
+                vm.addGoal(name, amount, targetDate); showAdd = false
+            }
+        )
+    }
+    editing?.let { goal ->
+        GoalEditorDialog(
+            initial = goal,
+            onDismiss = { editing = null },
+            onSave = { name, amount, targetDate ->
+                vm.editGoal(goal, name, amount, targetDate); editing = null
+            }
+        )
     }
     contributingTo?.let { goal ->
-        ContributeDialog(
-            title = stringResource(R.string.goals_contribute_title_fmt, goal.name),
-            amountLabel = stringResource(R.string.goals_amount_label_fmt, currencyLabel("SAR")),
+        GoalAmountDialog(
+            goal = goal,
             onDismiss = { contributingTo = null },
-            onSave = { amount -> vm.contributeToGoal(goal, amount); contributingTo = null }
+            onDeposit = { amount -> vm.contributeToGoal(goal, amount); contributingTo = null },
+            onWithdraw = { amount -> vm.withdrawFromGoal(goal, amount); contributingTo = null }
         )
     }
     confirmingDelete?.let { goal ->
@@ -130,16 +169,60 @@ private fun GoalsSection(vm: MainViewModel) {
 }
 
 @Composable
-private fun GoalCard(goal: GoalEntity, onContribute: () -> Unit, onDelete: () -> Unit) {
+private fun GoalsEmptyState(onCreate: (String) -> Unit) {
+    SoftCard {
+        IconBadge(Icons.Default.Savings, Indigo, IndigoSoft, size = 52.dp, iconSize = 24.dp, radius = RadiusMd)
+        Spacer(Modifier.height(12.dp))
+        Text(stringResource(R.string.goals_empty_title), style = H2)
+        Spacer(Modifier.height(4.dp))
+        Text(stringResource(R.string.goals_empty_desc), style = BodyMuted)
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.goals_empty_suggestions), style = Eyebrow)
+        Spacer(Modifier.height(8.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(
+                R.string.goals_suggestion_emergency,
+                R.string.goals_suggestion_trip,
+                R.string.goals_suggestion_car,
+                R.string.goals_suggestion_phone,
+            ).chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    row.forEach { res ->
+                        val label = stringResource(res)
+                        Box(
+                            Modifier.weight(1f).clip(RoundedCornerShape(RadiusSm)).background(PaperOuter)
+                                .clickable { onCreate(label) }.padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) { Text(label, style = Eyebrow.copy(fontSize = 11.sp, color = InkSoft)) }
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoalCard(
+    goal: GoalEntity,
+    onContribute: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val currency = currencyLabel("SAR")
+    val remaining = (goal.targetAmount - goal.currentAmount).coerceAtLeast(0.0)
     val pct = if (goal.targetAmount > 0) (goal.currentAmount / goal.targetAmount).coerceIn(0.0, 1.0).toFloat() else 0f
     val reached = goal.currentAmount >= goal.targetAmount
+    val deadline = goal.targetDate
+    val monthsLeft = monthsBetweenNow(deadline)
+
     SoftCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(Icons.Default.Savings, if (reached) Success else Indigo, if (reached) Success.copy(alpha = 0.12f) else IndigoSoft, size = 44.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(goal.name, style = H2.copy(fontSize = 14.sp))
-                val untilSuffix = goal.targetDate?.let { stringResource(R.string.goals_target_until_fmt, Dates.dayLabel(it)) } ?: ""
+                val untilSuffix = deadline?.let { stringResource(R.string.goals_target_until_fmt, Dates.dayLabel(it)) } ?: ""
                 Text(
                     stringResource(
                         R.string.goals_amount_fmt,
@@ -150,11 +233,9 @@ private fun GoalCard(goal: GoalEntity, onContribute: () -> Unit, onDelete: () ->
                     style = Eyebrow.copy(fontSize = 10.sp)
                 )
             }
-            Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(RadiusSm)).background(Danger.copy(alpha = 0.08f))
-                    .clickable(onClick = onDelete),
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.Default.Delete, stringResource(R.string.goals_delete), tint = Danger, modifier = Modifier.size(16.dp)) }
+            IconAction(Icons.Default.Edit, stringResource(R.string.goals_edit), Indigo, IndigoSoft, onEdit)
+            Spacer(Modifier.width(6.dp))
+            IconAction(Icons.Default.Delete, stringResource(R.string.goals_delete), Danger, Danger.copy(alpha = 0.08f), onDelete)
         }
         Spacer(Modifier.height(12.dp))
         Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(Pill)).background(PaperOuter)) {
@@ -171,25 +252,87 @@ private fun GoalCard(goal: GoalEntity, onContribute: () -> Unit, onDelete: () ->
                 style = Eyebrow.copy(fontSize = 11.sp, color = if (reached) Success else InkFaint, fontWeight = FontWeight.Bold)
             )
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onContribute) {
-                Text(stringResource(R.string.goals_add_amount), style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold, fontSize = 12.sp))
+            if (!reached) {
+                Text(
+                    stringResource(R.string.goals_remaining_fmt, FinancialAdvisor.fmt(remaining), currency),
+                    style = Eyebrow.copy(fontSize = 11.sp, color = InkSoft, fontWeight = FontWeight.Bold)
+                )
             }
+        }
+        if (!reached) {
+            Spacer(Modifier.height(6.dp))
+            val overdue = deadline != null && (monthsLeft == null || monthsLeft <= 0)
+            val plan = when {
+                deadline == null -> stringResource(R.string.goals_no_deadline_hint)
+                overdue -> stringResource(R.string.goals_overdue_hint)
+                else -> {
+                    val m = monthsLeft ?: 1
+                    stringResource(
+                        R.string.goals_plan_fmt,
+                        FinancialAdvisor.fmt(remaining / m),
+                        currency,
+                        Dates.dayLabel(deadline)
+                    )
+                }
+            }
+            Text(
+                plan,
+                style = Eyebrow.copy(
+                    fontSize = 10.sp,
+                    color = if (overdue) Amber else InkFaint,
+                    fontWeight = if (overdue) FontWeight.Bold else FontWeight.Normal
+                )
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Box(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(RadiusSm))
+                .background(if (reached) PaperOuter else Indigo)
+                .clickable(enabled = !reached, onClick = onContribute)
+                .padding(vertical = 11.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                if (reached) stringResource(R.string.goals_reached) else stringResource(R.string.goals_add_amount),
+                style = Body.copy(color = if (reached) InkFaint else White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            )
         }
     }
 }
 
 @Composable
-private fun AddGoalDialog(onDismiss: () -> Unit, onSave: (String, Double, Int?) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var months by remember { mutableStateOf("") }
+private fun GoalEditorDialog(
+    initial: GoalEntity?,
+    initialName: String = "",
+    onDismiss: () -> Unit,
+    onSave: (String, Double, Long?) -> Unit
+) {
+    val currency = currencyLabel("SAR")
+    var name by remember { mutableStateOf(initial?.name ?: initialName) }
+    var amount by remember { mutableStateOf(initial?.let { editableAmount(it.targetAmount) } ?: "") }
+    var months by remember {
+        mutableStateOf(monthsBetweenNow(initial?.targetDate)?.takeIf { it > 0 }?.toString() ?: "")
+    }
+    val targetAmount = amount.toDoubleOrNull()
+    val amountInvalid = amount.isNotEmpty() && (targetAmount == null || targetAmount <= 0)
+    val monthsInt = months.toIntOrNull()?.takeIf { it > 0 }
+    val computedDate = monthsInt?.let { monthsToTargetDate(it) }
+    val valid = name.isNotBlank() && targetAmount != null && targetAmount > 0
+    val editing = initial != null
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
-        title = { Text(stringResource(R.string.goals_add_dialog_title), style = H2) },
+        title = {
+            Text(
+                stringResource(if (editing) R.string.goals_edit_dialog_title else R.string.goals_add_dialog_title),
+                style = H2
+            )
+        },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = name, onValueChange = { name = it },
                     label = { Text(stringResource(R.string.goals_name_hint)) },
@@ -199,31 +342,211 @@ private fun AddGoalDialog(onDismiss: () -> Unit, onSave: (String, Double, Int?) 
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = amount, onValueChange = { amount = sanitizeAmountInput(it) },
-                    label = { Text(stringResource(R.string.goals_amount_hint_fmt, currencyLabel("SAR"))) },
+                    label = { Text(stringResource(R.string.goals_amount_hint_fmt, currency)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = amountInvalid,
+                    supportingText = {
+                        if (amountInvalid) {
+                            Text(stringResource(R.string.goals_amount_error), style = Eyebrow.copy(color = Danger))
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(), singleLine = true,
                     shape = RoundedCornerShape(RadiusSm), textStyle = Body
                 )
+                Spacer(Modifier.height(14.dp))
+                Text(stringResource(R.string.goals_deadline_label), style = Eyebrow)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(3, 6, 12).forEach { m ->
+                        ChoiceChip(
+                            label = stringResource(R.string.goals_months_quick_fmt, m),
+                            selected = months == m.toString(),
+                            modifier = Modifier.weight(1f)
+                        ) { months = m.toString() }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                ChoiceChip(
+                    label = stringResource(R.string.goals_no_deadline_chip),
+                    selected = months.isBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) { months = "" }
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = months, onValueChange = { months = it.filter { c -> c.isDigit() } },
                     label = { Text(stringResource(R.string.goals_months_hint)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    supportingText = {
+                        Text(
+                            if (computedDate != null) stringResource(R.string.goals_deadline_fmt, Dates.dayLabel(computedDate))
+                            else stringResource(R.string.goals_deadline_none),
+                            style = Eyebrow.copy(color = InkFaint)
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(), singleLine = true,
                     shape = RoundedCornerShape(RadiusSm), textStyle = Body
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                val a = amount.toDoubleOrNull()
-                if (name.isNotBlank() && a != null && a > 0) onSave(name.trim(), a, months.toIntOrNull())
-            }) { Text(stringResource(R.string.goals_add_action), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)) }
+            TextButton(
+                enabled = valid,
+                onClick = { onSave(name.trim(), targetAmount!!, computedDate) }
+            ) {
+                Text(
+                    stringResource(if (editing) R.string.goals_edit_action else R.string.goals_add_action),
+                    style = Body.copy(color = if (valid) Indigo else InkFaint, fontWeight = FontWeight.Bold)
+                )
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.goals_cancel), style = Body.copy(color = InkSoft)) }
         }
     )
+}
+
+@Composable
+private fun GoalAmountDialog(
+    goal: GoalEntity,
+    onDismiss: () -> Unit,
+    onDeposit: (Double) -> Unit,
+    onWithdraw: (Double) -> Unit
+) {
+    val currency = currencyLabel("SAR")
+    val remaining = (goal.targetAmount - goal.currentAmount).coerceAtLeast(0.0)
+    var amount by remember { mutableStateOf("") }
+    var withdraw by remember { mutableStateOf(false) }
+    val parsed = amount.toDoubleOrNull()
+    val exceedsBalance = withdraw && parsed != null && parsed > goal.currentAmount
+    val invalid = amount.isNotEmpty() && (parsed == null || parsed <= 0 || exceedsBalance)
+    val valid = parsed != null && parsed > 0 && !exceedsBalance
+
+    val quick = mutableListOf<Pair<String, Double>>()
+    listOf(100.0, 500.0, 1000.0).forEach {
+        quick.add(stringResource(R.string.goals_quick_add_fmt, editableAmount(it)) to it)
+    }
+    if (!withdraw && remaining > 0) {
+        quick.add(stringResource(R.string.goals_quick_remaining) to remaining)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = White,
+        shape = RoundedCornerShape(RadiusXl),
+        title = {
+            Text(
+                stringResource(
+                    if (withdraw) R.string.goals_withdraw_title_fmt else R.string.goals_contribute_title_fmt,
+                    goal.name
+                ),
+                style = H2
+            )
+        },
+        text = {
+            Column {
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(RadiusSm)).background(PaperOuter).padding(4.dp)
+                ) {
+                    ModeTab(stringResource(R.string.goals_deposit), !withdraw, Modifier.weight(1f)) { withdraw = false }
+                    ModeTab(stringResource(R.string.goals_withdraw), withdraw, Modifier.weight(1f)) { withdraw = true }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.goals_current_balance_fmt, FinancialAdvisor.fmt(goal.currentAmount), currency),
+                    style = Eyebrow.copy(fontSize = 11.sp)
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = amount, onValueChange = { amount = sanitizeAmountInput(it) },
+                    label = { Text(stringResource(R.string.goals_amount_label_fmt, currency)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = invalid,
+                    supportingText = {
+                        if (invalid) {
+                            Text(
+                                stringResource(if (exceedsBalance) R.string.goals_withdraw_exceeds_error else R.string.goals_amount_error),
+                                style = Eyebrow.copy(color = Danger)
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    shape = RoundedCornerShape(RadiusSm), textStyle = Body
+                )
+                Spacer(Modifier.height(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    quick.chunked(2).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            row.forEach { (label, value) ->
+                                Box(
+                                    Modifier.weight(1f).clip(RoundedCornerShape(RadiusSm)).background(IndigoSoft)
+                                        .clickable { amount = editableAmount(value) }.padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(label, style = Eyebrow.copy(fontSize = 11.sp, color = Indigo, fontWeight = FontWeight.Bold))
+                                }
+                            }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = valid,
+                onClick = {
+                    val v = parsed ?: return@TextButton
+                    if (withdraw) onWithdraw(v) else onDeposit(v)
+                }
+            ) {
+                Text(
+                    stringResource(if (withdraw) R.string.goals_withdraw_action else R.string.goals_save),
+                    style = Body.copy(color = if (valid) Indigo else InkFaint, fontWeight = FontWeight.Bold)
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.goals_cancel), style = Body.copy(color = InkSoft)) }
+        }
+    )
+}
+
+@Composable
+private fun ModeTab(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier.clip(RoundedCornerShape(RadiusSm)).background(if (selected) White else Color.Transparent)
+            .clickable(onClick = onClick).padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, style = Eyebrow.copy(fontSize = 12.sp, color = if (selected) Indigo else InkSoft, fontWeight = FontWeight.Bold))
+    }
+}
+
+@Composable
+private fun ChoiceChip(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier.clip(RoundedCornerShape(RadiusSm))
+            .background(if (selected) IndigoSoft else PaperOuter)
+            .clickable(onClick = onClick).padding(vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label,
+            style = Eyebrow.copy(
+                fontSize = 11.sp,
+                color = if (selected) Indigo else InkSoft,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            )
+        )
+    }
+}
+
+@Composable
+private fun IconAction(icon: ImageVector, desc: String, tint: Color, bg: Color, onClick: () -> Unit) {
+    Box(
+        Modifier.size(36.dp).clip(RoundedCornerShape(RadiusSm)).background(bg).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) { Icon(icon, desc, tint = tint, modifier = Modifier.size(16.dp)) }
 }
 
 @Composable
