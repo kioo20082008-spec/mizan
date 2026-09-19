@@ -67,6 +67,18 @@ interface GoalDao {
 }
 
 @Dao
+interface GoalContributionDao {
+    @Query("SELECT * FROM goal_contributions ORDER BY timestamp DESC")
+    fun observeAll(): Flow<List<GoalContributionEntity>>
+    @Query("SELECT * FROM goal_contributions")
+    suspend fun getAllOnce(): List<GoalContributionEntity>
+    @Insert
+    suspend fun insert(c: GoalContributionEntity): Long
+    @Query("DELETE FROM goal_contributions WHERE goalId = :goalId")
+    suspend fun deleteForGoal(goalId: Long)
+}
+
+@Dao
 interface DebtDao {
     @Query("SELECT * FROM debts WHERE isArchived = 0 ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<DebtEntity>>

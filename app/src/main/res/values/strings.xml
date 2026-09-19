@@ -472,4 +472,39 @@
     <string name="notif_channel_budget_desc">تنبيه عند اقترابك أو تجاوزك حد ميزانيتك الشهرية</string>
     <string name="notif_channel_bills_name">تذكير الفواتير</string>
     <string name="notif_channel_bills_desc">تذكير قبل موعد فاتورة أو اشتراك متكرر بأيام قليلة</string>
+
+    <!-- Commitments & budget plan -->
+    <string name="budget_plan_title">خطة الميزانية</string>
+    <string name="budget_income_label">الدخل المتوقع</string>
+    <string name="budget_committed_label">الالتزامات الثابتة</string>
+    <string name="budget_free_label">المتبقي للصرف</string>
+    <string name="budget_commitments_title">التزامات تُخصم تلقائيًا</string>
+    <string name="budget_commitments_desc">أشياء شهرية ثابتة وأقساط وادخار تُخصم من ميزانيتك</string>
+    <string name="budget_commit_fixed">أشياء شهرية</string>
+    <string name="budget_commit_debts">أقساط ديون</string>
+    <string name="budget_commit_savings">ادخار أهداف</string>
+    <string name="budget_commit_empty">لا توجد التزامات بعد. أضف من التذكيرات أو الديون أو الأهداف.</string>
+    <string name="budget_savings_note">الادخار يُحسب ادخارًا ولا يُحسب من مصروفك</string>
+    <string name="budget_savings_month_fmt">ادخرت هذا الشهر %1$s ر.س</string>
+    <string name="budget_suggestions_title">اقتراحات توزيع الميزانية</string>
+    <string name="budget_suggestions_desc">مبنية على دخلك ومتوسط صرفك في آخر ٣ أشهر</string>
+    <string name="budget_suggestions_empty">أدخل دخلك أو صرفت أكثر لتحصل على اقتراحات.</string>
+    <string name="budget_apply_suggestion">تطبيق</string>
+    <string name="budget_apply_all">تطبيق كل الاقتراحات</string>
+    <string name="budget_view_transactions">عرض العمليات</string>
+    <string name="budget_pick_icon">اختر أيقونة</string>
+    <string name="budget_icon_default">افتراضي</string>
+    <string name="reminders_fixed_label">خصم تلقائي من الميزانية</string>
+    <string name="reminders_fixed_short">تلقائي</string>
+    <string name="goals_monthly_saving_label">الادخار الشهري (%1$s)</string>
+    <string name="goals_monthly_saving_hint">اتركه فارغًا لحسابه من الموعد</string>
+    <string name="goals_from_budget_fmt">يُخصم %1$s ر.س شهريًا من الميزانية</string>
+    <string name="goals_saving_note">يُحسب ادخارًا ولا يُحسب من مصروفك</string>
+    <string name="debts_summary_remaining">إجمالي المتبقي</string>
+    <string name="debts_summary_monthly">الأقساط الشهرية</string>
+    <string name="debts_summary_count_fmt">%1$d التزامات نشطة</string>
+    <string name="debts_from_budget_fmt">يُخصم %1$s ر.س شهريًا من الميزانية</string>
+    <string name="debts_details_show">التفاصيل</string>
+    <string name="debts_details_hide">إخفاء التفاصيل</string>
+    <string name="cat_view_transactions_fmt">عمليات %1$s</string>
 </resources>

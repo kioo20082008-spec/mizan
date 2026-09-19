@@ -472,4 +472,39 @@
     <string name="notif_channel_budget_desc">Alert when you approach or exceed your monthly budget</string>
     <string name="notif_channel_bills_name">Bill reminders</string>
     <string name="notif_channel_bills_desc">Reminder a few days before a recurring bill or subscription is due</string>
+
+    <!-- Commitments & budget plan -->
+    <string name="budget_plan_title">Budget plan</string>
+    <string name="budget_income_label">Expected income</string>
+    <string name="budget_committed_label">Fixed commitments</string>
+    <string name="budget_free_label">Free to spend</string>
+    <string name="budget_commitments_title">Auto-deducted commitments</string>
+    <string name="budget_commitments_desc">Monthly fixed items, installments and savings deducted from your budget</string>
+    <string name="budget_commit_fixed">Monthly items</string>
+    <string name="budget_commit_debts">Debt installments</string>
+    <string name="budget_commit_savings">Goal savings</string>
+    <string name="budget_commit_empty">No commitments yet. Add from reminders, debts or goals.</string>
+    <string name="budget_savings_note">Savings count as saving, not spending</string>
+    <string name="budget_savings_month_fmt">Saved %1$s SAR this month</string>
+    <string name="budget_suggestions_title">Budget distribution suggestions</string>
+    <string name="budget_suggestions_desc">Based on your income and 3-month average spending</string>
+    <string name="budget_suggestions_empty">Add income or spend more to get suggestions.</string>
+    <string name="budget_apply_suggestion">Apply</string>
+    <string name="budget_apply_all">Apply all suggestions</string>
+    <string name="budget_view_transactions">View transactions</string>
+    <string name="budget_pick_icon">Pick an icon</string>
+    <string name="budget_icon_default">Default</string>
+    <string name="reminders_fixed_label">Auto-deduct from budget</string>
+    <string name="reminders_fixed_short">Auto</string>
+    <string name="goals_monthly_saving_label">Monthly saving (%1$s)</string>
+    <string name="goals_monthly_saving_hint">Leave empty to derive from the deadline</string>
+    <string name="goals_from_budget_fmt">Deducts %1$s SAR monthly from budget</string>
+    <string name="goals_saving_note">Counts as saving, not spending</string>
+    <string name="debts_summary_remaining">Total remaining</string>
+    <string name="debts_summary_monthly">Monthly installments</string>
+    <string name="debts_summary_count_fmt">%1$d active commitments</string>
+    <string name="debts_from_budget_fmt">Deducts %1$s SAR monthly from budget</string>
+    <string name="debts_details_show">Details</string>
+    <string name="debts_details_hide">Hide details</string>
+    <string name="cat_view_transactions_fmt">%1$s transactions</string>
 </resources>

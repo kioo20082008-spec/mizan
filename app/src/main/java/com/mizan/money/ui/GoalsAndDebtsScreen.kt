@@ -35,7 +35,7 @@ import kotlin.math.roundToInt
 
 // ============ PLANNING ============
 @Composable
-fun PlanningScreen(vm: MainViewModel, offset: Int) {
+fun PlanningScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Unit = {}) {
     var subTab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(start = 20.dp, top = 4.dp, end = 20.dp, bottom = 10.dp)) {
@@ -53,11 +53,11 @@ fun PlanningScreen(vm: MainViewModel, offset: Int) {
         }
         Box(Modifier.weight(1f)) {
             when (subTab) {
-                0 -> BudgetScreen(vm, offset)
+                0 -> BudgetScreen(vm, offset, onOpenCategory)
                 1 -> GoalsSection(vm)
                 2 -> DebtsSection(vm)
                 3 -> RemindersSection(vm)
-                else -> BudgetScreen(vm, offset)
+                else -> BudgetScreen(vm, offset, onOpenCategory)
             }
         }
     }
@@ -128,8 +128,8 @@ private fun GoalsSection(vm: MainViewModel) {
             initial = null,
             initialName = suggestedName,
             onDismiss = { showAdd = false },
-            onSave = { name, amount, targetDate ->
-                vm.addGoal(name, amount, targetDate); showAdd = false
+            onSave = { name, amount, targetDate, monthly ->
+                vm.addGoal(name, amount, targetDate, monthly); showAdd = false
             }
         )
     }
@@ -137,8 +137,8 @@ private fun GoalsSection(vm: MainViewModel) {
         GoalEditorDialog(
             initial = goal,
             onDismiss = { editing = null },
-            onSave = { name, amount, targetDate ->
-                vm.editGoal(goal, name, amount, targetDate); editing = null
+            onSave = { name, amount, targetDate, monthly ->
+                vm.editGoal(goal, name, amount, targetDate, monthly); editing = null
             }
         )
     }
@@ -266,6 +266,7 @@ private fun GoalCard(
             Spacer(Modifier.height(6.dp))
             val overdue = deadline != null && (monthsLeft == null || monthsLeft <= 0)
             val plan = when {
+                goal.monthlyAmount > 0 -> stringResource(R.string.goals_from_budget_fmt, FinancialAdvisor.fmt(goal.monthlyAmount))
                 deadline == null -> stringResource(R.string.goals_no_deadline_hint)
                 overdue -> stringResource(R.string.goals_overdue_hint)
                 else -> {
@@ -282,8 +283,8 @@ private fun GoalCard(
                 plan,
                 style = Eyebrow.copy(
                     fontSize = 10.sp,
-                    color = if (overdue) Amber else InkFaint,
-                    fontWeight = if (overdue) FontWeight.Bold else FontWeight.Normal
+                    color = if (goal.monthlyAmount > 0) Success else if (overdue) Amber else InkFaint,
+                    fontWeight = if (goal.monthlyAmount > 0 || overdue) FontWeight.Bold else FontWeight.Normal
                 )
             )
         }
@@ -309,14 +310,18 @@ private fun GoalEditorDialog(
     initial: GoalEntity?,
     initialName: String = "",
     onDismiss: () -> Unit,
-    onSave: (String, Double, Long?) -> Unit
+    onSave: (String, Double, Long?, Double) -> Unit
 ) {
     val currency = currencyLabel("SAR")
     var name by remember { mutableStateOf(initial?.name ?: initialName) }
     var amount by remember { mutableStateOf(initial?.let { editableAmount(it.targetAmount) } ?: "") }
+    var monthly by remember {
+        mutableStateOf(initial?.takeIf { it.monthlyAmount > 0 }?.let { editableAmount(it.monthlyAmount) } ?: "")
+    }
     var months by remember {
         mutableStateOf(monthsBetweenNow(initial?.targetDate)?.takeIf { it > 0 }?.toString() ?: "")
     }
+    val monthlyValue = monthly.toDoubleOrNull()?.takeIf { it > 0 } ?: 0.0
     val targetAmount = amount.toDoubleOrNull()
     val amountInvalid = amount.isNotEmpty() && (targetAmount == null || targetAmount <= 0)
     val monthsInt = months.toIntOrNull()?.takeIf { it > 0 }
@@ -389,12 +394,23 @@ private fun GoalEditorDialog(
                     modifier = Modifier.fillMaxWidth(), singleLine = true,
                     shape = RoundedCornerShape(RadiusSm), textStyle = Body
                 )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = monthly, onValueChange = { monthly = sanitizeAmountInput(it) },
+                    label = { Text(stringResource(R.string.goals_monthly_saving_label, currency)) },
+                    supportingText = {
+                        Text(stringResource(R.string.goals_monthly_saving_hint), style = Eyebrow.copy(color = InkFaint))
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    shape = RoundedCornerShape(RadiusSm), textStyle = Body
+                )
             }
         },
         confirmButton = {
             TextButton(
                 enabled = valid,
-                onClick = { onSave(name.trim(), targetAmount!!, computedDate) }
+                onClick = { onSave(name.trim(), targetAmount!!, computedDate, monthlyValue) }
             ) {
                 Text(
                     stringResource(if (editing) R.string.goals_edit_action else R.string.goals_add_action),
@@ -644,10 +660,13 @@ private fun DebtsSection(vm: MainViewModel) {
                 }
             }
         }
+        if (debts.isNotEmpty()) {
+            item { DebtSummaryCard(debts) }
+        }
         if (debts.isEmpty()) {
             item { EmptyState(stringResource(R.string.debts_empty)) }
         } else {
-            items(debts, key = { it.id }) { debt ->
+            items(debts.sortedByDescending { it.remainingAmount }, key = { it.id }) { debt ->
                 DebtCard(debt = debt, onPay = { payingOn = debt }, onEdit = { editing = debt }, onDelete = { confirmingDelete = debt })
             }
         }
@@ -696,13 +715,54 @@ private fun debtTypeLabel(type: DebtType): String = when (type) {
 }
 
 @Composable
+private fun DebtSummaryCard(debts: List<DebtEntity>) {
+    val currency = currencyLabel("SAR")
+    val active = debts.filter { it.remainingAmount > 0.0 }
+    val totalRemaining = active.sumOf { it.remainingAmount }
+    val monthly = active.filter { it.installmentAmount > 0.0 }.sumOf { it.installmentAmount }
+    SoftCard(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.debts_summary_remaining), style = Eyebrow.copy(fontSize = 9.sp))
+                Spacer(Modifier.height(3.dp))
+                Text(FinancialAdvisor.fmt(totalRemaining) + " " + currency, style = NumBold.copy(fontSize = 15.sp, color = Danger))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.debts_summary_monthly), style = Eyebrow.copy(fontSize = 9.sp))
+                Spacer(Modifier.height(3.dp))
+                Text(FinancialAdvisor.fmt(monthly) + " " + currency, style = NumBold.copy(fontSize = 15.sp, color = Amber))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.debts_summary_count_fmt, active.size), style = Eyebrow.copy(fontSize = 9.sp))
+            }
+        }
+        if (monthly > 0) {
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Autorenew, null, Modifier.size(13.dp), tint = Indigo)
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    stringResource(R.string.debts_from_budget_fmt, FinancialAdvisor.fmt(monthly)),
+                    style = Eyebrow.copy(fontSize = 10.sp, color = Indigo, fontWeight = FontWeight.Bold)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+    val currency = currencyLabel("SAR")
     val paid = (debt.totalAmount - debt.remainingAmount).coerceAtLeast(0.0)
     val pct = if (debt.totalAmount > 0) (paid / debt.totalAmount).coerceIn(0.0, 1.0).toFloat() else 0f
     val dueSoon = debt.nextDueDate != null && debt.nextDueDate - System.currentTimeMillis() in 0..(3L * 86_400_000L)
     val settled = debt.remainingAmount <= 0.0
+    var expanded by remember { mutableStateOf(false) }
     SoftCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().clickable { expanded = !expanded },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             IconBadge(Icons.Default.CreditCard, if (settled) Success else Amber, if (settled) Success.copy(alpha = 0.12f) else Amber.copy(alpha = 0.12f), size = 44.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -714,54 +774,75 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, on
                     }
                 }
                 Text(debtTypeLabel(debt.type), style = Eyebrow.copy(fontSize = 10.sp))
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    if (settled) stringResource(R.string.debts_settled)
+                    else FinancialAdvisor.fmt(debt.remainingAmount) + " " + currency,
+                    style = NumBold.copy(fontSize = 13.sp, color = if (settled) Success else if (dueSoon) Danger else Ink900)
+                )
+            }
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                stringResource(if (expanded) R.string.debts_details_hide else R.string.debts_details_show),
+                Modifier.size(18.dp), tint = InkFaint
+            )
+        }
+        if (expanded) {
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(Pill)).background(PaperOuter)) {
+                Box(
+                    Modifier.fillMaxWidth(pct).fillMaxHeight().clip(RoundedCornerShape(Pill))
+                        .background(if (settled) Success else Amber)
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            val dueSuffix = debt.nextDueDate?.let { stringResource(R.string.debts_installment_suffix_fmt, Dates.dayLabel(it)) } ?: ""
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 if (debt.termMonths > 0) {
                     Text(
                         stringResource(R.string.debts_months_progress_fmt, debt.paidMonths, debt.termMonths),
-                        style = Eyebrow.copy(fontSize = 10.sp, color = InkFaint)
+                        style = Eyebrow.copy(fontSize = 10.sp, color = InkFaint),
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    Text(stringResource(R.string.debts_date_none), style = Eyebrow.copy(fontSize = 10.sp), modifier = Modifier.weight(1f))
+                }
+                if (dueSuffix.isNotBlank()) {
+                    Text(
+                        dueSuffix,
+                        style = Eyebrow.copy(
+                            fontSize = 10.sp,
+                            color = if (dueSoon) Danger else InkFaint,
+                            fontWeight = if (dueSoon) FontWeight.Bold else FontWeight.Normal
+                        )
                     )
                 }
             }
-            Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(RadiusSm)).background(IndigoSoft)
-                    .clickable(onClick = onEdit),
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.Default.Edit, stringResource(R.string.debts_edit), tint = Indigo, modifier = Modifier.size(16.dp)) }
-            Spacer(Modifier.width(6.dp))
-            Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(RadiusSm)).background(Danger.copy(alpha = 0.08f))
-                    .clickable(onClick = onDelete),
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.Default.Delete, stringResource(R.string.debts_delete), tint = Danger, modifier = Modifier.size(16.dp)) }
-        }
-        Spacer(Modifier.height(12.dp))
-        Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(Pill)).background(PaperOuter)) {
-            Box(
-                Modifier.fillMaxWidth(pct).fillMaxHeight().clip(RoundedCornerShape(Pill))
-                    .background(if (settled) Success else Amber)
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            val dueSuffix = debt.nextDueDate?.let { stringResource(R.string.debts_installment_suffix_fmt, Dates.dayLabel(it)) } ?: ""
+            Spacer(Modifier.height(4.dp))
             Text(
                 if (settled) stringResource(R.string.debts_settled)
                 else stringResource(
                     R.string.debts_remaining_fmt,
                     FinancialAdvisor.fmt(debt.remainingAmount),
-                    FinancialAdvisor.fmt(debt.totalAmount),
-                    dueSuffix
+                    FinancialAdvisor.fmt(debt.totalAmount)
                 ),
-                style = Eyebrow.copy(
-                    fontSize = 10.sp,
-                    color = if (dueSoon) Danger else InkFaint,
-                    fontWeight = if (dueSoon) FontWeight.Bold else FontWeight.Normal
-                )
+                style = Eyebrow.copy(fontSize = 10.sp, color = InkFaint)
             )
-            Spacer(Modifier.weight(1f))
-            if (!settled) {
-                TextButton(onClick = onPay) {
-                    Text(stringResource(R.string.debts_log_payment), style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold, fontSize = 12.sp))
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (!settled) {
+                    Box(
+                        Modifier.weight(1f).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
+                            .clickable(onClick = onPay).padding(vertical = 11.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(stringResource(R.string.debts_log_payment), style = Body.copy(color = White, fontWeight = FontWeight.Bold, fontSize = 13.sp))
+                    }
                 }
+                IconAction(Icons.Default.Edit, stringResource(R.string.debts_edit), Indigo, IndigoSoft, onEdit)
+                IconAction(Icons.Default.Delete, stringResource(R.string.debts_delete), Danger, Danger.copy(alpha = 0.08f), onDelete)
             }
         }
     }

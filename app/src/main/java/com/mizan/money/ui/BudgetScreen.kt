@@ -5,7 +5,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -23,21 +25,39 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.R
+import com.mizan.money.advisor.BudgetPlan
+import com.mizan.money.advisor.Commitment
+import com.mizan.money.advisor.CommitmentKind
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.TOTAL_BUDGET
 import kotlin.math.roundToInt
 
 // ============ BUDGET ============
 @Composable
-fun BudgetScreen(vm: MainViewModel, offset: Int) {
+fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Unit = {}) {
     val budgets by vm.budgets.collectAsState()
     val categories by vm.categories.collectAsState()
     val startDay by vm.monthStartDay.collectAsState()
     val monthKey = Dates.monthKey(offset, startDay)
     val txs by vm.transactions.collectAsState()
     val rates by vm.exchangeRates.collectAsState()
+    val debts by vm.debts.collectAsState()
+    val goals by vm.goals.collectAsState()
+    val recurring by vm.recurringItems.collectAsState()
+    val contributions by vm.goalContributions.collectAsState()
+    val manualSalary by vm.manualSalary.collectAsState()
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay, rates) { FinancialAdvisor.summarize(txs, range.first, range.last, rates) }
+
+    val expectedIncome = remember(summary, txs, manualSalary, rates) {
+        FinancialAdvisor.planningIncome(summary, txs, manualSalary.toDoubleOrNull(), rates)
+    }
+    val plan = remember(txs, expectedIncome, recurring, debts, goals, categories, rates) {
+        FinancialAdvisor.plan(txs, expectedIncome ?: 0.0, categories, recurring, debts, goals, rates)
+    }
+    val savingsThisMonth = remember(contributions, range) {
+        contributions.filter { it.timestamp in range.first..range.last }.sumOf { it.amount }
+    }
 
     fun Double.toBudgetInput() = if (this % 1.0 == 0.0) toInt().toString() else toString()
 
@@ -59,6 +79,9 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
     var editingCategory by remember(monthKey) { mutableStateOf<String?>(null) }
     var addingCategory by remember { mutableStateOf(false) }
     var newCategoryInput by remember { mutableStateOf("") }
+    var newCategoryIcon by remember { mutableStateOf<String?>(null) }
+    var showIconPicker by remember { mutableStateOf(false) }
+    var iconPickerForEdit by remember { mutableStateOf<String?>(null) }
     var catRollover by remember(monthKey) {
         mutableStateOf(
             categories.associateWith { c ->
@@ -186,6 +209,26 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
         }
 
         item {
+            BudgetPlanCard(
+                plan = plan,
+                income = expectedIncome,
+                savingsThisMonth = savingsThisMonth,
+                currency = currencyLabel("SAR")
+            )
+        }
+
+        if (plan.suggestions.isNotEmpty()) {
+            item {
+                BudgetSuggestionsCard(
+                    suggestions = plan.suggestions,
+                    currency = currencyLabel("SAR"),
+                    onApply = { cat, amount -> vm.setBudget(monthKey, cat, amount) },
+                    onApplyAll = { plan.suggestions.forEach { vm.setBudget(monthKey, it.category, it.amount) } }
+                )
+            }
+        }
+
+        item {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
                 Text(stringResource(R.string.budget_per_category), style = H2, modifier = Modifier.weight(1f))
                 Text(
@@ -211,13 +254,34 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                         textStyle = Body,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = {
-                            vm.addCategory(newCategoryInput); newCategoryInput = ""; addingCategory = false
+                            val name = newCategoryInput.trim()
+                            if (name.isNotEmpty()) {
+                                vm.addCategory(name, newCategoryIcon)
+                                newCategoryInput = ""; newCategoryIcon = null; addingCategory = false
+                            }
                         })
                     )
                     Spacer(Modifier.width(8.dp))
                     Box(
+                        Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(PaperOuter)
+                            .clickable { showIconPicker = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            CategoryIcons.iconForKey(newCategoryIcon) ?: Icons.Default.Category,
+                            stringResource(R.string.budget_pick_icon), tint = Indigo, modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Box(
                         Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
-                            .clickable { vm.addCategory(newCategoryInput); newCategoryInput = ""; addingCategory = false },
+                            .clickable {
+                                val name = newCategoryInput.trim()
+                                if (name.isNotEmpty()) {
+                                    vm.addCategory(name, newCategoryIcon)
+                                    newCategoryInput = ""; newCategoryIcon = null; addingCategory = false
+                                }
+                            },
                         contentAlignment = Alignment.Center
                     ) { Icon(Icons.Default.Check, stringResource(R.string.budget_add_action), tint = White, modifier = Modifier.size(18.dp)) }
                 }
@@ -277,6 +341,20 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                                 )
                                 Spacer(Modifier.width(6.dp))
                             }
+                            if (!isEditing) {
+                                Box(
+                                    Modifier.size(32.dp).clip(RoundedCornerShape(RadiusSm)).background(catColorSoft(cat))
+                                        .clickable { onOpenCategory(cat) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.ReceiptLong,
+                                        stringResource(R.string.cat_view_transactions_fmt, categoryDisplay(cat)),
+                                        tint = catColor(cat), modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(6.dp))
+                            }
                             Icon(
                                 if (isEditing) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                 stringResource(if (isEditing) R.string.cd_collapse else R.string.cd_expand),
@@ -321,6 +399,17 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
                             }
                             Spacer(Modifier.height(10.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(PaperOuter)
+                                        .clickable { iconPickerForEdit = cat },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        CategoryIcons.iconForKey(CategoryIcons.assigned[cat]) ?: catIcon(cat),
+                                        stringResource(R.string.budget_pick_icon), tint = Indigo, modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
                                 OutlinedTextField(
                                     value = catInputs[cat] ?: "",
                                     onValueChange = { v ->
@@ -373,4 +462,220 @@ fun BudgetScreen(vm: MainViewModel, offset: Int) {
             }
         }
     }
+
+    if (showIconPicker) {
+        CategoryIconPickerDialog(
+            selectedKey = newCategoryIcon,
+            onDismiss = { showIconPicker = false },
+            onPick = { key -> newCategoryIcon = key; showIconPicker = false }
+        )
+    }
+    iconPickerForEdit?.let { cat ->
+        CategoryIconPickerDialog(
+            selectedKey = CategoryIcons.assigned[cat],
+            onDismiss = { iconPickerForEdit = null },
+            onPick = { key ->
+                vm.setCategoryIcon(cat, key)
+                iconPickerForEdit = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun BudgetPlanCard(
+    plan: BudgetPlan,
+    income: Double?,
+    savingsThisMonth: Double,
+    currency: String
+) {
+    SoftCard(Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.budget_plan_title), style = H2)
+        Spacer(Modifier.height(2.dp))
+        Text(stringResource(R.string.budget_commitments_desc), style = Eyebrow.copy(fontSize = 11.sp))
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth()) {
+            PlanStat(
+                label = stringResource(R.string.budget_income_label),
+                value = if (income != null && income > 0) FinancialAdvisor.fmt(income) + " " + currency else "—",
+                color = Ink900,
+                modifier = Modifier.weight(1f)
+            )
+            PlanStat(
+                label = stringResource(R.string.budget_committed_label),
+                value = FinancialAdvisor.fmt(plan.committedTotal) + " " + currency,
+                color = Danger,
+                modifier = Modifier.weight(1f)
+            )
+            PlanStat(
+                label = stringResource(R.string.budget_free_label),
+                value = FinancialAdvisor.fmt(plan.free) + " " + currency,
+                color = Success,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+        if (plan.fixed.isEmpty() && plan.debts.isEmpty() && plan.savings.isEmpty()) {
+            Text(stringResource(R.string.budget_commit_empty), style = BodyMuted.copy(fontSize = 12.sp))
+        } else {
+            CommitmentGroup(
+                icon = Icons.Default.Autorenew,
+                tint = Indigo,
+                title = stringResource(R.string.budget_commit_fixed),
+                total = plan.fixedTotal,
+                currency = currency,
+                items = plan.fixed
+            )
+            CommitmentGroup(
+                icon = Icons.Default.CreditCard,
+                tint = Danger,
+                title = stringResource(R.string.budget_commit_debts),
+                total = plan.debtTotal,
+                currency = currency,
+                items = plan.debts
+            )
+            CommitmentGroup(
+                icon = Icons.Default.Savings,
+                tint = Success,
+                title = stringResource(R.string.budget_commit_savings),
+                total = plan.savingsTotal,
+                currency = currency,
+                items = plan.savings
+            )
+        }
+        if (savingsThisMonth != 0.0) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.budget_savings_month_fmt, FinancialAdvisor.fmt(savingsThisMonth)),
+                style = Body.copy(fontSize = 12.sp, color = Success, fontWeight = FontWeight.Bold)
+            )
+        }
+        Text(stringResource(R.string.budget_savings_note), style = Eyebrow.copy(fontSize = 10.sp))
+    }
+}
+
+@Composable
+private fun PlanStat(label: String, value: String, color: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(label, style = Eyebrow.copy(fontSize = 9.sp))
+        Spacer(Modifier.height(3.dp))
+        Text(value, style = NumBold.copy(fontSize = 13.sp, color = color))
+    }
+}
+
+@Composable
+private fun CommitmentGroup(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: androidx.compose.ui.graphics.Color,
+    title: String,
+    total: Double,
+    currency: String,
+    items: List<Commitment>
+) {
+    if (items.isEmpty()) return
+    Spacer(Modifier.height(8.dp))
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(15.dp), tint = tint)
+        Spacer(Modifier.width(6.dp))
+        Text(title, style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp), modifier = Modifier.weight(1f))
+        Text(FinancialAdvisor.fmt(total) + " " + currency, style = NumBold.copy(fontSize = 12.sp, color = tint))
+    }
+    items.forEach { c ->
+        Row(Modifier.fillMaxWidth().padding(start = 21.dp, top = 3.dp, bottom = 3.dp)) {
+            Text(c.label, style = BodyMuted.copy(fontSize = 12.sp), modifier = Modifier.weight(1f), maxLines = 1)
+            Text(FinancialAdvisor.fmt(c.amount) + " " + currency, style = Eyebrow.copy(fontSize = 11.sp))
+        }
+    }
+}
+
+@Composable
+private fun BudgetSuggestionsCard(
+    suggestions: List<com.mizan.money.advisor.BudgetSuggestion>,
+    currency: String,
+    onApply: (String, Double) -> Unit,
+    onApplyAll: () -> Unit
+) {
+    SoftCard(Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.budget_suggestions_title), style = H2)
+        Spacer(Modifier.height(2.dp))
+        Text(stringResource(R.string.budget_suggestions_desc), style = Eyebrow.copy(fontSize = 11.sp))
+        Spacer(Modifier.height(10.dp))
+        suggestions.forEach { s ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(catIcon(s.category), catColor(s.category), catColorSoft(s.category), size = 30.dp, iconSize = 14.dp)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(categoryDisplay(s.category), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
+                    Text(FinancialAdvisor.fmt(s.amount) + " " + currency, style = Eyebrow.copy(fontSize = 10.sp))
+                }
+                Text(
+                    stringResource(R.string.budget_apply_suggestion),
+                    style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(RadiusSm))
+                        .background(IndigoSoft)
+                        .clickable { onApply(s.category, s.amount) }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = onApplyAll,
+            modifier = Modifier.fillMaxWidth().height(44.dp),
+            shape = RoundedCornerShape(RadiusSm),
+            colors = ButtonDefaults.buttonColors(containerColor = Indigo, contentColor = White)
+        ) { Text(stringResource(R.string.budget_apply_all), style = Body.copy(fontWeight = FontWeight.Bold)) }
+    }
+}
+
+@Composable
+private fun CategoryIconPickerDialog(
+    selectedKey: String?,
+    onDismiss: () -> Unit,
+    onPick: (String?) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = White,
+        shape = RoundedCornerShape(RadiusXl),
+        title = { Text(stringResource(R.string.budget_pick_icon), style = H2) },
+        text = {
+            Column(
+                Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState())
+            ) {
+                val options = buildList {
+                    add(CategoryIcons.Option("__default__", Icons.Default.Category))
+                    addAll(CategoryIcons.options)
+                }
+                options.chunked(6).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        row.forEach { opt ->
+                            val key = opt.key.takeIf { it != "__default__" }
+                            val selected = key == selectedKey || (key == null && selectedKey == null)
+                            Box(
+                                Modifier.weight(1f).aspectRatio(1f)
+                                    .clip(RoundedCornerShape(RadiusSm))
+                                    .background(if (selected) IndigoSoft else PaperOuter)
+                                    .clickable { onPick(key) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    opt.icon, null, Modifier.size(20.dp),
+                                    tint = if (selected) Indigo else InkSoft
+                                )
+                            }
+                        }
+                        repeat(6 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.goals_cancel), style = Body.copy(color = InkSoft))
+            }
+        }
+    )
 }

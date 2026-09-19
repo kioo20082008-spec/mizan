@@ -71,8 +71,26 @@ data class GoalEntity(
     val currentAmount: Double = 0.0,
     // Optional — set from "خلال كم شهر" at creation time, not a full date picker.
     val targetDate: Long? = null,
+    // What the user plans to put aside for this goal each month. 0 means "not
+    // set" — callers derive a monthly figure from targetDate/remaining instead.
+    // The sum across active goals is treated as a budget commitment (a saving,
+    // not a spend).
+    val monthlyAmount: Double = 0.0,
     val createdAt: Long = System.currentTimeMillis(),
     val isArchived: Boolean = false
+)
+
+// One entry per contribution/withdrawal against a goal. GoalEntity.currentAmount
+// stays the source of truth for the balance; this table only adds a dated trail
+// so "how much did I save this month" can be answered (and shown as savings,
+// never as spending) without changing the existing balance bookkeeping.
+@Entity(tableName = "goal_contributions")
+data class GoalContributionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val goalId: Long,
+    // Positive = deposit, negative = withdrawal.
+    val amount: Double,
+    val timestamp: Long
 )
 
 enum class DebtType { LOAN, BNPL, CREDIT_CARD, OTHER }
@@ -112,6 +130,11 @@ data class RecurringItemEntity(
     val expectedDayOfMonth: Int,
     val category: String,
     val reminderEnabled: Boolean = true,
+    // A fixed monthly commitment (rent, subscription, ...) that should be set
+    // aside from the budget up-front rather than learned from posted
+    // transactions. Lets the budget show what is already spoken for before the
+    // month's spending begins.
+    val isFixed: Boolean = false,
     // Guards against notifying more than once for the same due date — reset
     // implicitly every month since this is compared against the current month key.
     val lastNotifiedMonthKey: String? = null,

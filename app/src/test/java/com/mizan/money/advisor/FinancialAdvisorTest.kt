@@ -2,6 +2,9 @@ package com.mizan.money.advisor
 
 import com.mizan.money.R
 import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
+import com.mizan.money.data.DebtEntity
+import com.mizan.money.data.GoalEntity
+import com.mizan.money.data.RecurringItemEntity
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
 import org.junit.Assert.assertEquals
@@ -297,5 +300,65 @@ class FinancialAdvisorTest {
         assertEquals(12000.0, FinancialAdvisor.planningIncome(s, priorMonthsOnly, manualSalary = 12000.0)!!, 0.001)
         assertEquals(9000.0, FinancialAdvisor.planningIncome(s, priorMonthsOnly, manualSalary = 0.0)!!, 0.001)
         assertEquals(null, FinancialAdvisor.planningIncome(s, emptyList(), manualSalary = 0.0))
+    }
+
+    @Test
+    fun `plan splits fixed debt and savings commitments and leaves the rest free`() {
+        val now = 1_000_000_000_000L
+        val txs = listOf(
+            tx(600.0, TxType.EXPENSE, category = "طعام وشراب", timestamp = now - 10L * 86_400_000L),
+            tx(400.0, TxType.EXPENSE, category = "مواصلات", timestamp = now - 9L * 86_400_000L),
+        )
+        val fixedItems = listOf(
+            RecurringItemEntity(merchant = "إيجار", expectedAmount = 2000.0, expectedDayOfMonth = 1, category = "فواتير", isFixed = true),
+            RecurringItemEntity(merchant = "نتفلكس", expectedAmount = 50.0, expectedDayOfMonth = 5, category = "اشتراكات", isFixed = false),
+        )
+        val debts = listOf(DebtEntity(name = "قرض", totalAmount = 3000.0, remainingAmount = 1500.0, installmentAmount = 300.0))
+        val goals = listOf(GoalEntity(name = "طوارئ", targetAmount = 1200.0, currentAmount = 0.0, monthlyAmount = 100.0))
+
+        val plan = FinancialAdvisor.plan(
+            allTx = txs, income = 3000.0, categories = listOf("طعام وشراب", "مواصلات"),
+            fixedItems = fixedItems, debts = debts, goals = goals, now = now, monthsBack = 1
+        )
+
+        assertEquals(1, plan.fixed.size)
+        assertEquals(2000.0, plan.fixedTotal, 0.001)
+        assertEquals(300.0, plan.debtTotal, 0.001)
+        assertEquals(100.0, plan.savingsTotal, 0.001)
+        assertEquals(2400.0, plan.committedTotal, 0.001)
+        assertEquals(600.0, plan.free, 0.001)
+        // History: food 600 + transport 400 = 1000, scaled to the 600 free.
+        assertEquals("طعام وشراب", plan.suggestions[0].category)
+        assertEquals(360.0, plan.suggestions[0].amount, 0.001)
+        assertEquals(240.0, plan.suggestions[1].amount, 0.001)
+    }
+
+    @Test
+    fun `plan with no income keeps raw historical suggestions`() {
+        val now = 1_000_000_000_000L
+        val txs = listOf(tx(300.0, TxType.EXPENSE, category = "تسوق", timestamp = now - 5L * 86_400_000L))
+        val plan = FinancialAdvisor.plan(
+            allTx = txs, income = 0.0, categories = listOf("تسوق"),
+            fixedItems = emptyList(), debts = emptyList(), goals = emptyList(), now = now, monthsBack = 1
+        )
+        assertEquals(0.0, plan.fixedTotal, 0.001)
+        assertEquals(0.0, plan.free, 0.001)
+        assertEquals(300.0, plan.suggestions.first().amount, 0.001)
+    }
+
+    @Test
+    fun `goalMonthlySaving prefers the explicit amount then spreads the target over months left`() {
+        val now = 1_000_000_000_000L
+        val explicit = GoalEntity(name = "سيارة", targetAmount = 1200.0, currentAmount = 0.0, monthlyAmount = 250.0)
+        assertEquals(250.0, FinancialAdvisor.goalMonthlySaving(explicit, now), 0.001)
+
+        val byDeadline = GoalEntity(
+            name = "سفر", targetAmount = 1200.0, currentAmount = 0.0,
+            targetDate = now + 6L * 30L * 86_400_000L
+        )
+        assertEquals(200.0, FinancialAdvisor.goalMonthlySaving(byDeadline, now), 0.001)
+
+        val noDeadline = GoalEntity(name = "أخرى", targetAmount = 1200.0, currentAmount = 0.0)
+        assertEquals(0.0, FinancialAdvisor.goalMonthlySaving(noDeadline, now), 0.001)
     }
 }

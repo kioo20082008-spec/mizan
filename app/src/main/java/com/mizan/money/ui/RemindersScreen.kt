@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -67,7 +68,8 @@ fun RemindersSection(vm: MainViewModel) {
                     item = item,
                     onEdit = { editing = item },
                     onDelete = { confirmingDelete = item },
-                    onToggle = { checked -> vm.updateRecurringItem(item.copy(reminderEnabled = checked)) }
+                    onToggle = { checked -> vm.updateRecurringItem(item.copy(reminderEnabled = checked)) },
+                    onToggleFixed = { checked -> vm.updateRecurringItem(item.copy(isFixed = checked)) }
                 )
             }
         }
@@ -78,8 +80,8 @@ fun RemindersSection(vm: MainViewModel) {
             initial = null,
             categories = categories,
             onDismiss = { showAdd = false },
-            onSave = { merchant, amount, day, category, enabled ->
-                vm.addRecurringItem(merchant, amount, day, category, enabled); showAdd = false
+            onSave = { merchant, amount, day, category, enabled, fixed ->
+                vm.addRecurringItem(merchant, amount, day, category, enabled, fixed); showAdd = false
             }
         )
     }
@@ -88,14 +90,15 @@ fun RemindersSection(vm: MainViewModel) {
             initial = item,
             categories = categories,
             onDismiss = { editing = null },
-            onSave = { merchant, amount, day, category, enabled ->
+            onSave = { merchant, amount, day, category, enabled, fixed ->
                 vm.updateRecurringItem(
                     item.copy(
                         merchant = merchant,
                         expectedAmount = amount,
                         expectedDayOfMonth = day,
                         category = category,
-                        reminderEnabled = enabled
+                        reminderEnabled = enabled,
+                        isFixed = fixed
                     )
                 )
                 editing = null
@@ -128,7 +131,8 @@ private fun ReminderCard(
     item: RecurringItemEntity,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onToggle: (Boolean) -> Unit
+    onToggle: (Boolean) -> Unit,
+    onToggleFixed: (Boolean) -> Unit
 ) {
     val currency = currencyLabel("SAR")
     SoftCard(Modifier.clickable { onEdit() }) {
@@ -159,6 +163,28 @@ private fun ReminderCard(
                 colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
             )
         }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Autorenew, null, Modifier.size(15.dp),
+                tint = if (item.isFixed) Indigo else InkFaint
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                stringResource(R.string.reminders_fixed_label),
+                style = Eyebrow.copy(
+                    fontSize = 10.sp,
+                    color = if (item.isFixed) Indigo else InkFaint,
+                    fontWeight = if (item.isFixed) FontWeight.Bold else FontWeight.Normal
+                ),
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = item.isFixed,
+                onCheckedChange = onToggleFixed,
+                colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+            )
+        }
     }
 }
 
@@ -167,7 +193,7 @@ private fun ReminderEditorDialog(
     initial: RecurringItemEntity?,
     categories: List<String>,
     onDismiss: () -> Unit,
-    onSave: (String, Double, Int, String, Boolean) -> Unit
+    onSave: (String, Double, Int, String, Boolean, Boolean) -> Unit
 ) {
     val currency = currencyLabel("SAR")
     var merchant by remember { mutableStateOf(initial?.merchant ?: "") }
@@ -175,6 +201,7 @@ private fun ReminderEditorDialog(
     var day by remember { mutableStateOf(initial?.expectedDayOfMonth?.toString() ?: "") }
     var category by remember { mutableStateOf(initial?.category ?: categories.firstOrNull() ?: "أخرى") }
     var enabled by remember { mutableStateOf(initial?.reminderEnabled ?: true) }
+    var fixed by remember { mutableStateOf(initial?.isFixed ?: false) }
 
     val parsedAmount = amount.toDoubleOrNull()
     val parsedDay = day.toIntOrNull()
@@ -268,12 +295,30 @@ private fun ReminderEditorDialog(
                         colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
                     )
                 }
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(RadiusSm))
+                        .background(PaperOuter)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.reminders_fixed_label), style = Body)
+                        Text(stringResource(R.string.budget_commitments_desc), style = Eyebrow.copy(fontSize = 10.sp))
+                    }
+                    Switch(
+                        checked = fixed,
+                        onCheckedChange = { fixed = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(
                 enabled = valid,
-                onClick = { onSave(merchant.trim(), parsedAmount!!, parsedDay!!, category, enabled) }
+                onClick = { onSave(merchant.trim(), parsedAmount!!, parsedDay!!, category, enabled, fixed) }
             ) {
                 Text(
                     stringResource(R.string.reminders_save),

@@ -21,7 +21,7 @@ class TransactionRepositoryTest {
     fun setup() {
         txDao = FakeTransactionDao()
         repo = TransactionRepository(
-            txDao, FakeBudgetDao(), FakeGoalDao(), FakeDebtDao(), FakeRecurringItemDao()
+            txDao, FakeBudgetDao(), FakeGoalDao(), FakeGoalContributionDao(), FakeDebtDao(), FakeRecurringItemDao()
         )
     }
 
@@ -147,6 +147,19 @@ private class FakeGoalDao : GoalDao {
         if (i >= 0) rows[i] = g
     }
     override suspend fun delete(g: GoalEntity) { rows.removeAll { it.id == g.id } }
+}
+
+private class FakeGoalContributionDao : GoalContributionDao {
+    val rows = mutableListOf<GoalContributionEntity>()
+    private var nextId = 1L
+    override fun observeAll(): Flow<List<GoalContributionEntity>> = MutableStateFlow(rows.toList())
+    override suspend fun getAllOnce(): List<GoalContributionEntity> = rows.toList()
+    override suspend fun insert(c: GoalContributionEntity): Long {
+        val id = if (c.id == 0L) nextId++ else c.id
+        rows += c.copy(id = id)
+        return id
+    }
+    override suspend fun deleteForGoal(goalId: Long) { rows.removeAll { it.goalId == goalId } }
 }
 
 private class FakeDebtDao : DebtDao {

@@ -232,7 +232,7 @@ private fun RootScaffold(
                 when (tab) {
                     0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
                     1 -> TransactionsScreen(vm, initialQuery = categoryFilter)
-                    2 -> PlanningScreen(vm, monthOffset)
+                    2 -> PlanningScreen(vm, monthOffset, onOpenCategory = { cat -> categoryFilter = cat; tab = 1 })
                     else -> InsightsScreen(vm, monthOffset)
                 }
             }

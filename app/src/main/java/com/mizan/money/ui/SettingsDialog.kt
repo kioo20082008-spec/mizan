@@ -262,6 +262,7 @@ internal fun SettingsDialog(
                                             goals = dao.goals(),
                                             debts = dao.debts(),
                                             recurringItems = dao.recurringItems(),
+                                            goalContributions = dao.goalContributions(),
                                         )
                                         val file = writeBackupFile(ctx, BackupManager.toJson(data))
                                         withContext(Dispatchers.Main) {

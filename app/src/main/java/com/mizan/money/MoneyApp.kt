@@ -17,7 +17,7 @@ class MoneyApp : Application() {
     val repository by lazy {
         TransactionRepository(
             db.transactionDao(), db.budgetDao(),
-            db.goalDao(), db.debtDao(), db.recurringItemDao()
+            db.goalDao(), db.goalContributionDao(), db.debtDao(), db.recurringItemDao()
         )
     }
 

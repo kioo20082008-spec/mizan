@@ -2,12 +2,17 @@ package com.mizan.money.advisor
 
 import com.mizan.money.R
 import com.mizan.money.data.CASH_WITHDRAWAL_CATEGORY
+import com.mizan.money.data.DebtEntity
 import com.mizan.money.data.ExchangeRates
+import com.mizan.money.data.GoalEntity
+import com.mizan.money.data.RecurringItemEntity
+import com.mizan.money.data.SELF_TRANSFER_CATEGORY
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.max
 
 enum class Level { INFO, GOOD, WARN, DANGER }
@@ -28,6 +33,36 @@ data class MonthSummary(
     val spent: Double, val income: Double, val net: Double, val count: Int,
     val dailyAvg: Double, val categoryTotals: List<CategoryTotal>, val largest: TransactionEntity?
 )
+
+// A monthly obligation that eats into the budget before discretionary spend:
+// a fixed recurring item (rent, subscription), a debt installment, or a goal's
+// planned monthly saving. Kept as pure data so BudgetScreen only renders it.
+enum class CommitmentKind { FIXED, DEBT, SAVINGS }
+data class Commitment(
+    val label: String,
+    val amount: Double,
+    val kind: CommitmentKind,
+    val category: String? = null,
+)
+
+// A suggested per-category limit derived from the user's own spending history,
+// scaled down to whatever income is left after commitments.
+data class BudgetSuggestion(val category: String, val amount: Double)
+
+data class BudgetPlan(
+    val income: Double,
+    val fixed: List<Commitment>,
+    val debts: List<Commitment>,
+    val savings: List<Commitment>,
+    val suggestions: List<BudgetSuggestion>,
+) {
+    val fixedTotal: Double get() = fixed.sumOf { it.amount }
+    val debtTotal: Double get() = debts.sumOf { it.amount }
+    val savingsTotal: Double get() = savings.sumOf { it.amount }
+    val committedTotal: Double get() = fixedTotal + debtTotal + savingsTotal
+    // What's left of income to actually budget across categories.
+    val free: Double get() = (income - committedTotal).coerceAtLeast(0.0)
+}
 
 object FinancialAdvisor {
     fun fmt(v: Double): String = String.format(Locale.US, "%,.2f", v)
@@ -240,6 +275,74 @@ object FinancialAdvisor {
 
     private fun resolveIncome(summary: MonthSummary, salary: Double?): Double? =
         summary.income.takeIf { it > 0 } ?: salary
+
+    // Builds the whole monthly plan: fixed commitments, debt installments and
+    // planned goal savings first, then per-category limits suggested from the
+    // trailing average spend so they fit whatever income is left. Pure, so it is
+    // unit-testable without a ViewModel/DB.
+    fun plan(
+        allTx: List<TransactionEntity>,
+        income: Double,
+        categories: List<String>,
+        fixedItems: List<RecurringItemEntity>,
+        debts: List<DebtEntity>,
+        goals: List<GoalEntity>,
+        rates: Map<String, Double> = ExchangeRates.DEFAULT,
+        now: Long = System.currentTimeMillis(),
+        monthsBack: Int = 3,
+    ): BudgetPlan {
+        val fixed = fixedItems.filter { it.isFixed }.map {
+            Commitment(it.merchant, it.expectedAmount, CommitmentKind.FIXED, it.category)
+        }
+        val debtList = debts.filter { !it.isArchived && it.remainingAmount > 0.0 && it.installmentAmount > 0.0 }
+            .map { Commitment(it.name, it.installmentAmount, CommitmentKind.DEBT) }
+        val savings = goals.filter { !it.isArchived }.mapNotNull { g ->
+            goalMonthlySaving(g, now).takeIf { it > 0.0 }?.let { Commitment(g.name, it, CommitmentKind.SAVINGS) }
+        }
+        val committed = fixed.sumOf { it.amount } + debtList.sumOf { it.amount } + savings.sumOf { it.amount }
+
+        val avg = averageMonthlyByCategory(allTx, rates, now, monthsBack)
+        val basis = categories
+            .filter { it != SELF_TRANSFER_CATEGORY && it != CASH_WITHDRAWAL_CATEGORY }
+            .mapNotNull { c -> avg[c]?.takeIf { it > 0.005 }?.let { c to it } }
+        val totalBasis = basis.sumOf { it.second }
+        // Never inflate past the user's actual habit: scale down to the free
+        // income only when habits exceed it (income unknown => keep raw avg).
+        val scale = if (income > 0.0 && totalBasis > 0.0) {
+            minOf(1.0, ((income - committed).coerceAtLeast(0.0)) / totalBasis)
+        } else 1.0
+        val suggestions = basis.map { (c, a) -> BudgetSuggestion(c, a * scale) }.sortedByDescending { it.amount }
+
+        return BudgetPlan(income, fixed, debtList, savings, suggestions)
+    }
+
+    // A goal's monthly saving: the explicit field when set, otherwise the
+    // remaining amount spread over the months left until its target date.
+    fun goalMonthlySaving(goal: GoalEntity, now: Long = System.currentTimeMillis()): Double {
+        if (goal.monthlyAmount > 0.0) return goal.monthlyAmount
+        val remaining = (goal.targetAmount - goal.currentAmount).coerceAtLeast(0.0)
+        val target = goal.targetDate ?: return 0.0
+        if (remaining <= 0.0) return 0.0
+        val months = ceil((target - now).toDouble() / (30L * 86_400_000L)).toInt().coerceAtLeast(1)
+        return remaining / months
+    }
+
+    private fun averageMonthlyByCategory(
+        allTx: List<TransactionEntity>,
+        rates: Map<String, Double>,
+        now: Long,
+        monthsBack: Int,
+    ): Map<String, Double> {
+        val months = monthsBack.coerceAtLeast(1)
+        val cutoff = now - months.toLong() * 30L * 86_400_000L
+        return allTx
+            .filter {
+                it.type == TxType.EXPENSE && !it.isSelfTransfer && !it.isReimbursement &&
+                    it.timestamp >= cutoff && ExchangeRates.toSar(it.amount, it.currency, rates) != null
+            }
+            .groupBy { it.category }
+            .mapValues { (_, list) -> list.sumOf { ExchangeRates.toSar(it.amount, it.currency, rates) ?: 0.0 } / months }
+    }
 
     private fun detectSalary(allTx: List<TransactionEntity>, rates: Map<String, Double>): Double? {
         val incomes = allTx.filter {

@@ -242,7 +242,12 @@ fun currencyLabel(code: String): String = when (code) {
     else -> code
 }
 
-fun catIcon(cat: String): ImageVector = when (cat) {
+fun catIcon(cat: String): ImageVector {
+    CategoryIcons.iconFor(cat)?.let { return it }
+    return defaultCatIcon(cat)
+}
+
+private fun defaultCatIcon(cat: String): ImageVector = when (cat) {
     "طعام وشراب" -> Icons.Default.Restaurant
     "بقالة" -> Icons.Default.ShoppingCart
     "مواصلات" -> Icons.Default.DirectionsCar

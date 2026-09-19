@@ -24,9 +24,10 @@ class BackupManagerTest {
             ),
         ),
         budgets = listOf(BudgetEntity("2026-09", TOTAL_BUDGET, 8000.0, true)),
-        goals = listOf(GoalEntity(id = 3, name = "رحلة", targetAmount = 5000.0, currentAmount = 1200.0, targetDate = 1_800_000_000_000L)),
+        goals = listOf(GoalEntity(id = 3, name = "رحلة", targetAmount = 5000.0, currentAmount = 1200.0, targetDate = 1_800_000_000_000L, monthlyAmount = 400.0)),
         debts = listOf(DebtEntity(id = 4, name = "تابي", type = DebtType.BNPL, totalAmount = 1200.0, remainingAmount = 600.0, installmentAmount = 200.0, nextDueDate = 1_800_000_000_000L, lender = "Tabby")),
-        recurringItems = listOf(RecurringItemEntity(id = 5, merchant = "Netflix", expectedAmount = 35.0, expectedDayOfMonth = 12, category = "اشتراكات", reminderEnabled = true, lastNotifiedMonthKey = "2026-09")),
+        recurringItems = listOf(RecurringItemEntity(id = 5, merchant = "Netflix", expectedAmount = 35.0, expectedDayOfMonth = 12, category = "اشتراكات", reminderEnabled = true, isFixed = true, lastNotifiedMonthKey = "2026-09")),
+        goalContributions = listOf(GoalContributionEntity(id = 6, goalId = 3, amount = 400.0, timestamp = 1_700_000_000_000L)),
     )
 
     @Test
@@ -39,6 +40,18 @@ class BackupManagerTest {
         assertEquals(original.goals, restored.goals)
         assertEquals(original.debts, restored.debts)
         assertEquals(original.recurringItems, restored.recurringItems)
+        assertEquals(original.goalContributions, restored.goalContributions)
+    }
+
+    @Test
+    fun `old backups without new fields still load`() {
+        val restored = BackupManager.fromJson(
+            """{"app":"mizan","version":1,"goals":[{"id":1,"name":"g","targetAmount":100.0}],
+               "recurringItems":[{"id":2,"merchant":"X","expectedAmount":10.0,"expectedDayOfMonth":1,"category":"أخرى"}]}"""
+        )
+        assertEquals(0.0, restored.goals.single().monthlyAmount, 0.001)
+        assertTrue(!restored.recurringItems.single().isFixed)
+        assertTrue(restored.goalContributions.isEmpty())
     }
 
     @Test

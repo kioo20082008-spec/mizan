@@ -6,6 +6,7 @@ class TransactionRepository(
     private val txDao: TransactionDao,
     private val budgetDao: BudgetDao,
     private val goalDao: GoalDao,
+    private val goalContributionDao: GoalContributionDao,
     private val debtDao: DebtDao,
     private val recurringDao: RecurringItemDao
 ) {
@@ -65,6 +66,9 @@ class TransactionRepository(
     suspend fun addGoal(g: GoalEntity): Long = goalDao.insert(g)
     suspend fun updateGoal(g: GoalEntity) = goalDao.update(g)
     suspend fun deleteGoal(g: GoalEntity) = goalDao.delete(g)
+    fun goalContributions(): Flow<List<GoalContributionEntity>> = goalContributionDao.observeAll()
+    suspend fun addGoalContribution(c: GoalContributionEntity): Long = goalContributionDao.insert(c)
+    suspend fun deleteGoalContributions(goalId: Long) = goalContributionDao.deleteForGoal(goalId)
 
     // ---- Debts / installments ----
     fun debts(): Flow<List<DebtEntity>> = debtDao.observeAll()

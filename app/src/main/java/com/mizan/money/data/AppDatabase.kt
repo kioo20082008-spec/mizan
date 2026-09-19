@@ -10,15 +10,17 @@ import androidx.room.migration.Migration
 @Database(
     entities = [
         TransactionEntity::class, BudgetEntity::class,
-        GoalEntity::class, DebtEntity::class, RecurringItemEntity::class
+        GoalEntity::class, DebtEntity::class, RecurringItemEntity::class,
+        GoalContributionEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun budgetDao(): BudgetDao
     abstract fun goalDao(): GoalDao
+    abstract fun goalContributionDao(): GoalContributionDao
     abstract fun debtDao(): DebtDao
     abstract fun recurringItemDao(): RecurringItemDao
     abstract fun backupDao(): BackupDao
@@ -103,13 +105,33 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Budget-planning concepts: which recurring items are fixed monthly
+        // commitments (auto-set-aside), an explicit monthly savings target per
+        // goal, and a dated contribution trail so monthly savings can be shown
+        // separately from spending. The contribution table is new and
+        // independent; the two ALTERs only add defaulted columns.
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE recurring_items ADD COLUMN isFixed INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE goals ADD COLUMN monthlyAmount REAL NOT NULL DEFAULT 0")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS goal_contributions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        goalId INTEGER NOT NULL,
+                        amount REAL NOT NULL,
+                        timestamp INTEGER NOT NULL
+                    )"""
+                )
+            }
+        }
+
         // No fallbackToDestructiveMigration: this holds a user's financial history,
         // so a future schema change must ship a real Migration rather than silently
         // wipe their data. exportSchema keeps the schema history to write one from.
         fun get(ctx: Context): AppDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(
                 ctx.applicationContext, AppDatabase::class.java, "mizan.db"
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build().also { INSTANCE = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build().also { INSTANCE = it }
         }
     }
 }

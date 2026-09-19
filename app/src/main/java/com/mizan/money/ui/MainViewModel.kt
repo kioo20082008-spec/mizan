@@ -33,6 +33,9 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     val goals = repo.goals().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val debts = repo.debts().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val recurringItems = repo.recurringItems().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    // Per-month savings ledger, used by BudgetScreen to show money moved into
+    // goals this cycle and exclude it from "spent" (it's savings, not spending).
+    val goalContributions = repo.goalContributions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning
@@ -116,14 +119,48 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         prefs.edit().putString("categories", list.joinToString(CATEGORY_DELIM)).apply()
         _categories.value = list
     }
-    fun addCategory(name: String) {
+    fun addCategory(name: String, iconKey: String? = null) {
         val trimmed = name.trim()
         if (trimmed.isBlank() || _categories.value.contains(trimmed)) return
         saveCategories(_categories.value + trimmed)
+        if (!iconKey.isNullOrBlank()) setCategoryIcon(trimmed, iconKey)
     }
     fun deleteCategory(name: String) {
         if (name == "أخرى") return // always keep a fallback category to classify into
         saveCategories(_categories.value.filter { it != name })
+        setCategoryIcon(name, null)
+    }
+
+    // User-chosen icon key per category (see CategoryIcons). Persisted as a JSON
+    // map so a category can be renamed/deleted without leaving orphaned icons.
+    // Pushed into the CategoryIcons global so the non-composable catIcon() — used
+    // by transaction cards, the widget and the background paths — sees them too.
+    private fun loadCategoryIcons(): Map<String, String> {
+        val raw = prefs.getString("category_icons", null) ?: return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(raw)
+            buildMap {
+                obj.keys().forEach { k ->
+                    obj.optString(k).takeIf { it.isNotBlank() }?.let { put(k, it) }
+                }
+            }
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+    private val _categoryIcons = MutableStateFlow(loadCategoryIcons())
+    val categoryIcons: StateFlow<Map<String, String>> = _categoryIcons
+    private fun saveCategoryIcons(map: Map<String, String>) {
+        val obj = org.json.JSONObject()
+        map.forEach { (k, v) -> obj.put(k, v) }
+        prefs.edit().putString("category_icons", obj.toString()).apply()
+        _categoryIcons.value = map
+        CategoryIcons.assigned = map
+    }
+    fun setCategoryIcon(category: String, iconKey: String?) {
+        val updated = _categoryIcons.value.toMutableMap()
+        if (iconKey.isNullOrBlank()) updated.remove(category) else updated[category] = iconKey
+        saveCategoryIcons(updated)
     }
 
     // User-defined keyword -> category rules, seeded from prefs and pushed into
@@ -138,6 +175,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
 
     init {
         CategoryClassifier.setCustomRules(_customRules.value)
+        CategoryIcons.assigned = _categoryIcons.value
     }
 
     private fun saveCustomRules(list: List<Pair<String, String>>) {
@@ -296,21 +334,34 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     // ---- Savings goals ----
     // targetDate is computed by the UI (see monthsBetweenNow/GoalEditorDialog) so
     // the "خلال كم شهر" chips and the edit form share one source of truth.
-    fun addGoal(name: String, targetAmount: Double, targetDate: Long?) = viewModelScope.launch {
-        repo.addGoal(GoalEntity(name = name, targetAmount = targetAmount, targetDate = targetDate))
+    fun addGoal(name: String, targetAmount: Double, targetDate: Long?, monthlyAmount: Double = 0.0) = viewModelScope.launch {
+        repo.addGoal(GoalEntity(name = name, targetAmount = targetAmount, targetDate = targetDate, monthlyAmount = monthlyAmount))
     }
-    fun editGoal(goal: GoalEntity, name: String, targetAmount: Double, targetDate: Long?) = viewModelScope.launch {
-        repo.updateGoal(goal.copy(name = name, targetAmount = targetAmount, targetDate = targetDate))
+    fun editGoal(goal: GoalEntity, name: String, targetAmount: Double, targetDate: Long?, monthlyAmount: Double = goal.monthlyAmount) = viewModelScope.launch {
+        repo.updateGoal(goal.copy(name = name, targetAmount = targetAmount, targetDate = targetDate, monthlyAmount = monthlyAmount))
     }
+    // A contribution is also written to goal_contributions with its own timestamp
+    // so BudgetScreen can total "saved this month". The goal's currentAmount stays
+    // the authoritative balance (contributions are a month-view ledger, not a sum).
     fun contributeToGoal(goal: GoalEntity, amount: Double) = viewModelScope.launch {
+        val now = System.currentTimeMillis()
         repo.updateGoal(goal.copy(currentAmount = goal.currentAmount + amount))
+        repo.addGoalContribution(GoalContributionEntity(goalId = goal.id, amount = amount, timestamp = now))
     }
     // Never lets a goal fall below zero: the UI already caps the input, this is
     // the authoritative clamp so a stale goal object can't corrupt the ledger.
+    // The recorded contribution reflects the actually-withdrawn amount, not the
+    // requested one, so the monthly savings total can't go artificially negative.
     fun withdrawFromGoal(goal: GoalEntity, amount: Double) = viewModelScope.launch {
-        repo.updateGoal(goal.copy(currentAmount = (goal.currentAmount - amount).coerceAtLeast(0.0)))
+        val actual = amount.coerceAtMost(goal.currentAmount).coerceAtLeast(0.0)
+        if (actual <= 0.0) return@launch
+        repo.updateGoal(goal.copy(currentAmount = goal.currentAmount - actual))
+        repo.addGoalContribution(GoalContributionEntity(goalId = goal.id, amount = -actual, timestamp = System.currentTimeMillis()))
     }
-    fun deleteGoal(goal: GoalEntity) = viewModelScope.launch { repo.deleteGoal(goal) }
+    fun deleteGoal(goal: GoalEntity) = viewModelScope.launch {
+        repo.deleteGoalContributions(goal.id)
+        repo.deleteGoal(goal)
+    }
 
     // ---- Debts / installments ----
     fun addDebt(name: String, type: DebtType, totalAmount: Double, remainingAmount: Double, installmentAmount: Double, daysUntilNext: Int?) =
@@ -374,7 +425,8 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                         expectedAmount = tx.amount,
                         expectedDayOfMonth = Dates.dayOfMonth(tx.timestamp),
                         category = tx.category,
-                        reminderEnabled = true
+                        reminderEnabled = true,
+                        isFixed = existing?.isFixed ?: false
                     )
                 )
             } else if (existing != null) {
@@ -384,7 +436,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     }
 
     // ---- Bill reminders management (Planning > Reminders) ----
-    fun addRecurringItem(merchant: String, amount: Double, dayOfMonth: Int, category: String, enabled: Boolean) =
+    fun addRecurringItem(merchant: String, amount: Double, dayOfMonth: Int, category: String, enabled: Boolean, isFixed: Boolean = false) =
         viewModelScope.launch {
             repo.upsertRecurringItem(
                 RecurringItemEntity(
@@ -392,7 +444,8 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                     expectedAmount = amount,
                     expectedDayOfMonth = dayOfMonth.coerceIn(1, 28),
                     category = category,
-                    reminderEnabled = enabled
+                    reminderEnabled = enabled,
+                    isFixed = isFixed
                 )
             )
         }

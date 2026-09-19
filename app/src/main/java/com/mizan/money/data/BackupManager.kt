@@ -13,6 +13,7 @@ data class BackupData(
     val goals: List<GoalEntity> = emptyList(),
     val debts: List<DebtEntity> = emptyList(),
     val recurringItems: List<RecurringItemEntity> = emptyList(),
+    val goalContributions: List<GoalContributionEntity> = emptyList(),
 )
 
 // Uses org.json (bundled with Android) instead of pulling in a serialization
@@ -68,6 +69,7 @@ object BackupManager {
                     put("targetAmount", g.targetAmount)
                     put("currentAmount", g.currentAmount)
                     put("targetDate", g.targetDate ?: JSONObject.NULL)
+                    put("monthlyAmount", g.monthlyAmount)
                     put("createdAt", g.createdAt)
                     put("isArchived", g.isArchived)
                 })
@@ -100,8 +102,19 @@ object BackupManager {
                     put("expectedDayOfMonth", r.expectedDayOfMonth)
                     put("category", r.category)
                     put("reminderEnabled", r.reminderEnabled)
+                    put("isFixed", r.isFixed)
                     put("lastNotifiedMonthKey", r.lastNotifiedMonthKey ?: JSONObject.NULL)
                     put("createdAt", r.createdAt)
+                })
+            }
+        })
+        root.put("goalContributions", JSONArray().apply {
+            data.goalContributions.forEach { c ->
+                put(JSONObject().apply {
+                    put("id", c.id)
+                    put("goalId", c.goalId)
+                    put("amount", c.amount)
+                    put("timestamp", c.timestamp)
                 })
             }
         })
@@ -151,6 +164,7 @@ object BackupManager {
                 targetAmount = o.optDouble("targetAmount", 0.0),
                 currentAmount = o.optDouble("currentAmount", 0.0),
                 targetDate = o.longOrNull("targetDate"),
+                monthlyAmount = o.optDouble("monthlyAmount", 0.0),
                 createdAt = o.optLong("createdAt", System.currentTimeMillis()),
                 isArchived = o.optBoolean("isArchived", false),
             )
@@ -179,11 +193,20 @@ object BackupManager {
                 expectedDayOfMonth = o.optInt("expectedDayOfMonth", 1),
                 category = o.optString("category", "أخرى"),
                 reminderEnabled = o.optBoolean("reminderEnabled", true),
+                isFixed = o.optBoolean("isFixed", false),
                 lastNotifiedMonthKey = o.stringOrNull("lastNotifiedMonthKey"),
                 createdAt = o.optLong("createdAt", System.currentTimeMillis()),
             )
         }
-        return BackupData(transactions, budgets, goals, debts, recurring)
+        val contributions = root.optJSONArray("goalContributions").mapObjects { o ->
+            GoalContributionEntity(
+                id = o.optLong("id", 0L),
+                goalId = o.optLong("goalId", 0L),
+                amount = o.optDouble("amount", 0.0),
+                timestamp = o.optLong("timestamp", 0L),
+            )
+        }
+        return BackupData(transactions, budgets, goals, debts, recurring, contributions)
     }
 }
 
