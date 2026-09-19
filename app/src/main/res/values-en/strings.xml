@@ -98,10 +98,10 @@
     <string name="tx_self_transfer_note">Transfer between your accounts — not counted as income or spending</string>
 
     <string name="tx_exclude_daily_title">Exclude from daily average</string>
-    <string name="tx_exclude_daily_desc">For large one-off bills like rent — still counted in totals and budgets</string>
+    <string name="tx_exclude_daily_desc">For large one-off bills like rent</string>
     <string name="tx_exclude_daily_note">Excluded from daily average</string>
     <string name="tx_reimbursement_title">Shared expense refund</string>
-    <string name="tx_reimbursement_desc">Money returned by someone for a shared expense — subtracted from spending, not counted as income</string>
+    <string name="tx_reimbursement_desc">Money returned for a shared expense</string>
     <string name="tx_reimbursement_note">Shared expense refund — subtracted from spending</string>
 
     <string name="tx_bill_reminder_title">Remind me monthly</string>
@@ -160,7 +160,7 @@
 
     <!-- ================== GOALS ================== -->
     <string name="goals_title">Savings goals</string>
-    <string name="goals_subtitle">Save for a specific goal, step by step</string>
+    <string name="goals_subtitle">Save for your goal, step by step</string>
     <string name="goals_add">New goal</string>
     <string name="goals_reached">Goal reached 🎉</string>
     <string name="goals_delete">Delete</string>
@@ -169,7 +169,7 @@
 
     <!-- ================== DEBTS ================== -->
     <string name="debts_title">Debts &amp; installments</string>
-    <string name="debts_subtitle">Track your installments and debts in one place</string>
+    <string name="debts_subtitle">Track your installments and debts</string>
     <string name="debts_add">New debt</string>
     <string name="debts_empty">No tracked debts yet</string>
     <string name="debts_settled">Fully settled ✅</string>
@@ -218,7 +218,7 @@
     <string name="reminders_enabled_label">Enable reminder</string>
 
     <string name="budget_title_fmt">Budget &amp; categories — %1$s</string>
-    <string name="budget_subtitle">Track your spending against your limits</string>
+    <string name="budget_subtitle">Compare your spending with your limits</string>
     <string name="budget_monthly_limit">Monthly limit</string>
     <string name="budget_add_category">+ Category</string>
     <string name="budget_category_name_hint">Category name</string>
@@ -252,8 +252,8 @@
     <string name="goals_suggestion_phone">New phone</string>
     <string name="goals_remaining_fmt">%1$s %2$s left</string>
     <string name="goals_plan_fmt">Save %1$s %2$s/month to reach it by %3$s</string>
-    <string name="goals_no_deadline_hint">Add a deadline to see how much to save monthly</string>
-    <string name="goals_overdue_hint">Deadline passed — update it or finish the goal</string>
+    <string name="goals_no_deadline_hint">Add a deadline to see monthly savings</string>
+    <string name="goals_overdue_hint">Deadline passed — update the date</string>
     <string name="goals_edit">Edit goal</string>
     <string name="goals_edit_dialog_title">Edit goal</string>
     <string name="goals_edit_action">Save changes</string>
@@ -320,13 +320,13 @@
     <string name="adv_on_track_body_future">You used %1$d٪ of your budget. %2$s SAR left, you can spend %3$s SAR/day.</string>
     <string name="adv_on_track_body_past">You used %1$d٪ of that month\'s budget.</string>
     <string name="adv_top_category_title_fmt">Biggest category: %1$s 🔍</string>
-    <string name="adv_top_category_body_fmt">You spent %2$s SAR on \"%1$s\" (%3$d٪ of your expenses). Cut it by 20٪ and save ~%4$s SAR.</string>
+    <string name="adv_top_category_body_fmt">\"%1$s\" %2$s SAR (%3$d٪). Cut it by 20٪ to save ~%4$s SAR.</string>
     <string name="adv_cash_title">Notable cash withdrawals 💵</string>
-    <string name="adv_cash_body_fmt">You withdrew %1$s SAR in cash (%2$d٪ of your spending). Cash spending can\'t be auto-tracked from bank SMS — try noting where you spend it.</string>
+    <string name="adv_cash_body_fmt">You withdrew %1$s SAR in cash (%2$d٪). Cash is hard to track automatically.</string>
     <string name="adv_daily_avg_title">Your daily spending 📊</string>
     <string name="adv_daily_avg_body_fmt">You spend %1$s SAR/day. At this rate you\'ll spend ~%2$s SAR/month.</string>
     <string name="adv_subscriptions_title">Recurring subscriptions 💳</string>
-    <string name="adv_subscriptions_body_fmt">Found %1$d subscription(s): %2$s. Monthly total %3$s SAR = %4$s SAR/year.</string>
+    <string name="adv_subscriptions_body_fmt">%1$d subscription(s): %2$s. %3$s SAR/mo = %4$s/yr.</string>
     <string name="adv_large_tx_title">A big transaction spotted 👀</string>
     <string name="adv_large_tx_body_fmt">A %1$s SAR charge at \"%2$s\" = %3$d٪ of the month.</string>
     <string name="adv_savings_excellent_title">Excellent saving 🏆</string>
@@ -343,7 +343,7 @@
 
     <!-- Advisor header -->
     <string name="advisor_header_title">Financial advisor</string>
-    <string name="advisor_header_subtitle">Smart local analysis of your spending pattern</string>
+    <string name="advisor_header_subtitle">Smart analysis of your spending</string>
     <string name="advisor_empty">No advice yet — add transactions or a budget for this month</string>
 
     <!-- ================== Settings Dialog ================== -->
@@ -376,21 +376,21 @@
     <string name="stg_theme_dark">Dark</string>
 
     <string name="stg_salary_label">Your monthly salary</string>
-    <string name="stg_salary_desc">Used in the financial advisor\'s tips (50/30/20 rule, etc.) instead of relying solely on auto-detection from recurring deposits.</string>
+    <string name="stg_salary_desc">Used in the financial advisor\'s tips</string>
     <string name="stg_salary_hint">e.g., 8000</string>
 
     <string name="stg_name_label">Your name</string>
-    <string name="stg_name_desc">Used only to recognize transfers between your own accounts (e.g., Alinma to Barq) via the beneficiary name on the SMS. Write it exactly as it appears — Arabic or English.</string>
+    <string name="stg_name_desc">Recognize transfers between your own accounts</string>
     <string name="stg_name_hint">e.g., Waleed Hamadallah</string>
 
     <string name="stg_month_start_label">Month start day</string>
-    <string name="stg_month_start_desc">The day the "month" begins on every screen — change it to match your salary day instead of the 1st.</string>
+    <string name="stg_month_start_desc">The day the month starts on every screen</string>
     <string name="stg_month_start_day_fmt">Day %1$d of every month</string>
     <string name="stg_decrease">Decrease</string>
     <string name="stg_increase">Increase</string>
 
     <string name="stg_notif_label">Notifications</string>
-    <string name="stg_notif_desc">Alert when you exceed your budget or a bill is due soon</string>
+    <string name="stg_notif_desc">Alert on budget overrun or an upcoming bill</string>
 
     <string name="stg_privacy_body">All your data stays local on your device and is never sent to any external server unless you choose to export and share it yourself.</string>
     <string name="stg_save">Save</string>
@@ -445,19 +445,19 @@
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">Exchange rates</string>
-    <string name="stg_rates_desc">Used to convert foreign-currency transactions to SAR so they count in your budget and advisor. Adjust when the rate changes.</string>
+    <string name="stg_rates_desc">Convert foreign-currency transactions to SAR</string>
     <string name="stg_rate_fmt">1 %1$s =</string>
     <string name="stg_rate_unit">SAR</string>
 
     <!-- Custom classification keywords (Settings) -->
     <string name="stg_custom_rules_title">Custom keywords</string>
-    <string name="stg_custom_rules_desc">Map a word that appears in a bank message to a category. Applied before the built-in rules when parsing.</string>
+    <string name="stg_custom_rules_desc">Map a word in a bank message to a category</string>
     <string name="stg_custom_rules_empty">No custom rules yet.</string>
     <string name="stg_custom_rule_keyword_hint">Keyword (e.g., Noon)</string>
     <string name="stg_custom_rule_add">Add</string>
     <string name="stg_custom_rule_delete">Delete</string>
     <string name="stg_recategorize_title">Recategorize transactions</string>
-    <string name="stg_recategorize_desc">Re-apply all rules to your existing transactions after adding new keywords.</string>
+    <string name="stg_recategorize_desc">Re-apply rules to existing transactions</string>
     <string name="stg_recategorize_done_fmt">Reclassified %1$d transactions</string>
 
     <!-- Notifications -->
@@ -479,7 +479,7 @@
     <string name="budget_committed_label">Fixed commitments</string>
     <string name="budget_free_label">Free to spend</string>
     <string name="budget_commitments_title">Auto-deducted commitments</string>
-    <string name="budget_commitments_desc">Monthly fixed items, installments and savings deducted from your budget</string>
+    <string name="budget_commitments_desc">Commitments, installments and savings deducted from your budget</string>
     <string name="budget_commit_fixed">Monthly items</string>
     <string name="budget_commit_debts">Debt installments</string>
     <string name="budget_commit_savings">Goal savings</string>

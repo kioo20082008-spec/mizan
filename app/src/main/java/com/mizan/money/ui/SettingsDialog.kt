@@ -10,6 +10,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -41,6 +42,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -316,190 +318,209 @@ internal fun SettingsDialog(
 
                         // ==================== FINANCE ====================
                         2 -> {
-                            SettingsFieldHeader(
-                                stringResource(R.string.stg_salary_label),
-                                stringResource(R.string.stg_salary_desc)
-                            )
-                            SettingsInputRow(
-                                value = salaryInput,
-                                onValueChange = { salaryInput = sanitizeAmountInput(it) },
-                                placeholder = stringResource(R.string.stg_salary_hint),
-                                keyboardType = KeyboardType.Decimal,
-                                onSave = { vm.setManualSalary(salaryInput.toDoubleOrNull() ?: 0.0) }
-                            )
-                            SettingsDivider()
-                            SettingsFieldHeader(
-                                stringResource(R.string.stg_name_label),
-                                stringResource(R.string.stg_name_desc)
-                            )
-                            SettingsInputRow(
-                                value = nameInput,
-                                onValueChange = { nameInput = it },
-                                placeholder = stringResource(R.string.stg_name_hint),
-                                onSave = { vm.setOwnerName(nameInput) }
-                            )
-                            SettingsDivider()
-                            SettingsFieldHeader(
-                                stringResource(R.string.stg_month_start_label),
-                                stringResource(R.string.stg_month_start_desc)
-                            )
-                            Row(
-                                Modifier.fillMaxWidth()
-                                    .clip(RoundedCornerShape(RadiusMd))
-                                    .background(PaperOuter)
-                                    .padding(horizontal = 6.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                IconButton(onClick = { vm.setMonthStartDay(startDay - 1) }, enabled = startDay > 1) {
-                                    Icon(Icons.Default.Remove, stringResource(R.string.stg_decrease), tint = if (startDay > 1) Indigo else InkFaint)
-                                }
-                                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                    Text(stringResource(R.string.stg_month_start_day_fmt, startDay), style = Body.copy(fontWeight = FontWeight.Bold))
-                                }
-                                IconButton(onClick = { vm.setMonthStartDay(startDay + 1) }, enabled = startDay < 28) {
-                                    Icon(Icons.Default.Add, stringResource(R.string.stg_increase), tint = if (startDay < 28) Indigo else InkFaint)
-                                }
-                            }
-                            SettingsDivider()
-                            SettingsFieldHeader(
-                                stringResource(R.string.stg_rates_label),
-                                stringResource(R.string.stg_rates_desc)
-                            )
-                            com.mizan.money.data.ExchangeRates.supported.forEach { code ->
-                                Row(
-                                    Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                            var open by rememberSaveable { mutableStateOf("") }
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SettingsSection(
+                                    icon = Icons.Default.Payments,
+                                    tint = Indigo,
+                                    title = stringResource(R.string.stg_salary_label),
+                                    summary = stringResource(R.string.stg_salary_desc),
+                                    expanded = open == "salary",
+                                    onToggle = { open = if (open == "salary") "" else "salary" }
                                 ) {
-                                    Text(stringResource(R.string.stg_rate_fmt, code), style = Body)
-                                    Spacer(Modifier.width(10.dp))
+                                    SettingsInputRow(
+                                        value = salaryInput,
+                                        onValueChange = { salaryInput = sanitizeAmountInput(it) },
+                                        placeholder = stringResource(R.string.stg_salary_hint),
+                                        keyboardType = KeyboardType.Decimal,
+                                        onSave = { vm.setManualSalary(salaryInput.toDoubleOrNull() ?: 0.0) }
+                                    )
+                                }
+                                SettingsSection(
+                                    icon = Icons.Default.Person,
+                                    tint = Purple,
+                                    title = stringResource(R.string.stg_name_label),
+                                    summary = stringResource(R.string.stg_name_desc),
+                                    expanded = open == "name",
+                                    onToggle = { open = if (open == "name") "" else "name" }
+                                ) {
+                                    SettingsInputRow(
+                                        value = nameInput,
+                                        onValueChange = { nameInput = it },
+                                        placeholder = stringResource(R.string.stg_name_hint),
+                                        onSave = { vm.setOwnerName(nameInput) }
+                                    )
+                                }
+                                SettingsSection(
+                                    icon = Icons.Default.CalendarMonth,
+                                    tint = Amber,
+                                    title = stringResource(R.string.stg_month_start_label),
+                                    summary = stringResource(R.string.stg_month_start_desc),
+                                    expanded = open == "month",
+                                    onToggle = { open = if (open == "month") "" else "month" }
+                                ) {
+                                    Row(
+                                        Modifier.fillMaxWidth()
+                                            .clip(RoundedCornerShape(RadiusMd))
+                                            .background(PaperOuter)
+                                            .padding(horizontal = 6.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        IconButton(onClick = { vm.setMonthStartDay(startDay - 1) }, enabled = startDay > 1) {
+                                            Icon(Icons.Default.Remove, stringResource(R.string.stg_decrease), tint = if (startDay > 1) Indigo else InkFaint)
+                                        }
+                                        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                            Text(stringResource(R.string.stg_month_start_day_fmt, startDay), style = Body.copy(fontWeight = FontWeight.Bold))
+                                        }
+                                        IconButton(onClick = { vm.setMonthStartDay(startDay + 1) }, enabled = startDay < 28) {
+                                            Icon(Icons.Default.Add, stringResource(R.string.stg_increase), tint = if (startDay < 28) Indigo else InkFaint)
+                                        }
+                                    }
+                                }
+                                SettingsSection(
+                                    icon = Icons.Default.SwapHoriz,
+                                    tint = Success,
+                                    title = stringResource(R.string.stg_rates_label),
+                                    summary = stringResource(R.string.stg_rates_desc),
+                                    expanded = open == "rates",
+                                    onToggle = { open = if (open == "rates") "" else "rates" }
+                                ) {
+                                    com.mizan.money.data.ExchangeRates.supported.forEach { code ->
+                                        Row(
+                                            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(stringResource(R.string.stg_rate_fmt, code), style = Body)
+                                            Spacer(Modifier.width(10.dp))
+                                            OutlinedTextField(
+                                                value = rateInputs[code] ?: "",
+                                                onValueChange = { rateInputs = rateInputs + (code to sanitizeAmountInput(it)) },
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                                modifier = Modifier.weight(1f),
+                                                singleLine = true,
+                                                shape = RoundedCornerShape(RadiusSm),
+                                                textStyle = Body
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(stringResource(R.string.stg_rate_unit), style = BodyMuted)
+                                            Spacer(Modifier.width(8.dp))
+                                            Box(
+                                                Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
+                                                    .clickable { vm.setExchangeRate(code, rateInputs[code]?.toDoubleOrNull() ?: 0.0) },
+                                                contentAlignment = Alignment.Center
+                                            ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = White, modifier = Modifier.size(20.dp)) }
+                                        }
+                                    }
+                                }
+                                SettingsSection(
+                                    icon = Icons.Default.AutoFixHigh,
+                                    tint = IndigoDeep,
+                                    title = stringResource(R.string.stg_custom_rules_title),
+                                    summary = stringResource(R.string.stg_custom_rules_desc),
+                                    expanded = open == "rules",
+                                    onToggle = { open = if (open == "rules") "" else "rules" }
+                                ) {
+                                    if (customRules.isEmpty()) {
+                                        Text(stringResource(R.string.stg_custom_rules_empty), style = Eyebrow)
+                                        Spacer(Modifier.height(8.dp))
+                                    } else {
+                                        customRules.forEachIndexed { index, rule ->
+                                            Row(
+                                                Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text("${rule.first} → ${rule.second}", style = Body, modifier = Modifier.weight(1f))
+                                                IconButton(onClick = { vm.removeCustomRule(index) }) {
+                                                    Icon(
+                                                        Icons.Default.Delete,
+                                                        stringResource(R.string.stg_custom_rule_delete),
+                                                        tint = Danger,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Spacer(Modifier.height(6.dp))
+                                    }
                                     OutlinedTextField(
-                                        value = rateInputs[code] ?: "",
-                                        onValueChange = { rateInputs = rateInputs + (code to sanitizeAmountInput(it)) },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                        modifier = Modifier.weight(1f),
+                                        value = ruleKeyword,
+                                        onValueChange = { ruleKeyword = it },
+                                        placeholder = { Text(stringResource(R.string.stg_custom_rule_keyword_hint), style = Eyebrow) },
+                                        modifier = Modifier.fillMaxWidth(),
                                         singleLine = true,
                                         shape = RoundedCornerShape(RadiusSm),
                                         textStyle = Body
                                     )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(stringResource(R.string.stg_rate_unit), style = BodyMuted)
-                                    Spacer(Modifier.width(8.dp))
-                                    Box(
-                                        Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
-                                            .clickable { vm.setExchangeRate(code, rateInputs[code]?.toDoubleOrNull() ?: 0.0) },
-                                        contentAlignment = Alignment.Center
-                                    ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = White, modifier = Modifier.size(20.dp)) }
-                                }
-                            }
-                            SettingsDivider()
-                            SettingsFieldHeader(
-                                stringResource(R.string.stg_custom_rules_title),
-                                stringResource(R.string.stg_custom_rules_desc)
-                            )
-                            if (customRules.isEmpty()) {
-                                Text(stringResource(R.string.stg_custom_rules_empty), style = Eyebrow)
-                                Spacer(Modifier.height(8.dp))
-                            } else {
-                                customRules.forEachIndexed { index, rule ->
-                                    Row(
-                                        Modifier.fillMaxWidth().padding(bottom = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("${rule.first} → ${rule.second}", style = Body, modifier = Modifier.weight(1f))
-                                        IconButton(onClick = { vm.removeCustomRule(index) }) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                stringResource(R.string.stg_custom_rule_delete),
-                                                tint = Danger,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                                Spacer(Modifier.height(6.dp))
-                            }
-                            OutlinedTextField(
-                                value = ruleKeyword,
-                                onValueChange = { ruleKeyword = it },
-                                placeholder = { Text(stringResource(R.string.stg_custom_rule_keyword_hint), style = Eyebrow) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = RoundedCornerShape(RadiusSm),
-                                textStyle = Body
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                categories.chunked(2).forEach { row ->
-                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        row.forEach { c ->
-                                            Box(
-                                                Modifier.weight(1f)
-                                                    .clip(RoundedCornerShape(RadiusSm))
-                                                    .background(if (ruleCategory == c) IndigoSoft else PaperOuter)
-                                                    .clickable { ruleCategory = c }
-                                                    .padding(vertical = 8.dp, horizontal = 6.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    categoryDisplay(c),
-                                                    style = Eyebrow.copy(
-                                                        color = if (ruleCategory == c) Indigo else InkSoft,
-                                                        fontWeight = if (ruleCategory == c) FontWeight.Bold else FontWeight.Normal
-                                                    )
-                                                )
+                                    Spacer(Modifier.height(8.dp))
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        categories.chunked(2).forEach { row ->
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                row.forEach { c ->
+                                                    Box(
+                                                        Modifier.weight(1f)
+                                                            .clip(RoundedCornerShape(RadiusSm))
+                                                            .background(if (ruleCategory == c) IndigoSoft else PaperOuter)
+                                                            .clickable { ruleCategory = c }
+                                                            .padding(vertical = 8.dp, horizontal = 6.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(
+                                                            categoryDisplay(c),
+                                                            style = Eyebrow.copy(
+                                                                color = if (ruleCategory == c) Indigo else InkSoft,
+                                                                fontWeight = if (ruleCategory == c) FontWeight.Bold else FontWeight.Normal
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                                if (row.size == 1) Spacer(Modifier.weight(1f))
                                             }
                                         }
-                                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    val canAdd = ruleKeyword.isNotBlank() && ruleCategory.isNotBlank()
+                                    Box(
+                                        Modifier.fillMaxWidth()
+                                            .clip(RoundedCornerShape(RadiusSm))
+                                            .background(if (canAdd) Indigo else PaperOuter)
+                                            .clickable(enabled = canAdd) {
+                                                vm.addCustomRule(ruleKeyword, ruleCategory)
+                                                ruleKeyword = ""
+                                            }
+                                            .padding(vertical = 10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            stringResource(R.string.stg_custom_rule_add),
+                                            style = Body.copy(color = if (canAdd) White else InkFaint, fontWeight = FontWeight.Bold)
+                                        )
+                                    }
+                                    Spacer(Modifier.height(12.dp))
+                                    SettingsActionRow(
+                                        icon = Icons.Default.AutoFixHigh,
+                                        iconTint = Indigo,
+                                        title = stringResource(R.string.stg_recategorize_title),
+                                        subtitle = stringResource(R.string.stg_recategorize_desc),
+                                        onClick = { vm.recategorizeAll() }
+                                    )
+                                    if (lastRecategorize > 0) {
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(stringResource(R.string.stg_recategorize_done_fmt, lastRecategorize), style = Eyebrow)
                                     }
                                 }
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            val canAdd = ruleKeyword.isNotBlank() && ruleCategory.isNotBlank()
-                            Box(
-                                Modifier.fillMaxWidth()
-                                    .clip(RoundedCornerShape(RadiusSm))
-                                    .background(if (canAdd) Indigo else PaperOuter)
-                                    .clickable(enabled = canAdd) {
-                                        vm.addCustomRule(ruleKeyword, ruleCategory)
-                                        ruleKeyword = ""
-                                    }
-                                    .padding(vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    stringResource(R.string.stg_custom_rule_add),
-                                    style = Body.copy(color = if (canAdd) White else InkFaint, fontWeight = FontWeight.Bold)
-                                )
-                            }
-                            SettingsDivider()
-                            SettingsActionRow(
-                                icon = Icons.Default.AutoFixHigh,
-                                iconTint = Indigo,
-                                title = stringResource(R.string.stg_recategorize_title),
-                                subtitle = stringResource(R.string.stg_recategorize_desc),
-                                onClick = { vm.recategorizeAll() }
-                            )
-                            if (lastRecategorize > 0) {
-                                Spacer(Modifier.height(6.dp))
-                                Text(stringResource(R.string.stg_recategorize_done_fmt, lastRecategorize), style = Eyebrow)
-                            }
-                            SettingsDivider()
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(stringResource(R.string.stg_notif_label), style = Body.copy(fontWeight = FontWeight.Bold))
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(stringResource(R.string.stg_notif_desc), style = Eyebrow)
-                                }
-                                Switch(
-                                    checked = notificationsEnabled,
-                                    onCheckedChange = { turningOn ->
+                                SettingsSection(
+                                    icon = Icons.Default.Notifications,
+                                    tint = Indigo,
+                                    title = stringResource(R.string.stg_notif_label),
+                                    summary = stringResource(R.string.stg_notif_desc),
+                                    switchState = notificationsEnabled,
+                                    onSwitchChange = { turningOn ->
                                         if (turningOn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                             notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                         } else {
                                             vm.setNotificationsEnabled(turningOn)
                                         }
-                                    },
-                                    colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                                    }
                                 )
                             }
                         }
@@ -523,6 +544,73 @@ internal fun SettingsDialog(
 }
 
 // ============ SETTINGS BUILDING BLOCKS ============
+@Composable
+private fun SettingsSection(
+    icon: ImageVector,
+    tint: Color,
+    title: String,
+    summary: String,
+    expanded: Boolean = false,
+    onToggle: (() -> Unit)? = null,
+    switchState: Boolean? = null,
+    onSwitchChange: ((Boolean) -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit = {},
+) {
+    val expandable = onToggle != null
+    Column(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(RadiusLg))
+            .background(White)
+            .border(1.dp, Line, RoundedCornerShape(RadiusLg))
+    ) {
+        Row(
+            Modifier.fillMaxWidth()
+                .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconBadge(icon, tint, tint.copy(alpha = 0.12f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = Body.copy(fontWeight = FontWeight.Bold))
+                if (summary.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        summary,
+                        style = Eyebrow.copy(fontSize = 10.sp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (switchState != null) {
+                Spacer(Modifier.width(8.dp))
+                Switch(
+                    checked = switchState,
+                    onCheckedChange = { onSwitchChange?.invoke(it) },
+                    colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                )
+            } else if (expandable) {
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = InkFaint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        if (expandable) {
+            AnimatedVisibility(visible = expanded) {
+                Column(
+                    Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 16.dp),
+                    content = content
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun SettingsFieldHeader(title: String, desc: String) {
     Text(title, style = Body.copy(fontWeight = FontWeight.Bold))

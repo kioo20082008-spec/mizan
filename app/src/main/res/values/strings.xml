@@ -98,10 +98,10 @@
     <string name="tx_self_transfer_note">تحويل بين حساباتك — لا يُحتسب ضمن دخلك أو مصاريفك</string>
 
     <string name="tx_exclude_daily_title">استثنِ من معدل الصرف اليومي</string>
-    <string name="tx_exclude_daily_desc">لمصروف كبير غير يومي مثل الإيجار — يبقى محسوباً في الإجمالي والميزانية</string>
+    <string name="tx_exclude_daily_desc">لمصروف كبير غير يومي مثل الإيجار</string>
     <string name="tx_exclude_daily_note">مستثناة من معدل الصرف اليومي</string>
     <string name="tx_reimbursement_title">دفعة مشتركة (تعويض)</string>
-    <string name="tx_reimbursement_desc">مبلغ رجعه لك شخص مقابل مصروف مشترك — يُخصم من الصرف ولا يُحسب دخل</string>
+    <string name="tx_reimbursement_desc">مبلغ رجعه لك شخص مقابل مصروف مشترك</string>
     <string name="tx_reimbursement_note">دفعة مشتركة — خُصمت من إجمالي الصرف</string>
 
     <string name="tx_bill_reminder_title">ذكّرني بهذي شهرياً</string>
@@ -160,7 +160,7 @@
 
     <!-- ================== GOALS ================== -->
     <string name="goals_title">أهداف الادخار</string>
-    <string name="goals_subtitle">اجمع مبلغاً لهدف محدد بخطوات بسيطة</string>
+    <string name="goals_subtitle">ادخر لهدفك بخطوات بسيطة</string>
     <string name="goals_add">هدف جديد</string>
     <string name="goals_reached">وصلت لهدفك 🎉</string>
     <string name="goals_delete">حذف</string>
@@ -169,7 +169,7 @@
 
     <!-- ================== DEBTS ================== -->
     <string name="debts_title">الديون والأقساط</string>
-    <string name="debts_subtitle">تابع تقسيطك وديونك بمكان واحد</string>
+    <string name="debts_subtitle">تابع أقساطك وديونك</string>
     <string name="debts_add">دين جديد</string>
     <string name="debts_empty">لا توجد ديون متتبعة بعد</string>
     <string name="debts_settled">تم السداد بالكامل ✅</string>
@@ -218,7 +218,7 @@
     <string name="reminders_enabled_label">تفعيل التذكير</string>
 
     <string name="budget_title_fmt">الميزانية والتصنيفات — %1$s</string>
-    <string name="budget_subtitle">راقب إنفاقك وقارنه بالحدود المحددة</string>
+    <string name="budget_subtitle">قارن إنفاقك بحدودك</string>
     <string name="budget_monthly_limit">الحد الشهري</string>
     <string name="budget_add_category">+ تصنيف</string>
     <string name="budget_category_name_hint">اسم التصنيف</string>
@@ -252,8 +252,8 @@
     <string name="goals_suggestion_phone">جوال جديد</string>
     <string name="goals_remaining_fmt">باقي %1$s %2$s</string>
     <string name="goals_plan_fmt">ادخر %1$s %2$s شهرياً للوصول في %3$s</string>
-    <string name="goals_no_deadline_hint">أضف موعداً لتعرف كم تحتاج تدخر شهرياً</string>
-    <string name="goals_overdue_hint">حان الموعد — عدّل التاريخ أو أكمل الهدف</string>
+    <string name="goals_no_deadline_hint">أضف موعداً لحساب الادخار الشهري</string>
+    <string name="goals_overdue_hint">تجاوزت الموعد — عدّل التاريخ</string>
     <string name="goals_edit">تعديل الهدف</string>
     <string name="goals_edit_dialog_title">تعديل الهدف</string>
     <string name="goals_edit_action">حفظ التعديلات</string>
@@ -320,13 +320,13 @@
     <string name="adv_on_track_body_future">صرفت %1$d٪ من ميزانيتك. المتبقي %2$s ر.س، ويمكنك صرف %3$s ر.س يومياً.</string>
     <string name="adv_on_track_body_past">صرفت %1$d٪ من ميزانية ذلك الشهر.</string>
     <string name="adv_top_category_title_fmt">أكبر بند: %1$s 🔍</string>
-    <string name="adv_top_category_body_fmt">استهلكت «%1$s» %2$s ر.س أي %3$d٪ من مصاريفك. خفّضها 20٪ وستوفّر ~%4$s ر.س.</string>
+    <string name="adv_top_category_body_fmt">«%1$s» %2$s ر.س (%3$d٪). خفّضها 20٪ لتوفّر ~%4$s ر.س.</string>
     <string name="adv_cash_title">سحوبات نقدية ملحوظة 💵</string>
-    <string name="adv_cash_body_fmt">سحبت %1$s ر.س نقداً، أي %2$d٪ من مصاريفك. المصروفات النقدية لا يمكن تتبع تفاصيلها تلقائياً من رسائل البنك — حاول تدوين أين تُصرف.</string>
+    <string name="adv_cash_body_fmt">سحبت %1$s ر.س نقداً (%2$d٪). يصعب تتبع النقد تلقائياً.</string>
     <string name="adv_daily_avg_title">معدل صرفك اليومي 📊</string>
     <string name="adv_daily_avg_body_fmt">تصرف بمعدل %1$s ر.س يومياً. لو استمريت فستنفق ~%2$s ر.س شهرياً.</string>
     <string name="adv_subscriptions_title">اشتراكات متكررة 💳</string>
-    <string name="adv_subscriptions_body_fmt">وجدت %1$d اشتراك: %2$s. الإجمالي الشهري %3$s ر.س = %4$s ر.س سنوياً.</string>
+    <string name="adv_subscriptions_body_fmt">‏%1$d اشتراك: %2$s. شهرياً %3$s ر.س = %4$s سنوياً.</string>
     <string name="adv_large_tx_title">عملية كبيرة رصدتها 👀</string>
     <string name="adv_large_tx_body_fmt">عملية %1$s ر.س لدى «%2$s» = %3$d٪ من الشهر.</string>
     <string name="adv_savings_excellent_title">ادخار ممتاز 🏆</string>
@@ -343,7 +343,7 @@
 
     <!-- Advisor header -->
     <string name="advisor_header_title">المستشار المالي</string>
-    <string name="advisor_header_subtitle">تحليل ذكي ومحلي لنمط إنفاقك</string>
+    <string name="advisor_header_subtitle">تحليل ذكي لنمط إنفاقك</string>
     <string name="advisor_empty">لا توجد نصائح بعد — أضف عمليات أو ميزانية لهذا الشهر</string>
 
     <!-- ================== Settings Dialog ================== -->
@@ -376,21 +376,21 @@
     <string name="stg_theme_dark">داكن</string>
 
     <string name="stg_salary_label">راتبك الشهري</string>
-    <string name="stg_salary_desc">يُستخدم في نصائح المستشار المالي (قاعدة 50/30/20 وغيرها) بدل الاعتماد فقط على اكتشافه تلقائياً من الإيداعات المتكررة.</string>
+    <string name="stg_salary_desc">يُستخدم في نصائح المستشار المالي</string>
     <string name="stg_salary_hint">مثال: 8000</string>
 
     <string name="stg_name_label">اسمك</string>
-    <string name="stg_name_desc">يُستخدم فقط للتعرف على تحويلاتك بين حساباتك أنت (مثلاً من الإنماء إلى برق) عن طريق اسم المستفيد بالرسالة — اكتبه بنفس الشكل اللي يظهر فيه، عربي أو إنجليزي.</string>
+    <string name="stg_name_desc">للتعرف على تحويلاتك بين حساباتك</string>
     <string name="stg_name_hint">مثال: Waleed Hamadallah</string>
 
     <string name="stg_month_start_label">بداية الدورة الشهرية</string>
-    <string name="stg_month_start_desc">اليوم الذي يبدأ منه حساب «الشهر» في كل الصفحات — غيّره ليطابق يوم نزول راتبك بدل أول الشهر تلقائياً.</string>
+    <string name="stg_month_start_desc">اليوم الذي يبدأ منه الشهر في كل الصفحات</string>
     <string name="stg_month_start_day_fmt">يوم %1$d من كل شهر</string>
     <string name="stg_decrease">إنقاص</string>
     <string name="stg_increase">زيادة</string>
 
     <string name="stg_notif_label">الإشعارات</string>
-    <string name="stg_notif_desc">تنبيه عند تجاوز الميزانية أو اقتراب موعد فاتورة</string>
+    <string name="stg_notif_desc">تنبيه عند تجاوز الميزانية أو اقتراب فاتورة</string>
 
     <string name="stg_privacy_body">جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي إلا إذا اخترت تصديرها ومشاركتها بنفسك.</string>
     <string name="stg_save">حفظ</string>
@@ -445,19 +445,19 @@
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">أسعار الصرف</string>
-    <string name="stg_rates_desc">تُستخدم لتحويل العمليات بالعملات الأجنبية إلى الريال لتُحتسب في الميزانية والمستشار. عدّلها إذا تغيّر السعر.</string>
+    <string name="stg_rates_desc">لتحويل العمليات الأجنبية إلى الريال</string>
     <string name="stg_rate_fmt">1 %1$s =</string>
     <string name="stg_rate_unit">ر.س</string>
 
     <!-- Custom classification keywords (Settings) -->
     <string name="stg_custom_rules_title">كلمات التصنيف المخصصة</string>
-    <string name="stg_custom_rules_desc">اربط كلمة تظهر في رسالة البنك بتصنيف معيّن، وتُطبّق قبل القواعد الجاهزة عند تحليل الرسائل.</string>
+    <string name="stg_custom_rules_desc">اربط كلمة في رسالة البنك بتصنيف</string>
     <string name="stg_custom_rules_empty">لا توجد قواعد مخصصة بعد.</string>
     <string name="stg_custom_rule_keyword_hint">الكلمة (مثال: نون)</string>
     <string name="stg_custom_rule_add">إضافة</string>
     <string name="stg_custom_rule_delete">حذف</string>
     <string name="stg_recategorize_title">إعادة تصنيف المعاملات</string>
-    <string name="stg_recategorize_desc">أعد تطبيق كل القواعد على معاملاتك الحالية بعد إضافة كلمات جديدة.</string>
+    <string name="stg_recategorize_desc">أعد تطبيق القواعد على معاملاتك</string>
     <string name="stg_recategorize_done_fmt">تم تصنيف %1$d معاملة</string>
 
     <!-- Notifications -->
@@ -479,7 +479,7 @@
     <string name="budget_committed_label">الالتزامات الثابتة</string>
     <string name="budget_free_label">المتبقي للصرف</string>
     <string name="budget_commitments_title">التزامات تُخصم تلقائيًا</string>
-    <string name="budget_commitments_desc">أشياء شهرية ثابتة وأقساط وادخار تُخصم من ميزانيتك</string>
+    <string name="budget_commitments_desc">التزامات وأقساط وادخار تُخصم من ميزانيتك</string>
     <string name="budget_commit_fixed">أشياء شهرية</string>
     <string name="budget_commit_debts">أقساط ديون</string>
     <string name="budget_commit_savings">ادخار أهداف</string>

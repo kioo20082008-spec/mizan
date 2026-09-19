@@ -550,7 +550,6 @@ private fun BudgetPlanCard(
                 style = Body.copy(fontSize = 12.sp, color = Success, fontWeight = FontWeight.Bold)
             )
         }
-        Text(stringResource(R.string.budget_savings_note), style = Eyebrow.copy(fontSize = 10.sp))
     }
 }
 
