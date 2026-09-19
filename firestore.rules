@@ -1,0 +1,13 @@
+rules_version = '2';
+
+// Mizan cloud backup. Every user can only ever read or write their own
+// users/{uid}/... subtree, so even though this is a personal app the rules
+// are correct for multiple accounts. Deploy with:
+//   firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

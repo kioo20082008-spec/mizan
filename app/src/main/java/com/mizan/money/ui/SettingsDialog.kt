@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -53,6 +54,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mizan.money.MoneyApp
 import com.mizan.money.R
+import com.mizan.money.cloud.CloudBackup
 import com.mizan.money.data.BackupData
 import com.mizan.money.data.BackupManager
 import com.mizan.money.widget.WidgetUpdater
@@ -110,6 +112,16 @@ internal fun SettingsDialog(
     var showExportConfirm by remember { mutableStateOf(false) }
     var pendingRestoreJson by remember { mutableStateOf<String?>(null) }
     var restoreResult by remember { mutableStateOf<Boolean?>(null) }
+
+    // ---- Cloud backup (Firebase) ----
+    var cloudOpen by rememberSaveable { mutableStateOf(false) }
+    var cloudEmail by rememberSaveable { mutableStateOf("") }
+    var cloudPassword by remember { mutableStateOf("") }
+    var cloudBusy by remember { mutableStateOf(false) }
+    var cloudMessage by remember { mutableStateOf<String?>(null) }
+    var cloudSignedIn by remember { mutableStateOf(false) }
+    var showCloudRestoreConfirm by remember { mutableStateOf(false) }
+
     val app = ctx.applicationContext as MoneyApp
     val backupShareTitle = stringResource(R.string.stg_backup_share)
     val restoreLauncher = rememberLauncherForActivityResult(
@@ -127,6 +139,110 @@ internal fun SettingsDialog(
                 }
             }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        CloudBackup.init(ctx)
+        cloudSignedIn = CloudBackup.isSignedIn
+        if (cloudEmail.isBlank()) cloudEmail = CloudBackup.currentEmail ?: ""
+    }
+
+    val runCloudAuth: (Boolean) -> Unit = { isSignUp ->
+        if (cloudEmail.isBlank() || cloudPassword.isBlank()) {
+            cloudMessage = ctx.getString(R.string.stg_cloud_credentials_required)
+        } else {
+            scope.launch {
+                cloudBusy = true
+                cloudMessage = null
+                val result = if (isSignUp) CloudBackup.signUp(cloudEmail, cloudPassword)
+                             else CloudBackup.signIn(cloudEmail, cloudPassword)
+                cloudBusy = false
+                if (result.isSuccess) {
+                    cloudSignedIn = CloudBackup.isSignedIn
+                    cloudPassword = ""
+                    cloudMessage = null
+                } else {
+                    cloudMessage = result.exceptionOrNull()?.localizedMessage
+                        ?: ctx.getString(R.string.stg_cloud_failed)
+                }
+            }
+        }
+    }
+
+    val runCloudGoogle: () -> Unit = {
+        scope.launch {
+            cloudBusy = true
+            cloudMessage = null
+            val result = CloudBackup.signInWithGoogle(ctx)
+            cloudBusy = false
+            if (result.isSuccess) {
+                cloudSignedIn = CloudBackup.isSignedIn
+                cloudMessage = null
+            } else {
+                cloudMessage = result.exceptionOrNull()?.localizedMessage
+                    ?: ctx.getString(R.string.stg_cloud_failed)
+            }
+        }
+    }
+
+    val runCloudUpload: () -> Unit = {
+        scope.launch {
+            cloudBusy = true
+            cloudMessage = null
+            val ok = try {
+                val dao = app.db.backupDao()
+                val data = withContext(Dispatchers.IO) {
+                    BackupData(
+                        transactions = dao.transactions(),
+                        budgets = dao.budgets(),
+                        goals = dao.goals(),
+                        debts = dao.debts(),
+                        recurringItems = dao.recurringItems(),
+                        goalContributions = dao.goalContributions(),
+                    )
+                }
+                CloudBackup.upload(data).isSuccess
+            } catch (e: Exception) {
+                false
+            }
+            cloudBusy = false
+            cloudMessage = ctx.getString(if (ok) R.string.stg_cloud_upload_ok else R.string.stg_cloud_failed)
+        }
+    }
+
+    if (showCloudRestoreConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCloudRestoreConfirm = false },
+            containerColor = White,
+            shape = RoundedCornerShape(RadiusXl),
+            title = { Text(stringResource(R.string.stg_cloud_restore_confirm_title), style = H2) },
+            text = { Text(stringResource(R.string.stg_cloud_restore_confirm_body), style = BodyMuted) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCloudRestoreConfirm = false
+                    scope.launch {
+                        cloudBusy = true
+                        cloudMessage = null
+                        val ok = try {
+                            val data = CloudBackup.download().getOrThrow()
+                            withContext(Dispatchers.IO) { app.db.backupDao().restore(data) }
+                            WidgetUpdater.refresh(ctx)
+                            true
+                        } catch (e: Exception) {
+                            false
+                        }
+                        cloudBusy = false
+                        cloudOpen = true
+                        cloudMessage = ctx.getString(if (ok) R.string.stg_cloud_restore_ok else R.string.stg_cloud_failed)
+                    }
+                }) { Text(stringResource(R.string.stg_cloud_restore_action), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCloudRestoreConfirm = false }) {
+                    Text(stringResource(R.string.stg_cancel), style = Body.copy(color = InkSoft))
+                }
+            }
+        )
     }
 
     if (pendingRestoreJson != null) {
@@ -276,6 +392,154 @@ internal fun SettingsDialog(
                                     restoreLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
                                 }
                             )
+                            Spacer(Modifier.height(10.dp))
+                            SettingsSection(
+                                icon = Icons.Default.Cloud,
+                                tint = IndigoDeep,
+                                title = stringResource(R.string.stg_cloud_title),
+                                summary = when {
+                                    !CloudBackup.isConfigured -> stringResource(R.string.stg_cloud_not_configured)
+                                    cloudSignedIn -> stringResource(
+                                        R.string.stg_cloud_signed_in_fmt,
+                                        CloudBackup.currentEmail ?: ""
+                                    )
+                                    else -> stringResource(R.string.stg_cloud_signed_out)
+                                },
+                                expanded = cloudOpen,
+                                onToggle = { cloudOpen = !cloudOpen }
+                            ) {
+                                if (!CloudBackup.isConfigured) {
+                                    Text(stringResource(R.string.stg_cloud_disabled_desc), style = Eyebrow)
+                                } else if (cloudSignedIn) {
+                                    Text(stringResource(R.string.stg_cloud_intro), style = Eyebrow)
+                                    Spacer(Modifier.height(10.dp))
+                                    SettingsActionRow(
+                                        icon = Icons.Default.CloudUpload,
+                                        iconTint = Indigo,
+                                        background = IndigoSoft,
+                                        title = stringResource(R.string.stg_cloud_upload_title),
+                                        subtitle = stringResource(R.string.stg_cloud_upload_subtitle),
+                                        enabled = !cloudBusy,
+                                        onClick = runCloudUpload
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    SettingsActionRow(
+                                        icon = Icons.Default.CloudDownload,
+                                        iconTint = Danger,
+                                        title = stringResource(R.string.stg_cloud_download_title),
+                                        subtitle = stringResource(R.string.stg_cloud_download_subtitle),
+                                        enabled = !cloudBusy,
+                                        onClick = { showCloudRestoreConfirm = true }
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    SettingsActionRow(
+                                        icon = Icons.AutoMirrored.Filled.Logout,
+                                        iconTint = InkSoft,
+                                        title = stringResource(R.string.stg_cloud_sign_out),
+                                        subtitle = CloudBackup.currentEmail ?: "",
+                                        enabled = !cloudBusy,
+                                        onClick = {
+                                            CloudBackup.signOut()
+                                            cloudSignedIn = false
+                                            cloudMessage = null
+                                        }
+                                    )
+                                } else {
+                                    Text(stringResource(R.string.stg_cloud_intro), style = Eyebrow)
+                                    Spacer(Modifier.height(10.dp))
+                                    if (CloudBackup.isGoogleSignInConfigured) {
+                                        SettingsActionRow(
+                                            icon = Icons.Default.AccountCircle,
+                                            iconTint = Indigo,
+                                            background = IndigoSoft,
+                                            title = stringResource(R.string.stg_cloud_google),
+                                            subtitle = stringResource(R.string.stg_cloud_google_sub),
+                                            enabled = !cloudBusy,
+                                            onClick = runCloudGoogle
+                                        )
+                                        Spacer(Modifier.height(10.dp))
+                                        Row(
+                                            Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(Modifier.weight(1f).height(1.dp).background(Line))
+                                            Text(
+                                                stringResource(R.string.stg_cloud_or),
+                                                style = Eyebrow,
+                                                modifier = Modifier.padding(horizontal = 10.dp)
+                                            )
+                                            Box(Modifier.weight(1f).height(1.dp).background(Line))
+                                        }
+                                        Spacer(Modifier.height(10.dp))
+                                    }
+                                    OutlinedTextField(
+                                        value = cloudEmail,
+                                        onValueChange = { cloudEmail = it.trim() },
+                                        placeholder = { Text(stringResource(R.string.stg_cloud_email_hint), style = Eyebrow) },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(RadiusSm),
+                                        textStyle = Body
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    OutlinedTextField(
+                                        value = cloudPassword,
+                                        onValueChange = { cloudPassword = it },
+                                        placeholder = { Text(stringResource(R.string.stg_cloud_password_hint), style = Eyebrow) },
+                                        visualTransformation = PasswordVisualTransformation(),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(RadiusSm),
+                                        textStyle = Body
+                                    )
+                                    Spacer(Modifier.height(10.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Box(
+                                            Modifier.weight(1f)
+                                                .clip(RoundedCornerShape(RadiusSm))
+                                                .background(if (cloudBusy) PaperOuter else Indigo)
+                                                .clickable(enabled = !cloudBusy) { runCloudAuth(false) }
+                                                .padding(vertical = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                stringResource(R.string.stg_cloud_sign_in),
+                                                style = Body.copy(
+                                                    color = if (cloudBusy) InkFaint else White,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            )
+                                        }
+                                        Box(
+                                            Modifier.weight(1f)
+                                                .clip(RoundedCornerShape(RadiusSm))
+                                                .background(PaperOuter)
+                                                .clickable(enabled = !cloudBusy) { runCloudAuth(true) }
+                                                .padding(vertical = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                stringResource(R.string.stg_cloud_sign_up),
+                                                style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)
+                                            )
+                                        }
+                                    }
+                                }
+                                if (cloudBusy) {
+                                    Spacer(Modifier.height(10.dp))
+                                    LinearProgressIndicator(
+                                        Modifier.fillMaxWidth(),
+                                        color = Indigo,
+                                        trackColor = IndigoSoft
+                                    )
+                                }
+                                cloudMessage?.let {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(it, style = Eyebrow)
+                                }
+                            }
                         }
 
                         // ================= APPEARANCE =================

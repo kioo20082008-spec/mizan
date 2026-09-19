@@ -2,6 +2,7 @@ package com.mizan.money
 
 import android.app.Application
 import android.content.Context
+import com.mizan.money.cloud.CloudBackup
 import com.mizan.money.data.AppDatabase
 import com.mizan.money.data.TransactionRepository
 import com.mizan.money.notify.BillReminderWorker
@@ -37,6 +38,10 @@ class MoneyApp : Application() {
         // a message in a process where MainViewModel never ran, so custom rules
         // must be in CategoryClassifier from Application.onCreate onward.
         CategoryClassifier.setCustomRules(CustomCategoryRules.load(this))
+
+        // No-op unless a Firebase project has been configured; must run before
+        // any CloudBackup call so auth/firestore instances exist app-wide.
+        CloudBackup.init(this)
 
         NotificationHelper.ensureChannels(this)
         // enqueueUniquePeriodicWork(..., KEEP, ...) makes this a no-op if the

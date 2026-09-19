@@ -1,9 +1,23 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
+
+// Firebase config is read from local.properties (gitignored) or environment
+// variables so the repo/CI can build without any secrets, and the cloud-backup
+// feature simply stays disabled until the values are supplied. The manual
+// FirebaseOptions init in CloudBackup means the google-services plugin (which
+// hard-fails on a missing google-services.json) is not used.
+val firebaseProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun firebaseConfig(propKey: String, envKey: String): String =
+    (firebaseProps.getProperty(propKey) ?: System.getenv(envKey) ?: "").trim()
 
 android {
     namespace = "com.mizan.money"
@@ -20,6 +34,18 @@ android {
         versionCode = runNumber
         versionName = "1.0.$runNumber"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Exposed via BuildConfig for CloudBackup. Blank values mean "cloud
+        // backup not configured" — the UI hides the feature instead of crashing.
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebaseConfig("firebase.projectId", "FIREBASE_PROJECT_ID")}\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"${firebaseConfig("firebase.appId", "FIREBASE_APP_ID")}\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"${firebaseConfig("firebase.apiKey", "FIREBASE_API_KEY")}\"")
+        buildConfigField("String", "FIREBASE_STORAGE_BUCKET", "\"${firebaseConfig("firebase.storageBucket", "FIREBASE_STORAGE_BUCKET")}\"")
+        buildConfigField("String", "FIREBASE_MESSAGING_SENDER_ID", "\"${firebaseConfig("firebase.messagingSenderId", "FIREBASE_MESSAGING_SENDER_ID")}\"")
+        // Google Sign-In server (web) client id — from the Firebase console's
+        // Authentication > Google > Web SDK configuration. Blank hides the
+        // Google button and leaves only email/password sign-in.
+        buildConfigField("String", "FIREBASE_GOOGLE_CLIENT_ID", "\"${firebaseConfig("firebase.googleServerClientId", "FIREBASE_GOOGLE_CLIENT_ID")}\"")
     }
 
     signingConfigs {
@@ -48,7 +74,10 @@ android {
         }
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -84,6 +113,19 @@ dependencies {
     // WorkManager survives process death/reboot, unlike a plain coroutine/alarm.
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("androidx.glance:glance-appwidget:1.1.0")
+    // Optional cloud backup/restore to Firestore (see CloudBackup). Initialized
+    // manually from BuildConfig values, so no google-services plugin/json is
+    // required and the app builds and runs unchanged when unconfigured.
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+    // Google Sign-In via Credential Manager (the replacement for the deprecated
+    // GoogleSignInClient). Produces an ID token that is exchanged for a
+    // Firebase session; also works without the google-services plugin.
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     testImplementation("junit:junit:4.13.2")
     // Real org.json for local unit tests: the Android "mockable" jar ships
     // stubbed org.json methods that throw, which would break BackupManagerTest.

@@ -383,6 +383,34 @@
     <string name="stg_restore_ok">Restore completed</string>
     <string name="stg_restore_failed">Could not read the file, or it isn\'t a valid Mizan backup</string>
 
+    <!-- Cloud backup (Settings > Data > Firebase Firestore) -->
+    <string name="stg_cloud_title">Cloud backup</string>
+    <string name="stg_cloud_not_configured">Not enabled — Firebase isn\'t configured</string>
+    <string name="stg_cloud_disabled_desc">No Firebase project has been added yet, so cloud backup is off. Add the project keys to local.properties in the project, and this option appears automatically after a rebuild.</string>
+    <string name="stg_cloud_signed_out">Not signed in</string>
+    <string name="stg_cloud_signed_in_fmt">Signed in: %1$s</string>
+    <string name="stg_cloud_intro">Sign in with your personal account to back your data up to Firebase and open it later from your laptop. Nothing is uploaded until you tap “Back up to cloud”.</string>
+    <string name="stg_cloud_email_hint">Email</string>
+    <string name="stg_cloud_password_hint">Password</string>
+    <string name="stg_cloud_sign_in">Sign in</string>
+    <string name="stg_cloud_sign_up">Create account</string>
+    <string name="stg_cloud_google">Continue with Google</string>
+    <string name="stg_cloud_google_sub">One-tap sign-in with your Google account</string>
+    <string name="stg_cloud_or">or</string>
+    <string name="stg_cloud_sign_out">Sign out</string>
+    <string name="stg_cloud_upload_title">Back up to cloud</string>
+    <string name="stg_cloud_upload_subtitle">Upload everything to your Firebase account</string>
+    <string name="stg_cloud_download_title">Restore from cloud</string>
+    <string name="stg_cloud_download_subtitle">Download the latest cloud copy and replace your data</string>
+    <string name="stg_cloud_restore_confirm_title">Replace your data from the cloud?</string>
+    <string name="stg_cloud_restore_confirm_body">All current transactions, budgets, goals, debts and reminders will be deleted and replaced with the latest copy saved in your cloud account. This cannot be undone.</string>
+    <string name="stg_cloud_restore_action">Restore</string>
+    <string name="stg_cloud_busy">Working…</string>
+    <string name="stg_cloud_upload_ok">Backup uploaded successfully</string>
+    <string name="stg_cloud_restore_ok">Restored from the cloud</string>
+    <string name="stg_cloud_failed">Could not reach the cloud service</string>
+    <string name="stg_cloud_credentials_required">Enter your email and password first</string>
+
     <string name="stg_theme_label">Appearance</string>
     <string name="stg_theme_desc">Choose light, dark, or follow the system setting.</string>
     <string name="stg_theme_system">System</string>
@@ -406,7 +434,7 @@
     <string name="stg_notif_label">Notifications</string>
     <string name="stg_notif_desc">Alert on budget overrun or an upcoming bill</string>
 
-    <string name="stg_privacy_body">All your data stays local on your device and is never sent to any external server unless you choose to export and share it yourself.</string>
+    <string name="stg_privacy_body">All your data stays local on your device and is never sent to any external server unless you enable cloud backup yourself, or export and share your data manually.</string>
     <string name="stg_save">Save</string>
 
     <!-- ================== Advanced transaction filter ================== -->

@@ -383,6 +383,34 @@
     <string name="stg_restore_ok">تمت الاستعادة بنجاح</string>
     <string name="stg_restore_failed">تعذّرت قراءة الملف أو أنه ليس نسخة ميزان صالحة</string>
 
+    <!-- Cloud backup (Settings > Data > Firebase Firestore) -->
+    <string name="stg_cloud_title">النسخ الاحتياطي السحابي</string>
+    <string name="stg_cloud_not_configured">غير مفعّل — لم تُضبط إعدادات Firebase</string>
+    <string name="stg_cloud_disabled_desc">لم تُضف بيانات مشروع Firebase بعد، لذلك النسخ السحابي متوقّف. أضف مفاتيح المشروع في ملف local.properties داخل المشروع، وسيظهر الخيار هنا تلقائياً بعد إعادة البناء.</string>
+    <string name="stg_cloud_signed_out">غير مسجّل الدخول</string>
+    <string name="stg_cloud_signed_in_fmt">مسجّل الدخول: %1$s</string>
+    <string name="stg_cloud_intro">سجّل بحسابك الشخصي لترفع بياناتك إلى Firebase وتقدر تفتحها لاحقاً من اللابتوب. لا شيء يُرفع قبل أن تضغط «نسخ احتياطي إلى السحابة».</string>
+    <string name="stg_cloud_email_hint">البريد الإلكتروني</string>
+    <string name="stg_cloud_password_hint">كلمة المرور</string>
+    <string name="stg_cloud_sign_in">تسجيل الدخول</string>
+    <string name="stg_cloud_sign_up">إنشاء حساب</string>
+    <string name="stg_cloud_google">المتابعة باستخدام Google</string>
+    <string name="stg_cloud_google_sub">تسجيل دخول بنقرة وحدة بحسابك في Google</string>
+    <string name="stg_cloud_or">أو</string>
+    <string name="stg_cloud_sign_out">تسجيل الخروج</string>
+    <string name="stg_cloud_upload_title">نسخ احتياطي إلى السحابة</string>
+    <string name="stg_cloud_upload_subtitle">ارفع كل بياناتك إلى حسابك في Firebase</string>
+    <string name="stg_cloud_download_title">استعادة من السحابة</string>
+    <string name="stg_cloud_download_subtitle">نزّل آخر نسخة سحابية واستبدل بياناتك الحالية</string>
+    <string name="stg_cloud_restore_confirm_title">استبدال بياناتك من السحابة؟</string>
+    <string name="stg_cloud_restore_confirm_body">سيتم حذف كل العمليات والميزانيات والأهداف والديون والتذكيرات الحالية، واستبدالها بآخر نسخة محفوظة في حسابك السحابي. لا يمكن التراجع.</string>
+    <string name="stg_cloud_restore_action">استعادة</string>
+    <string name="stg_cloud_busy">جارٍ العمل…</string>
+    <string name="stg_cloud_upload_ok">تم رفع النسخة الاحتياطية بنجاح</string>
+    <string name="stg_cloud_restore_ok">تمت الاستعادة من السحابة</string>
+    <string name="stg_cloud_failed">تعذّر الاتصال بالخدمة السحابية</string>
+    <string name="stg_cloud_credentials_required">أدخل البريد الإلكتروني وكلمة المرور أولاً</string>
+
     <string name="stg_theme_label">المظهر</string>
     <string name="stg_theme_desc">اختر بين الفاتح أو الداكن، أو اتباع إعدادات النظام.</string>
     <string name="stg_theme_system">النظام</string>
@@ -406,7 +434,7 @@
     <string name="stg_notif_label">الإشعارات</string>
     <string name="stg_notif_desc">تنبيه عند تجاوز الميزانية أو اقتراب فاتورة</string>
 
-    <string name="stg_privacy_body">جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي إلا إذا اخترت تصديرها ومشاركتها بنفسك.</string>
+    <string name="stg_privacy_body">جميع بياناتك تبقى محلية على جهازك فقط، ولا تُرسل لأي خادم خارجي إلا إذا فعّلت النسخ الاحتياطي السحابي بنفسك، أو صدّرت بياناتك وشاركتها يدوياً.</string>
     <string name="stg_save">حفظ</string>
 
     <!-- ================== Advanced transaction filter ================== -->

@@ -9,6 +9,9 @@
     <!-- Android 13+ requires this explicit permission before any notification
          (budget-threshold alerts, bill reminders) can be shown. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Only used by the opt-in cloud backup/restore feature (CloudBackup).
+         Everything else in the app works fully offline. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:name=".MoneyApp"
         android:allowBackup="false"
