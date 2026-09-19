@@ -116,6 +116,8 @@ object FinancialAdvisor {
         manualSalary: Double = 0.0,
         rates: Map<String, Double> = ExchangeRates.DEFAULT,
         prevSummary: MonthSummary? = null,
+        goals: List<GoalEntity> = emptyList(),
+        savedThisMonth: Double = 0.0,
     ): List<Advice> {
         val list = mutableListOf<Advice>()
         val daysInMonth = max(1, ((monthEnd - monthStart) / 86_400_000L).toInt() + 1)
@@ -213,15 +215,58 @@ object FinancialAdvisor {
             }
         }
 
+        val salary = manualSalary.takeIf { it > 0 } ?: detectSalary(allTx, rates)
+        val planningIncome = resolveIncome(summary, salary)
+        val income = planningIncome ?: 0.0
+
+        // Savings goals: the advisor reads them so a user putting money aside for
+        // a car or an emergency fund hears what it costs per month and whether
+        // they are behind — instead of only generic budget advice.
+        val activeGoals = goals.filter { !it.isArchived }
+        if (activeGoals.isNotEmpty()) {
+            val behind = activeGoals
+                .mapNotNull { g ->
+                    val target = g.targetDate ?: return@mapNotNull null
+                    val span = (target - g.createdAt).toDouble()
+                    if (span <= 0.0 || g.targetAmount <= 0.0) return@mapNotNull null
+                    val expected = ((now - g.createdAt).toDouble() / span).coerceIn(0.0, 1.0)
+                    val actual = (g.currentAmount / g.targetAmount).coerceIn(0.0, 1.0)
+                    if (actual >= expected * 0.8) null else Triple(g, actual, expected)
+                }
+                .minByOrNull { if (it.third > 0.0) it.second / it.third else it.second }
+            if (behind != null) {
+                val remaining = (behind.first.targetAmount - behind.first.currentAmount).coerceAtLeast(0.0)
+                list += Advice(
+                    titleRes = R.string.adv_goal_behind_title_fmt,
+                    titleArgs = listOf(behind.first.name),
+                    bodyRes = R.string.adv_goal_behind_body_fmt,
+                    bodyArgs = listOf(behind.first.name, (behind.second * 100).toInt(), fmt(remaining)),
+                    level = Level.WARN,
+                )
+            }
+            val requiredMonthly = activeGoals.sumOf { goalMonthlySaving(it, now) }
+            if (requiredMonthly > 0.0) {
+                val sharePct = if (income > 0.0) (requiredMonthly / income * 100).toInt() else -1
+                list += Advice(
+                    titleRes = R.string.adv_goal_plan_title,
+                    bodyRes = if (sharePct >= 0) R.string.adv_goal_plan_body_fmt else R.string.adv_goal_plan_body_nofmt_fmt,
+                    bodyArgs = if (sharePct >= 0) listOf(fmt(requiredMonthly), sharePct) else listOf(fmt(requiredMonthly)),
+                    level = if (sharePct > 30) Level.WARN else Level.GOOD,
+                )
+            }
+        }
+
         val subs = detectSubscriptions(allTx, rates)
         if (subs.isNotEmpty()) {
             val total = subs.sumOf { it.second }
             val names = subs.joinToString("، ") { "${it.first} (${fmt(it.second)})" }
+            val sharePct = if (income > 0.0) (total / income * 100).toInt() else -1
             list += Advice(
                 titleRes = R.string.adv_subscriptions_title,
-                bodyRes = R.string.adv_subscriptions_body_fmt,
-                bodyArgs = listOf(subs.size, names, fmt(total), fmt(total * 12)),
-                level = Level.WARN,
+                bodyRes = if (sharePct >= 0) R.string.adv_subscriptions_body_income_fmt else R.string.adv_subscriptions_body_fmt,
+                bodyArgs = if (sharePct >= 0) listOf(subs.size, names, fmt(total), fmt(total * 12), sharePct)
+                           else listOf(subs.size, names, fmt(total), fmt(total * 12)),
+                level = if (sharePct >= 10) Level.WARN else Level.INFO,
             )
         }
 
@@ -248,9 +293,17 @@ object FinancialAdvisor {
                     level = Level.DANGER,
                 )
             }
+            val savedGoals = savedThisMonth.coerceAtLeast(0.0)
+            if (savedGoals > 0.0 && activeGoals.isNotEmpty()) {
+                list += Advice(
+                    titleRes = R.string.adv_saved_goals_title,
+                    bodyRes = R.string.adv_saved_goals_body_fmt,
+                    bodyArgs = listOf(fmt(savedGoals), (savedGoals / summary.income * 100).toInt()),
+                    level = Level.GOOD,
+                )
+            }
         }
 
-        val salary = manualSalary.takeIf { it > 0 } ?: detectSalary(allTx, rates)
         if (salary != null) {
             val isManual = manualSalary > 0
             list += Advice(
@@ -261,17 +314,15 @@ object FinancialAdvisor {
             )
         }
 
-        val planningIncome = resolveIncome(summary, salary)
         if (planningIncome != null) {
+            val savingsRateInt = if (summary.income > 0) (((summary.income - summary.spent) / summary.income) * 100).toInt() else -1
             list += Advice(
                 titleRes = R.string.adv_5030_20_title,
-                bodyRes = R.string.adv_5030_20_body_fmt,
-                bodyArgs = listOf(
-                    fmt(planningIncome),
-                    fmt(planningIncome * 0.5),
-                    fmt(planningIncome * 0.3),
-                    fmt(planningIncome * 0.2),
-                ),
+                bodyRes = if (savingsRateInt >= 0) R.string.adv_5030_20_body_actual_fmt else R.string.adv_5030_20_body_fmt,
+                bodyArgs = if (savingsRateInt >= 0)
+                    listOf(fmt(planningIncome), fmt(planningIncome * 0.5), fmt(planningIncome * 0.3), fmt(planningIncome * 0.2), savingsRateInt)
+                else
+                    listOf(fmt(planningIncome), fmt(planningIncome * 0.5), fmt(planningIncome * 0.3), fmt(planningIncome * 0.2)),
                 level = Level.INFO,
             )
         }

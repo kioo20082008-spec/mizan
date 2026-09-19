@@ -345,6 +345,15 @@
     <string name="adv_salary_detected_body_fmt">Based on recurring deposits over the past months, your fixed monthly income is roughly %1$s SAR.</string>
     <string name="adv_5030_20_title">50 / 30 / 20 rule 💡</string>
     <string name="adv_5030_20_body_fmt">From %1$s SAR income: %2$s for needs, %3$s for wants, %4$s for savings.</string>
+    <string name="adv_5030_20_body_actual_fmt">Income %1$s SAR: %2$s needs, %3$s wants, %4$s savings — you save %5$d٪ now.</string>
+    <string name="adv_goal_plan_title">Funding your goals 🎯</string>
+    <string name="adv_goal_plan_body_fmt">Your goals need %1$s SAR/month — %2$d٪ of your income.</string>
+    <string name="adv_goal_plan_body_nofmt_fmt">Your goals need %1$s SAR/month.</string>
+    <string name="adv_goal_behind_title_fmt">Goal \"%1$s\" is behind ⚠️</string>
+    <string name="adv_goal_behind_body_fmt">You\'re %2$d٪ done; %3$s SAR left. Raise your saving to get back on track.</string>
+    <string name="adv_saved_goals_title">Saved toward goals this month 🏦</string>
+    <string name="adv_saved_goals_body_fmt">You set aside %1$s SAR — %2$d٪ of your income.</string>
+    <string name="adv_subscriptions_body_income_fmt">%1$d subscription(s): %2$s. %3$s SAR/mo (%5$d٪ of income) = %4$s/yr.</string>
 
     <!-- Advisor header -->
     <string name="advisor_header_title">Financial advisor</string>

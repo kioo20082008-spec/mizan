@@ -31,11 +31,16 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
     val manualSalary by vm.manualSalary.collectAsState()
     val budgets by vm.budgets.collectAsState()
     val rates by vm.exchangeRates.collectAsState()
+    val goals by vm.goals.collectAsState()
+    val contributions by vm.goalContributions.collectAsState()
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay, rates) { FinancialAdvisor.summarize(txs, range.first, range.last, rates) }
     val prevRange = remember(offset, startDay) { Dates.monthRange(offset - 1, startDay) }
     val prevSummary = remember(txs, offset, startDay, rates) {
         FinancialAdvisor.summarize(txs, prevRange.first, prevRange.last, rates)
+    }
+    val savedThisMonth = remember(contributions, range) {
+        contributions.filter { it.timestamp in range.first..range.last }.sumOf { it.amount }
     }
     val monthKey = remember(offset, startDay) { Dates.monthKey(offset, startDay) }
     val manualBudget = remember(budgets, monthKey) {
@@ -50,9 +55,12 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
         Level.GOOD -> 2
         Level.INFO -> 3
     }
-    val advice = remember(summary, budget, txs, manualSalary, rates, prevSummary) {
-        FinancialAdvisor.advise(summary, budget, txs, range.first, range.last, manualSalary = manualSalary, rates = rates, prevSummary = prevSummary)
-            .sortedBy { severity(it.level) }
+    val advice = remember(summary, budget, txs, manualSalary, rates, prevSummary, goals, savedThisMonth) {
+        FinancialAdvisor.advise(
+            summary, budget, txs, range.first, range.last,
+            manualSalary = manualSalary, rates = rates, prevSummary = prevSummary,
+            goals = goals, savedThisMonth = savedThisMonth
+        ).sortedBy { severity(it.level) }
     }
 
     LazyColumn(

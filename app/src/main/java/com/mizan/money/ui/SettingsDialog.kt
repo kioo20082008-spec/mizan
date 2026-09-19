@@ -80,7 +80,6 @@ internal fun SettingsDialog(
     val txs by vm.transactions.collectAsState()
     val isScanning by vm.isScanning.collectAsState()
     val startDay by vm.monthStartDay.collectAsState()
-    val manualSalary by vm.manualSalary.collectAsState()
     val ownerName by vm.ownerName.collectAsState()
     val notificationsEnabled by vm.notificationsEnabled.collectAsState()
     val rates by vm.exchangeRates.collectAsState()
@@ -90,12 +89,6 @@ internal fun SettingsDialog(
     val notifPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> vm.setNotificationsEnabled(granted) }
-    var salaryInput by remember(manualSalary) {
-        mutableStateOf(
-            manualSalary.takeIf { it > 0 }
-                ?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: ""
-        )
-    }
     var nameInput by remember(ownerName) { mutableStateOf(ownerName) }
     // Re-seeds itself whenever the saved rates change (i.e. right after a save),
     // so the fields always show the persisted values.
@@ -320,22 +313,6 @@ internal fun SettingsDialog(
                         2 -> {
                             var open by rememberSaveable { mutableStateOf("") }
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SettingsSection(
-                                    icon = Icons.Default.Payments,
-                                    tint = Indigo,
-                                    title = stringResource(R.string.stg_salary_label),
-                                    summary = stringResource(R.string.stg_salary_desc),
-                                    expanded = open == "salary",
-                                    onToggle = { open = if (open == "salary") "" else "salary" }
-                                ) {
-                                    SettingsInputRow(
-                                        value = salaryInput,
-                                        onValueChange = { salaryInput = sanitizeAmountInput(it) },
-                                        placeholder = stringResource(R.string.stg_salary_hint),
-                                        keyboardType = KeyboardType.Decimal,
-                                        onSave = { vm.setManualSalary(salaryInput.toDoubleOrNull() ?: 0.0) }
-                                    )
-                                }
                                 SettingsSection(
                                     icon = Icons.Default.Person,
                                     tint = Purple,
