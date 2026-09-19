@@ -50,7 +50,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
     val summary = remember(txs, offset, startDay, rates) { FinancialAdvisor.summarize(txs, range.first, range.last, rates) }
 
     val expectedIncome = remember(summary, txs, manualSalary, rates) {
-        FinancialAdvisor.planningIncome(summary, txs, manualSalary.toDoubleOrNull(), rates)
+        FinancialAdvisor.planningIncome(summary, txs, manualSalary, rates)
     }
     val plan = remember(txs, expectedIncome, recurring, debts, goals, categories, rates) {
         FinancialAdvisor.plan(txs, expectedIncome ?: 0.0, categories, recurring, debts, goals, rates)
