@@ -114,9 +114,14 @@ object FinancialAdvisor {
         monthEnd: Long,
         now: Long = System.currentTimeMillis(),
         manualSalary: Double = 0.0,
-        rates: Map<String, Double> = ExchangeRates.DEFAULT
+        rates: Map<String, Double> = ExchangeRates.DEFAULT,
+        prevSummary: MonthSummary? = null,
     ): List<Advice> {
         val list = mutableListOf<Advice>()
+        val daysInMonth = max(1, ((monthEnd - monthStart) / 86_400_000L).toInt() + 1)
+        val isPastMonth = now > monthEnd
+        val daysPassed = if (isPastMonth) daysInMonth
+            else max(1, ((now.coerceAtLeast(monthStart) - monthStart) / 86_400_000L).toInt() + 1)
 
         if (monthlyBudget <= 0.0) {
             list += Advice(
@@ -127,9 +132,9 @@ object FinancialAdvisor {
         } else {
             val pct = summary.spent / monthlyBudget
             val remaining = monthlyBudget - summary.spent
-            val isPastMonth = now > monthEnd
             val daysLeft = if (isPastMonth) 0 else max(1, ((monthEnd - now) / 86_400_000L).toInt())
             val safeDaily = if (isPastMonth) 0.0 else max(0.0, remaining / daysLeft)
+            val projected = summary.spent / daysPassed * daysInMonth
             val pctInt = (pct * 100).toInt()
             when {
                 pct >= 1.0 -> list += Advice(
@@ -137,6 +142,12 @@ object FinancialAdvisor {
                     bodyRes = R.string.adv_over_budget_body,
                     bodyArgs = listOf(fmt(summary.spent), fmt(monthlyBudget), pctInt, fmt(summary.spent - monthlyBudget)),
                     level = Level.DANGER,
+                )
+                !isPastMonth && daysPassed >= 5 && projected > monthlyBudget * 1.05 -> list += Advice(
+                    titleRes = R.string.adv_projected_title,
+                    bodyRes = R.string.adv_projected_body_fmt,
+                    bodyArgs = listOf(fmt(projected), fmt(projected - monthlyBudget)),
+                    level = Level.WARN,
                 )
                 pct >= 0.8 -> list += Advice(
                     titleRes = R.string.adv_approaching_title,
@@ -155,15 +166,39 @@ object FinancialAdvisor {
             }
         }
 
-        summary.categoryTotals.firstOrNull()?.let { top ->
-            if (top.share >= 0.35 && summary.spent > 0) {
-                list += Advice(
-                    titleRes = R.string.adv_top_category_title_fmt,
-                    titleArgs = listOf(top.category),
-                    bodyRes = R.string.adv_top_category_body_fmt,
-                    bodyArgs = listOf(top.category, fmt(top.amount), (top.share * 100).toInt(), fmt(top.amount * 0.2)),
-                    level = Level.WARN,
-                )
+        val prevTotals = prevSummary?.categoryTotals?.associate { it.category to it.amount }.orEmpty()
+        val pace = daysPassed.toDouble() / daysInMonth
+        val rising = if (prevTotals.isEmpty()) null else summary.categoryTotals
+            .asSequence()
+            .filter { it.category != CASH_WITHDRAWAL_CATEGORY && it.category != SELF_TRANSFER_CATEGORY }
+            .mapNotNull { cur ->
+                val prev = prevTotals[cur.category] ?: return@mapNotNull null
+                val expected = prev * pace
+                if (expected < 50.0 || cur.amount < 100.0) return@mapNotNull null
+                val up = (cur.amount - expected) / expected
+                if (up < 0.3) return@mapNotNull null
+                Triple(cur.category, (up * 100).toInt(), cur.amount)
+            }
+            .maxByOrNull { it.second }
+        if (rising != null) {
+            list += Advice(
+                titleRes = R.string.adv_category_up_title_fmt,
+                titleArgs = listOf(rising.first),
+                bodyRes = R.string.adv_category_up_body_fmt,
+                bodyArgs = listOf(rising.first, fmt(rising.third), rising.second),
+                level = Level.WARN,
+            )
+        } else {
+            summary.categoryTotals.firstOrNull()?.let { top ->
+                if (top.share >= 0.35 && summary.spent > 0) {
+                    list += Advice(
+                        titleRes = R.string.adv_top_category_title_fmt,
+                        titleArgs = listOf(top.category),
+                        bodyRes = R.string.adv_top_category_body_fmt,
+                        bodyArgs = listOf(top.category, fmt(top.amount), (top.share * 100).toInt(), fmt(top.amount * 0.2)),
+                        level = Level.WARN,
+                    )
+                }
             }
         }
 
@@ -178,15 +213,6 @@ object FinancialAdvisor {
             }
         }
 
-        if (summary.spent > 0) {
-            list += Advice(
-                titleRes = R.string.adv_daily_avg_title,
-                bodyRes = R.string.adv_daily_avg_body_fmt,
-                bodyArgs = listOf(fmt(summary.dailyAvg), fmt(summary.dailyAvg * 30)),
-                level = Level.INFO,
-            )
-        }
-
         val subs = detectSubscriptions(allTx, rates)
         if (subs.isNotEmpty()) {
             val total = subs.sumOf { it.second }
@@ -197,18 +223,6 @@ object FinancialAdvisor {
                 bodyArgs = listOf(subs.size, names, fmt(total), fmt(total * 12)),
                 level = Level.WARN,
             )
-        }
-
-        summary.largest?.let { big ->
-            val bigSar = ExchangeRates.toSar(big.amount, big.currency, rates) ?: 0.0
-            if (summary.spent > 0 && bigSar / summary.spent >= 0.25) {
-                list += Advice(
-                    titleRes = R.string.adv_large_tx_title,
-                    bodyRes = R.string.adv_large_tx_body_fmt,
-                    bodyArgs = listOf(fmt(bigSar), big.merchant ?: "—", ((bigSar / summary.spent) * 100).toInt()),
-                    level = Level.INFO,
-                )
-            }
         }
 
         if (summary.income > 0) {

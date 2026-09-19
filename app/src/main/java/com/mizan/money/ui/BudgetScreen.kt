@@ -1,5 +1,6 @@
 package com.mizan.money.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,6 +84,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
     var newCategoryIcon by remember { mutableStateOf<String?>(null) }
     var showIconPicker by remember { mutableStateOf(false) }
     var iconPickerForEdit by remember { mutableStateOf<String?>(null) }
+    var showAllCats by rememberSaveable { mutableStateOf(false) }
     var catRollover by remember(monthKey) {
         mutableStateOf(
             categories.associateWith { c ->
@@ -129,6 +132,19 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
     val spentByCat = remember(summary) { summary.categoryTotals.associate { it.category to it.amount } }
     val hasPrevBudget = budgets.any { it.monthKey == prevMonthKey }
     val hasCurrentBudget = budgets.any { it.monthKey == monthKey }
+
+    val idleCats = categories.filter { c ->
+        c != editingCategory &&
+            (catInputs[c]?.toDoubleOrNull() ?: 0.0) <= 0.0 &&
+            (rolloverByCat[c] ?: 0.0) <= 0.0 &&
+            (spentByCat[c] ?: 0.0) <= 0.005
+    }
+    val activeCats = categories.filterNot { it in idleCats }
+    val shownCats = when {
+        showAllCats -> categories
+        activeCats.isEmpty() -> categories
+        else -> activeCats
+    }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -257,6 +273,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                             val name = newCategoryInput.trim()
                             if (name.isNotEmpty()) {
                                 vm.addCategory(name, newCategoryIcon)
+                                showAllCats = true
                                 newCategoryInput = ""; newCategoryIcon = null; addingCategory = false
                             }
                         })
@@ -279,6 +296,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                                 val name = newCategoryInput.trim()
                                 if (name.isNotEmpty()) {
                                     vm.addCategory(name, newCategoryIcon)
+                                    showAllCats = true
                                     newCategoryInput = ""; newCategoryIcon = null; addingCategory = false
                                 }
                             },
@@ -295,7 +313,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                     .background(White)
                     .border(1.dp, Line, RoundedCornerShape(RadiusLg))
             ) {
-                categories.forEachIndexed { index, cat ->
+                shownCats.forEachIndexed { index, cat ->
                     val spentInCat = spentByCat[cat] ?: 0.0
                     val limit = catInputs[cat]?.toDoubleOrNull() ?: 0.0
                     val rollover = rolloverByCat[cat] ?: 0.0
@@ -453,10 +471,28 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                             }
                         }
                     }
-                    if (index < categories.lastIndex) {
+                    if (index < shownCats.lastIndex) {
                         Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                             Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                         }
+                    }
+                }
+                if (!showAllCats && shownCats !== categories && idleCats.isNotEmpty()) {
+                    Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                    }
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clickable { showAllCats = true }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.ExpandMore, null, Modifier.size(18.dp), tint = InkFaint)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.budget_show_idle_fmt, idleCats.size),
+                            style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold)
+                        )
                     }
                 }
             }
@@ -594,37 +630,57 @@ private fun BudgetSuggestionsCard(
     onApply: (String, Double) -> Unit,
     onApplyAll: () -> Unit
 ) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
     SoftCard(Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.budget_suggestions_title), style = H2)
-        Spacer(Modifier.height(2.dp))
-        Text(stringResource(R.string.budget_suggestions_desc), style = Eyebrow.copy(fontSize = 11.sp))
-        Spacer(Modifier.height(10.dp))
-        suggestions.forEach { s ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconBadge(catIcon(s.category), catColor(s.category), catColorSoft(s.category), size = 30.dp, iconSize = 14.dp)
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(categoryDisplay(s.category), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
-                    Text(FinancialAdvisor.fmt(s.amount) + " " + currency, style = Eyebrow.copy(fontSize = 10.sp))
+        Row(
+            Modifier.fillMaxWidth().clickable { expanded = !expanded },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconBadge(Icons.Default.AutoAwesome, Indigo, IndigoSoft, size = 34.dp, iconSize = 16.dp)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.budget_suggestions_title), style = H2)
+                Text(stringResource(R.string.budget_suggestions_desc), style = Eyebrow.copy(fontSize = 10.sp))
+            }
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+                tint = InkFaint,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column {
+                Spacer(Modifier.height(12.dp))
+                suggestions.forEach { s ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(catIcon(s.category), catColor(s.category), catColorSoft(s.category), size = 30.dp, iconSize = 14.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(categoryDisplay(s.category), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
+                            Text(FinancialAdvisor.fmt(s.amount) + " " + currency, style = Eyebrow.copy(fontSize = 10.sp))
+                        }
+                        Text(
+                            stringResource(R.string.budget_apply_suggestion),
+                            style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(RadiusSm))
+                                .background(IndigoSoft)
+                                .clickable { onApply(s.category, s.amount) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
                 }
-                Text(
-                    stringResource(R.string.budget_apply_suggestion),
-                    style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold, fontSize = 12.sp),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(RadiusSm))
-                        .background(IndigoSoft)
-                        .clickable { onApply(s.category, s.amount) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = onApplyAll,
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(RadiusSm),
+                    colors = ButtonDefaults.buttonColors(containerColor = Indigo, contentColor = White)
+                ) { Text(stringResource(R.string.budget_apply_all), style = Body.copy(fontWeight = FontWeight.Bold)) }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = onApplyAll,
-            modifier = Modifier.fillMaxWidth().height(44.dp),
-            shape = RoundedCornerShape(RadiusSm),
-            colors = ButtonDefaults.buttonColors(containerColor = Indigo, contentColor = White)
-        ) { Text(stringResource(R.string.budget_apply_all), style = Body.copy(fontWeight = FontWeight.Bold)) }
     }
 }
 

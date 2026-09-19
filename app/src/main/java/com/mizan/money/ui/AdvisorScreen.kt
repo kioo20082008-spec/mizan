@@ -33,6 +33,10 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
     val rates by vm.exchangeRates.collectAsState()
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay, rates) { FinancialAdvisor.summarize(txs, range.first, range.last, rates) }
+    val prevRange = remember(offset, startDay) { Dates.monthRange(offset - 1, startDay) }
+    val prevSummary = remember(txs, offset, startDay, rates) {
+        FinancialAdvisor.summarize(txs, prevRange.first, prevRange.last, rates)
+    }
     val monthKey = remember(offset, startDay) { Dates.monthKey(offset, startDay) }
     val manualBudget = remember(budgets, monthKey) {
         budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }?.limitAmount?.takeIf { it > 0 }
@@ -46,8 +50,8 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
         Level.GOOD -> 2
         Level.INFO -> 3
     }
-    val advice = remember(summary, budget, txs, manualSalary, rates) {
-        FinancialAdvisor.advise(summary, budget, txs, range.first, range.last, manualSalary = manualSalary, rates = rates)
+    val advice = remember(summary, budget, txs, manualSalary, rates, prevSummary) {
+        FinancialAdvisor.advise(summary, budget, txs, range.first, range.last, manualSalary = manualSalary, rates = rates, prevSummary = prevSummary)
             .sortedBy { severity(it.level) }
     }
 

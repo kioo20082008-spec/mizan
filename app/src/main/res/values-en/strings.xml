@@ -153,6 +153,7 @@
     <string name="budget_total_label">Monthly total budget</string>
     <string name="budget_save">Save</string>
     <string name="budget_per_category">Budget per category</string>
+    <string name="budget_show_idle_fmt">Show other categories (%1$d)</string>
     <string name="budget_cancel_add">Cancel</string>
     <string name="budget_add_action">Add</string>
     <string name="cd_expand">Expand</string>
@@ -321,6 +322,10 @@
     <string name="adv_on_track_body_past">You used %1$d٪ of that month\'s budget.</string>
     <string name="adv_top_category_title_fmt">Biggest category: %1$s 🔍</string>
     <string name="adv_top_category_body_fmt">\"%1$s\" %2$s SAR (%3$d٪). Cut it by 20٪ to save ~%4$s SAR.</string>
+    <string name="adv_projected_title">Your pace exceeds your budget ⏳</string>
+    <string name="adv_projected_body_fmt">At this pace you\'ll spend ~%1$s SAR by month end — %2$s SAR over budget.</string>
+    <string name="adv_category_up_title_fmt">%1$s is rising 📈</string>
+    <string name="adv_category_up_body_fmt">%1$s: %2$s SAR so far, tracking %3$d٪ above last month.</string>
     <string name="adv_cash_title">Notable cash withdrawals 💵</string>
     <string name="adv_cash_body_fmt">You withdrew %1$s SAR in cash (%2$d٪). Cash is hard to track automatically.</string>
     <string name="adv_daily_avg_title">Your daily spending 📊</string>

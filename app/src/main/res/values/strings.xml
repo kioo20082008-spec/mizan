@@ -153,6 +153,7 @@
     <string name="budget_total_label">الميزانية الإجمالية للشهر</string>
     <string name="budget_save">حفظ</string>
     <string name="budget_per_category">الميزانية لكل تصنيف</string>
+    <string name="budget_show_idle_fmt">عرض باقي التصنيفات (%1$d)</string>
     <string name="budget_cancel_add">إلغاء</string>
     <string name="budget_add_action">إضافة</string>
     <string name="cd_expand">توسيع</string>
@@ -321,6 +322,10 @@
     <string name="adv_on_track_body_past">صرفت %1$d٪ من ميزانية ذلك الشهر.</string>
     <string name="adv_top_category_title_fmt">أكبر بند: %1$s 🔍</string>
     <string name="adv_top_category_body_fmt">«%1$s» %2$s ر.س (%3$d٪). خفّضها 20٪ لتوفّر ~%4$s ر.س.</string>
+    <string name="adv_projected_title">وتيرتك تتجاوز ميزانيتك ⏳</string>
+    <string name="adv_projected_body_fmt">بنفس الوتيرة ستنفق ~%1$s ر.س حتى نهاية الشهر، أي %2$s ر.س فوق ميزانيتك.</string>
+    <string name="adv_category_up_title_fmt">«%1$s» يتصاعد 📈</string>
+    <string name="adv_category_up_body_fmt">«%1$s»: صرفت %2$s ر.س بوتيرة أعلى بـ %3$d٪ من الشهر الماضي.</string>
     <string name="adv_cash_title">سحوبات نقدية ملحوظة 💵</string>
     <string name="adv_cash_body_fmt">سحبت %1$s ر.س نقداً (%2$d٪). يصعب تتبع النقد تلقائياً.</string>
     <string name="adv_daily_avg_title">معدل صرفك اليومي 📊</string>
