@@ -1,5 +1,7 @@
 package com.mizan.money.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,6 +15,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -125,10 +128,12 @@ fun TabSwitcher(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     ) {
         items.forEachIndexed { i, label ->
             val isSel = i == selected
+            val bg by animateColorAsState(if (isSel) White else Color.Transparent, tween(260), label = "tabBg")
+            val fg by animateColorAsState(if (isSel) Indigo else InkSoft, tween(260), label = "tabFg")
             Box(
                 Modifier.weight(1f)
                     .clip(RoundedCornerShape(RadiusSm))
-                    .background(if (isSel) White else Color.Transparent)
+                    .background(bg)
                     .clickable { onSelect(i) }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
@@ -137,7 +142,7 @@ fun TabSwitcher(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
                     label,
                     style = Eyebrow.copy(
                         fontSize = 12.sp,
-                        color = if (isSel) Indigo else InkSoft,
+                        color = fg,
                         fontWeight = if (isSel) FontWeight.Bold else FontWeight.SemiBold
                     )
                 )
@@ -159,12 +164,12 @@ fun EmptyState(text: String) {
 }
 
 @Composable
-fun TransactionCard(tx: TransactionEntity, onClick: () -> Unit) {
+fun TransactionCard(tx: TransactionEntity, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val isExpense = tx.type == TxType.EXPENSE
     val sign = if (isExpense) "-" else "+"
     val amtColor = if (tx.isSelfTransfer) InkFaint else if (isExpense) Ink else Success
 
-    SoftCard(Modifier.clickable { onClick() }) {
+    SoftCard(modifier.clickable { onClick() }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(catIcon(tx.category), catColor(tx.category), catColorSoft(tx.category), size = 46.dp)
             Spacer(Modifier.width(14.dp))

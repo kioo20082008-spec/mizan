@@ -1,5 +1,13 @@
 package com.mizan.money.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -52,12 +60,28 @@ fun PlanningScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> U
             ) { subTab = it }
         }
         Box(Modifier.weight(1f)) {
-            when (subTab) {
-                0 -> BudgetScreen(vm, offset, onOpenCategory)
-                1 -> GoalsSection(vm)
-                2 -> DebtsSection(vm)
-                3 -> RemindersSection(vm)
-                else -> BudgetScreen(vm, offset, onOpenCategory)
+            AnimatedContent(
+                targetState = subTab,
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    val forward = targetState > initialState
+                    val drift = if (forward) 1 else -1
+                    (slideInVertically(tween(320, easing = FastOutSlowInEasing)) { h -> drift * h / 24 } +
+                        fadeIn(tween(320, easing = FastOutSlowInEasing)))
+                        .togetherWith(
+                            slideOutVertically(tween(260, easing = FastOutSlowInEasing)) { h -> -drift * h / 24 } +
+                                fadeOut(tween(220, easing = FastOutSlowInEasing))
+                        )
+                },
+                label = "planningTab"
+            ) { s ->
+                when (s) {
+                    0 -> BudgetScreen(vm, offset, onOpenCategory)
+                    1 -> GoalsSection(vm)
+                    2 -> DebtsSection(vm)
+                    3 -> RemindersSection(vm)
+                    else -> BudgetScreen(vm, offset, onOpenCategory)
+                }
             }
         }
     }

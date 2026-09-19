@@ -10,8 +10,24 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -127,37 +143,59 @@ fun AppRoot() {
                 Surface(Modifier.fillMaxSize(), color = PaperOuter) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                         Surface(Modifier.fillMaxWidth().fillMaxHeight(), color = Paper) {
-                            if (!hasSms) PermissionScreen(
-                                showSettingsLink = permissionAttempted,
-                                onGrant = {
-                                    launcher.launch(arrayOf(
-                                        Manifest.permission.READ_SMS,
-                                        Manifest.permission.RECEIVE_SMS
-                                    ))
+                            val stage = when {
+                                !hasSms -> 0
+                                !scanned -> 1
+                                else -> 2
+                            }
+                            AnimatedContent(
+                                targetState = stage,
+                                modifier = Modifier.fillMaxSize(),
+                                transitionSpec = {
+                                    (fadeIn(tween(500, easing = FastOutSlowInEasing)) +
+                                        scaleIn(
+                                            initialScale = 0.96f,
+                                            animationSpec = tween(500, easing = FastOutSlowInEasing)
+                                        ))
+                                        .togetherWith(
+                                            fadeOut(tween(260, easing = FastOutSlowInEasing)) +
+                                                scaleOut(targetScale = 1.04f, animationSpec = tween(260))
+                                        )
                                 },
-                                onOpenSettings = {
-                                    ctx.startActivity(
-                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                                            .setData(Uri.fromParts("package", ctx.packageName, null))
+                                label = "stage"
+                            ) { s ->
+                                when (s) {
+                                    0 -> PermissionScreen(
+                                        showSettingsLink = permissionAttempted,
+                                        onGrant = {
+                                            launcher.launch(arrayOf(
+                                                Manifest.permission.READ_SMS,
+                                                Manifest.permission.RECEIVE_SMS
+                                            ))
+                                        },
+                                        onOpenSettings = {
+                                            ctx.startActivity(
+                                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                                    .setData(Uri.fromParts("package", ctx.packageName, null))
+                                            )
+                                        }
+                                    )
+                                    1 -> ScanningScreen()
+                                    else -> RootScaffold(
+                                        vm = vm,
+                                        themeMode = themeMode,
+                                        onThemeModeChange = { newMode ->
+                                            themeMode = newMode
+                                            ThemePreference.save(ctx, newMode)
+                                        },
+                                        languageMode = languageMode,
+                                        onLanguageModeChange = { newMode ->
+                                            LanguagePreference.save(ctx, newMode)
+                                            languageMode = newMode
+                                            (ctx as? Activity)?.recreate()
+                                        }
                                     )
                                 }
-                            ) else if (!scanned) {
-                                ScanningScreen()
-                            } else {
-                                RootScaffold(
-                                    vm = vm,
-                                    themeMode = themeMode,
-                                    onThemeModeChange = { newMode ->
-                                        themeMode = newMode
-                                        ThemePreference.save(ctx, newMode)
-                                    },
-                                    languageMode = languageMode,
-                                    onLanguageModeChange = { newMode ->
-                                        LanguagePreference.save(ctx, newMode)
-                                        languageMode = newMode
-                                        (ctx as? Activity)?.recreate()
-                                    }
-                                )
                             }
                         }
                     }
@@ -208,7 +246,11 @@ private fun RootScaffold(
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             AppHeader(onSettingsClick = { showSettings = true })
-            if (!hasReceiveSms) {
+            AnimatedVisibility(
+                visible = !hasReceiveSms,
+                enter = fadeIn(tween(300)) + expandVertically(tween(300, easing = FastOutSlowInEasing)),
+                exit = fadeOut(tween(200)) + shrinkVertically(tween(240, easing = FastOutSlowInEasing))
+            ) {
                 Row(
                     Modifier.fillMaxWidth().background(Amber.copy(alpha = 0.12f))
                         .padding(horizontal = 20.dp, vertical = 8.dp),
@@ -222,18 +264,40 @@ private fun RootScaffold(
                     )
                 }
             }
-            if (isScanning) {
+            AnimatedVisibility(
+                visible = isScanning,
+                enter = fadeIn(tween(250)) + expandVertically(tween(250)),
+                exit = fadeOut(tween(200)) + shrinkVertically(tween(220))
+            ) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth().height(2.dp),
                     color = Lime, trackColor = Color.Transparent
                 )
             }
             Box(Modifier.weight(1f)) {
-                when (tab) {
-                    0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
-                    1 -> TransactionsScreen(vm, initialQuery = categoryFilter)
-                    2 -> PlanningScreen(vm, monthOffset, onOpenCategory = { cat -> categoryFilter = cat; tab = 1 })
-                    else -> InsightsScreen(vm, monthOffset)
+                val layoutDir = LocalLayoutDirection.current
+                AnimatedContent(
+                    targetState = tab,
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = {
+                        val forward = targetState > initialState
+                        val base = if (layoutDir == LayoutDirection.Rtl) -1 else 1
+                        val dir = if (forward) base else -base
+                        (slideInHorizontally(tween(340, easing = FastOutSlowInEasing)) { full -> dir * full / 10 } +
+                            fadeIn(tween(340, easing = FastOutSlowInEasing)))
+                            .togetherWith(
+                                slideOutHorizontally(tween(280, easing = FastOutSlowInEasing)) { full -> -dir * full / 10 } +
+                                    fadeOut(tween(220, easing = FastOutSlowInEasing))
+                            )
+                    },
+                    label = "tab"
+                ) { t ->
+                    when (t) {
+                        0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
+                        1 -> TransactionsScreen(vm, initialQuery = categoryFilter)
+                        2 -> PlanningScreen(vm, monthOffset, onOpenCategory = { cat -> categoryFilter = cat; tab = 1 })
+                        else -> InsightsScreen(vm, monthOffset)
+                    }
                 }
             }
         }
@@ -295,7 +359,11 @@ private fun BottomNav(selected: Int, modifier: Modifier = Modifier, onSelect: (I
                 .padding(6.dp)
         ) {
             val itemWidth = maxWidth / items.size
-            val indicatorX by animateDpAsState(itemWidth * selected, tween(320), label = "nav")
+            val indicatorX by animateDpAsState(
+                itemWidth * selected,
+                spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                label = "nav"
+            )
             Box(
                 Modifier
                     .offset(x = indicatorX)
@@ -307,7 +375,7 @@ private fun BottomNav(selected: Int, modifier: Modifier = Modifier, onSelect: (I
             Row(Modifier.fillMaxWidth().fillMaxHeight(), horizontalArrangement = Arrangement.SpaceBetween) {
                 items.forEach { (label, icon, idx) ->
                     val isSel = selected == idx
-                    val tint by animateColorAsState(if (isSel) Ink900 else OnInkSoft, tween(220), label = "tint")
+                    val tint by animateColorAsState(if (isSel) Ink900 else OnInkSoft, tween(240), label = "tint")
                     Row(
                         Modifier
                             .width(itemWidth)
@@ -317,9 +385,15 @@ private fun BottomNav(selected: Int, modifier: Modifier = Modifier, onSelect: (I
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(icon, label, Modifier.size(20.dp), tint = tint)
-                        if (isSel) {
-                            Spacer(Modifier.width(6.dp))
-                            Text(label, fontSize = 12.sp, color = tint, fontWeight = FontWeight.Bold)
+                        AnimatedVisibility(
+                            visible = isSel,
+                            enter = fadeIn(tween(220)) + expandHorizontally(tween(260, easing = FastOutSlowInEasing)),
+                            exit = fadeOut(tween(120)) + shrinkHorizontally(tween(180, easing = FastOutSlowInEasing))
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Spacer(Modifier.width(6.dp))
+                                Text(label, fontSize = 12.sp, color = tint, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }

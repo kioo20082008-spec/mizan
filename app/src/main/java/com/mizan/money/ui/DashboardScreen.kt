@@ -136,7 +136,7 @@ fun DashboardScreen(
                 }
             }
             items(monthTxs.take(3)) { tx ->
-                TransactionCard(tx, onClick = { onNavigateToTransactions(null) })
+                TransactionCard(tx, modifier = Modifier.animateItem(), onClick = { onNavigateToTransactions(null) })
             }
         } else if (txs.isNotEmpty()) {
             item { EmptyState(stringResource(R.string.dash_empty_month)) }

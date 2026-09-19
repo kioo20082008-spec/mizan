@@ -214,7 +214,7 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
             }
         } else {
             items(filtered, key = { it.id }) { tx ->
-                TransactionCard(tx, onClick = { selected = tx })
+                TransactionCard(tx, modifier = Modifier.animateItem(), onClick = { selected = tx })
             }
         }
     }
