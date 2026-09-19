@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher mark for "ميزان" (balance/scale): a classic balance rendered in the
+     app's line-art style, white structure with lime (#D7F26B) pans. Content sits
+     inside the adaptive-icon safe zone (≈66x66 of the 108x108 viewport). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Beam -->
+    <path
+        android:pathData="M30,39 L78,39"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="6.5"
+        android:strokeLineCap="round" />
+    <!-- Pillar -->
+    <path
+        android:pathData="M54,39 L54,73"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="6.5"
+        android:strokeLineCap="round" />
+    <!-- Base -->
+    <path
+        android:pathData="M43,73 L65,73"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="6.5"
+        android:strokeLineCap="round" />
+    <!-- Pivot -->
+    <path
+        android:pathData="M48,39 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 z"
+        android:fillColor="#FFFFFFFF" />
+
+    <!-- Left suspension strings -->
+    <path
+        android:pathData="M30,39 L24,57"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M30,39 L36,57"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+    <!-- Right suspension strings -->
+    <path
+        android:pathData="M78,39 L72,57"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M78,39 L84,57"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+
+    <!-- Pans -->
+    <path
+        android:pathData="M24,57 Q30,66 36,57"
+        android:strokeColor="#FFD7F26B"
+        android:strokeWidth="6.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M72,57 Q78,66 84,57"
+        android:strokeColor="#FFD7F26B"
+        android:strokeWidth="6.5"
+        android:strokeLineCap="round" />
+</vector>

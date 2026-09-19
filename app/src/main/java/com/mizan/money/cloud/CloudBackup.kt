@@ -1,6 +1,7 @@
 package com.mizan.money.cloud
 
 import android.content.Context
+import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -18,6 +19,7 @@ import com.mizan.money.data.BackupData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 // Opt-in cloud backup/restore to Firebase Firestore. This is intentionally the
 // only part of the app that touches the network: everything else works fully
@@ -41,6 +43,8 @@ object CloudBackup {
 
     // Firestore allows at most 500 writes per batch; stay comfortably under it.
     private const val BATCH_LIMIT = 400
+
+    private const val TAG = "CloudBackup"
 
     val isConfigured: Boolean
         get() = BuildConfig.FIREBASE_PROJECT_ID.isNotBlank() &&
@@ -97,6 +101,7 @@ object CloudBackup {
             val clientId = BuildConfig.FIREBASE_GOOGLE_CLIENT_ID
             if (clientId.isBlank()) error("Google sign-in is not configured")
 
+            Log.i(TAG, "Starting Google sign-in (clientId=${clientId.take(12)}…)")
             val credentialManager = CredentialManager.create(context)
             val googleIdOption = GetGoogleIdOption.Builder()
                 // false = show every Google account on the device, not only ones
@@ -109,7 +114,13 @@ object CloudBackup {
                 .addCredentialOption(googleIdOption)
                 .build()
 
-            val credential = credentialManager.getCredential(context, request).credential
+            val credential = withTimeoutOrNull(30_000) {
+                credentialManager.getCredential(context, request).credential
+            } ?: return Result.failure(
+                IllegalStateException(
+                    "Google sign-in did not respond. Check Google Play Services and the Firebase SHA-1/consent screen."
+                )
+            )
             if (credential is CustomCredential &&
                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
             ) {
@@ -119,7 +130,8 @@ object CloudBackup {
             } else {
                 Result.failure(IllegalStateException("Unexpected credential type: ${credential.type}"))
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            Log.e(TAG, "Google sign-in failed", e)
             Result.failure(e)
         }
     }

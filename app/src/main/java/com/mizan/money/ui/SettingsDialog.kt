@@ -173,14 +173,20 @@ internal fun SettingsDialog(
         scope.launch {
             cloudBusy = true
             cloudMessage = null
-            val result = CloudBackup.signInWithGoogle(ctx)
-            cloudBusy = false
-            if (result.isSuccess) {
-                cloudSignedIn = CloudBackup.isSignedIn
-                cloudMessage = null
-            } else {
-                cloudMessage = result.exceptionOrNull()?.localizedMessage
-                    ?: ctx.getString(R.string.stg_cloud_failed)
+            try {
+                val result = CloudBackup.signInWithGoogle(ctx)
+                if (result.isSuccess) {
+                    cloudSignedIn = CloudBackup.isSignedIn
+                    cloudMessage = null
+                } else {
+                    val e = result.exceptionOrNull()
+                    cloudMessage = e?.let { "${it::class.java.simpleName}: ${it.localizedMessage ?: ""}" }
+                        ?: ctx.getString(R.string.stg_cloud_failed)
+                }
+            } catch (t: Throwable) {
+                cloudMessage = "${t::class.java.simpleName}: ${t.localizedMessage ?: ""}"
+            } finally {
+                cloudBusy = false
             }
         }
     }
