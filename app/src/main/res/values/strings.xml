@@ -484,6 +484,12 @@
     <string name="widget_remaining_label">المتبقي</string>
     <string name="widget_view_details">عرض التفاصيل</string>
     <string name="widget_no_data">لا توجد بيانات</string>
+    <string name="widget_days_left_label">متبقي من الشهر</string>
+    <string name="widget_days_left_fmt">%1$d يوم</string>
+    <string name="widget_days_last">آخر يوم</string>
+    <string name="widget_daily_label">المتاح يومياً</string>
+    <string name="widget_last_tx_label">آخر عملية</string>
+    <string name="widget_no_tx">لا توجد عمليات بعد</string>
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">أسعار الصرف</string>

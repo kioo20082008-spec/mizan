@@ -192,6 +192,7 @@ fun AppRoot() {
                                         onLanguageModeChange = { newMode ->
                                             LanguagePreference.save(ctx, newMode)
                                             languageMode = newMode
+                                            WidgetUpdater.refresh(ctx)
                                             (ctx as? Activity)?.recreate()
                                         }
                                     )

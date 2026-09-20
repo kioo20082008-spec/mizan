@@ -1,5 +1,6 @@
 package com.mizan.money.ui
 
+import android.content.Context
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -194,25 +195,30 @@ fun TransactionCard(tx: TransactionEntity, modifier: Modifier = Modifier, onClic
 // user's chosen locale. The Arabic key itself never changes — it stays the
 // join point between parser rules, budgets, and stored transactions.
 
-@Composable
-fun categoryDisplay(cat: String): String = when (cat) {
-    "طعام وشراب" -> stringResource(R.string.cat_food)
-    "بقالة" -> stringResource(R.string.cat_groceries)
-    "مواصلات" -> stringResource(R.string.cat_transport)
-    "وقود" -> stringResource(R.string.cat_fuel)
-    "تسوق" -> stringResource(R.string.cat_shopping)
-    "فواتير" -> stringResource(R.string.cat_bills)
-    "اتصالات" -> stringResource(R.string.cat_telecom)
-    "صحة" -> stringResource(R.string.cat_health)
-    "ترفيه" -> stringResource(R.string.cat_entertainment)
-    "اشتراكات" -> stringResource(R.string.cat_subscriptions)
-    "تعليم" -> stringResource(R.string.cat_education)
-    "تحويلات" -> stringResource(R.string.cat_transfers)
-    "أخرى" -> stringResource(R.string.cat_other)
-    CASH_WITHDRAWAL_CATEGORY -> stringResource(R.string.cat_cash)
-    SELF_TRANSFER_CATEGORY -> stringResource(R.string.cat_self_transfer)
+// Non-composable variant so non-Compose callers (the home-screen widget) can
+// localize a category with a Context they already localize for language.
+fun categoryDisplayName(ctx: Context, cat: String): String = when (cat) {
+    "طعام وشراب" -> ctx.getString(R.string.cat_food)
+    "بقالة" -> ctx.getString(R.string.cat_groceries)
+    "مواصلات" -> ctx.getString(R.string.cat_transport)
+    "وقود" -> ctx.getString(R.string.cat_fuel)
+    "تسوق" -> ctx.getString(R.string.cat_shopping)
+    "فواتير" -> ctx.getString(R.string.cat_bills)
+    "اتصالات" -> ctx.getString(R.string.cat_telecom)
+    "صحة" -> ctx.getString(R.string.cat_health)
+    "ترفيه" -> ctx.getString(R.string.cat_entertainment)
+    "اشتراكات" -> ctx.getString(R.string.cat_subscriptions)
+    "تعليم" -> ctx.getString(R.string.cat_education)
+    "تحويلات" -> ctx.getString(R.string.cat_transfers)
+    "أخرى" -> ctx.getString(R.string.cat_other)
+    CASH_WITHDRAWAL_CATEGORY -> ctx.getString(R.string.cat_cash)
+    SELF_TRANSFER_CATEGORY -> ctx.getString(R.string.cat_self_transfer)
     else -> cat
 }
+
+@Composable
+fun categoryDisplay(cat: String): String =
+    categoryDisplayName(androidx.compose.ui.platform.LocalContext.current, cat)
 // Category colors are semantic (health=red, groceries=green) and are designed
 // to read clearly on both light and dark backgrounds, so they stay fixed
 // rather than being swapped per theme.

@@ -484,6 +484,12 @@
     <string name="widget_remaining_label">Remaining</string>
     <string name="widget_view_details">View Details</string>
     <string name="widget_no_data">No data</string>
+    <string name="widget_days_left_label">Left this month</string>
+    <string name="widget_days_left_fmt">%1$d days</string>
+    <string name="widget_days_last">Last day</string>
+    <string name="widget_daily_label">Daily allowance</string>
+    <string name="widget_last_tx_label">Last transaction</string>
+    <string name="widget_no_tx">No transactions yet</string>
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">Exchange rates</string>

@@ -18,6 +18,7 @@ import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
+import androidx.glance.layout.RowScope
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
@@ -34,12 +35,18 @@ import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.ExchangeRates
 import com.mizan.money.data.TOTAL_BUDGET
+import com.mizan.money.data.TxType
 import com.mizan.money.ui.Dates
+import com.mizan.money.ui.categoryDisplayName
+import com.mizan.money.ui.theme.localizedContext
 import kotlinx.coroutines.flow.first
+import kotlin.math.ceil
 
 // All strings are resolved in loadWidgetData (with a Context) rather than in
 // the composable, so the widget content has no dependency on Glance's
-// composition locals and stays trivially previewable.
+// composition locals and stays trivially previewable. The Context used there
+// is the *localized* one, so the widget follows the user's in-app language
+// choice (Arabic/English) instead of the system locale.
 data class WidgetData(
     val monthLabel: String,
     val titleLabel: String,
@@ -53,6 +60,16 @@ data class WidgetData(
     val pctLabel: String,
     val pct: Float,
     val hasBudget: Boolean,
+    val daysLeftLabel: String,
+    val daysLeftValue: String,
+    val dailyLabel: String,
+    val dailyValue: String,
+    val lastTxLabel: String,
+    val lastTxMerchant: String,
+    val lastTxCategory: String,
+    val lastTxAmount: String,
+    val lastTxIsExpense: Boolean,
+    val hasLastTx: Boolean,
 )
 
 class MizanWidget : GlanceAppWidget() {
@@ -64,6 +81,10 @@ class MizanWidget : GlanceAppWidget() {
 
 private suspend fun loadWidgetData(context: Context): WidgetData {
     val app = context.applicationContext as MoneyApp
+    // Resolve every label through the localized context so an English user gets
+    // an English widget even though the Application context stays on the
+    // system locale (same approach as notifications).
+    val ctx = localizedContext(context)
     val txs = app.repository.allTransactions().first()
     val budgets = app.repository.budgets().first()
 
@@ -83,23 +104,56 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
     val hasBudget = budget > 0
     val hasData = txs.isNotEmpty()
     val pct = if (hasBudget) (summary.spent / budget).toFloat() else 0f
-    val currency = context.getString(R.string.currency_sar)
+    val currency = ctx.getString(R.string.currency_sar)
     val money = { v: Double -> "${FinancialAdvisor.fmt(v)} $currency" }
 
+    // Deplete over the remaining days of the cycle so the number actually
+    // tells the user what they can still spend per day.
+    val cycleEnd = range.last + 1
+    val daysLeft = ceil((cycleEnd - System.currentTimeMillis()).toDouble() / 86_400_000.0)
+        .toInt().coerceAtLeast(1)
+    val remaining = (budget - summary.spent).coerceAtLeast(0.0)
+
+    // Skip self-transfers (money moved between the user's own accounts) so the
+    // "last transaction" reflects real spending/income, like the app's lists.
+    val last = txs.filter { !it.isSelfTransfer }.maxByOrNull { it.timestamp }
+    val lastIsExpense = last?.type == TxType.EXPENSE
+    val lastMerchant = last?.let {
+        it.merchant?.takeIf { m -> m.isNotBlank() } ?: categoryDisplayName(ctx, it.category)
+    } ?: ctx.getString(R.string.widget_no_tx)
+
     return WidgetData(
-        monthLabel = monthLabel(context, range.first),
-        titleLabel = context.getString(R.string.widget_monthly_budget),
-        limitLabel = context.getString(R.string.widget_spending_limit),
-        spentLabel = context.getString(R.string.widget_spent_label),
-        remainingLabel = context.getString(R.string.widget_remaining_label),
-        viewDetailsLabel = context.getString(R.string.widget_view_details),
+        monthLabel = monthLabel(ctx, range.first),
+        titleLabel = ctx.getString(R.string.widget_monthly_budget),
+        limitLabel = ctx.getString(R.string.widget_spending_limit),
+        spentLabel = ctx.getString(R.string.widget_spent_label),
+        remainingLabel = ctx.getString(R.string.widget_remaining_label),
+        viewDetailsLabel = ctx.getString(R.string.widget_view_details),
         budgetAmount = if (hasBudget) money(budget) else "—",
-        spentAmount = if (hasData) money(summary.spent) else context.getString(R.string.widget_no_data),
-        remainingAmount = if (hasBudget) money((budget - summary.spent).coerceAtLeast(0.0)) else "—",
+        spentAmount = if (hasData) money(summary.spent) else ctx.getString(R.string.widget_no_data),
+        remainingAmount = if (hasBudget) money(remaining) else "—",
         pctLabel = if (hasBudget) "${(pct * 100).toInt()}%" else "",
         pct = pct,
         hasBudget = hasBudget,
+        daysLeftLabel = ctx.getString(R.string.widget_days_left_label),
+        daysLeftValue = if (daysLeft <= 1) ctx.getString(R.string.widget_days_last)
+        else ctx.getString(R.string.widget_days_left_fmt, daysLeft),
+        dailyLabel = ctx.getString(R.string.widget_daily_label),
+        dailyValue = if (hasBudget) money(remaining / daysLeft) else "—",
+        lastTxLabel = if (last != null)
+            ctx.getString(R.string.widget_last_tx_label) + "  ·  " + shortDate(last.timestamp)
+        else ctx.getString(R.string.widget_last_tx_label),
+        lastTxMerchant = lastMerchant,
+        lastTxCategory = last?.let { categoryDisplayName(ctx, it.category) } ?: "",
+        lastTxAmount = last?.let { (if (lastIsExpense) "-" else "+") + money(it.amount) } ?: "",
+        lastTxIsExpense = lastIsExpense,
+        hasLastTx = last != null,
     )
+}
+
+private fun shortDate(ts: Long): String {
+    val c = java.util.Calendar.getInstance().apply { timeInMillis = ts }
+    return "%02d/%02d".format(c.get(java.util.Calendar.DAY_OF_MONTH), c.get(java.util.Calendar.MONTH) + 1)
 }
 
 private fun monthLabel(context: Context, ts: Long): String {
@@ -125,25 +179,21 @@ private fun monthLabel(context: Context, ts: Long): String {
 private fun WidgetContent(data: WidgetData) {
     val cardBg = ColorProvider(Color(0xFF16151C))
     val pillBg = ColorProvider(Color(0xFF23222B))
+    val divider = ColorProvider(Color(0xFF2A2A36))
     val white = ColorProvider(Color(0xFFFFFFFF))
     val soft = ColorProvider(Color(0xFFACA9B8))
     val track = ColorProvider(Color(0xFF2A2A36))
+    val pos = Color(0xFF34D399)
+    val neg = Color(0xFFFF6B7D)
     val accent = ColorProvider(
         when {
-            data.pct >= 1.0f -> Color(0xFFFF6B7D)
+            data.pct >= 1.0f -> neg
             data.pct >= 0.8f -> Color(0xFFFFB84D)
-            data.pct > 0f    -> Color(0xFF34D399)
+            data.pct > 0f    -> pos
             else             -> Color(0xFF7C72F0)
         }
     )
-    val badgeBg = ColorProvider(
-        when {
-            data.pct >= 1.0f -> Color(0x33FF6B7D)
-            data.pct >= 0.8f -> Color(0x33FFB84D)
-            data.pct > 0f    -> Color(0x3334D399)
-            else             -> Color(0x337C72F0)
-        }
-    )
+    val lastAmountColor = ColorProvider(if (data.lastTxIsExpense) neg else pos)
 
     Column(
         modifier = GlanceModifier
@@ -176,21 +226,33 @@ private fun WidgetContent(data: WidgetData) {
             }
         }
 
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        Spacer(modifier = GlanceModifier.height(10.dp))
 
         // ---- Big budget number ----
         Text(
             text = data.budgetAmount,
-            style = TextStyle(color = white, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            style = TextStyle(color = white, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         )
 
-        Spacer(modifier = GlanceModifier.height(14.dp))
+        Spacer(modifier = GlanceModifier.height(12.dp))
 
-        // ---- Spending-limit progress bar ----
-        Text(
-            text = data.limitLabel,
-            style = TextStyle(color = soft, fontSize = 11.sp)
-        )
+        // ---- Spending-limit progress bar (label + % on one line) ----
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = data.limitLabel,
+                modifier = GlanceModifier.defaultWeight(),
+                style = TextStyle(color = soft, fontSize = 11.sp)
+            )
+            if (data.hasBudget) {
+                Text(
+                    text = data.pctLabel,
+                    style = TextStyle(color = accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                )
+            }
+        }
         Spacer(modifier = GlanceModifier.height(7.dp))
         if (data.hasBudget) {
             LinearProgressIndicator(
@@ -210,50 +272,59 @@ private fun WidgetContent(data: WidgetData) {
         }
 
         Spacer(modifier = GlanceModifier.height(14.dp))
+        Divider(divider)
+        Spacer(modifier = GlanceModifier.height(14.dp))
 
-        // ---- Spent (with %) vs Remaining ----
+        // ---- 2x2 metrics: spent/remaining then days-left/daily ----
         Row(modifier = GlanceModifier.fillMaxWidth()) {
+            Metric(data.spentLabel, data.spentAmount, Alignment.Start)
+            Metric(data.remainingLabel, data.remainingAmount, Alignment.End)
+        }
+        Spacer(modifier = GlanceModifier.height(12.dp))
+        Row(modifier = GlanceModifier.fillMaxWidth()) {
+            Metric(data.daysLeftLabel, data.daysLeftValue, Alignment.Start)
+            Metric(data.dailyLabel, data.dailyValue, Alignment.End)
+        }
+
+        Spacer(modifier = GlanceModifier.height(14.dp))
+        Divider(divider)
+        Spacer(modifier = GlanceModifier.height(12.dp))
+
+        // ---- Last transaction ----
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(modifier = GlanceModifier.defaultWeight()) {
                 Text(
-                    text = data.spentLabel,
-                    style = TextStyle(color = soft, fontSize = 11.sp)
+                    text = data.lastTxLabel,
+                    style = TextStyle(color = soft, fontSize = 10.sp)
                 )
-                Spacer(modifier = GlanceModifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = GlanceModifier.height(3.dp))
+                Text(
+                    text = data.lastTxMerchant,
+                    maxLines = 1,
+                    style = TextStyle(color = white, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                )
+                if (data.hasLastTx && data.lastTxCategory.isNotBlank()) {
+                    Spacer(modifier = GlanceModifier.height(1.dp))
                     Text(
-                        text = data.spentAmount,
-                        style = TextStyle(color = white, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        text = data.lastTxCategory,
+                        maxLines = 1,
+                        style = TextStyle(color = soft, fontSize = 10.sp)
                     )
-                    if (data.hasBudget) {
-                        Spacer(modifier = GlanceModifier.width(6.dp))
-                        Box(
-                            modifier = GlanceModifier
-                                .background(badgeBg)
-                                .cornerRadius(8.dp)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = data.pctLabel,
-                                style = TextStyle(color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            )
-                        }
-                    }
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
+            if (data.hasLastTx) {
+                Spacer(modifier = GlanceModifier.width(8.dp))
                 Text(
-                    text = data.remainingLabel,
-                    style = TextStyle(color = soft, fontSize = 11.sp)
-                )
-                Spacer(modifier = GlanceModifier.height(4.dp))
-                Text(
-                    text = data.remainingAmount,
-                    style = TextStyle(color = white, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    text = data.lastTxAmount,
+                    style = TextStyle(color = lastAmountColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 )
             }
         }
 
-        Spacer(modifier = GlanceModifier.height(16.dp))
+        Spacer(modifier = GlanceModifier.height(14.dp))
 
         // ---- View details ----
         Box(
@@ -270,4 +341,32 @@ private fun WidgetContent(data: WidgetData) {
             )
         }
     }
+}
+
+// A metric cell. It is a RowScope extension because `defaultWeight` is only
+// available inside a Row, and being an extension lets the two cells split the
+// width evenly (start-aligned label/value vs end-aligned) without extra glue.
+@Composable
+private fun RowScope.Metric(label: String, value: String, alignment: Alignment.Horizontal) {
+    val soft = ColorProvider(Color(0xFFACA9B8))
+    val white = ColorProvider(Color(0xFFFFFFFF))
+    Column(horizontalAlignment = alignment, modifier = GlanceModifier.defaultWeight()) {
+        Text(text = label, style = TextStyle(color = soft, fontSize = 11.sp))
+        Spacer(modifier = GlanceModifier.height(4.dp))
+        Text(
+            text = value,
+            maxLines = 1,
+            style = TextStyle(color = white, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        )
+    }
+}
+
+@Composable
+private fun Divider(color: ColorProvider) {
+    Box(
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(color)
+    ) { }
 }
