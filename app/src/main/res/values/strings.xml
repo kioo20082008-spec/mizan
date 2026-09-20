@@ -490,6 +490,10 @@
     <string name="widget_daily_label">المتاح يومياً</string>
     <string name="widget_last_tx_label">آخر عملية</string>
     <string name="widget_no_tx">لا توجد عمليات بعد</string>
+    <string name="widget_pace_ahead">أسرع من الإيقاع</string>
+    <string name="widget_pace_behind">أبطأ من الإيقاع</string>
+    <string name="widget_pace_on">على الإيقاع</string>
+    <string name="widget_goal_label">هدف التوفير</string>
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">أسعار الصرف</string>

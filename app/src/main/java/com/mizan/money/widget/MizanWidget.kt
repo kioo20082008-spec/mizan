@@ -3,14 +3,17 @@ package com.mizan.money.widget
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.LinearProgressIndicator
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -34,6 +37,7 @@ import com.mizan.money.MoneyApp
 import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.ExchangeRates
+import com.mizan.money.data.RecurringItemEntity
 import com.mizan.money.data.TOTAL_BUDGET
 import com.mizan.money.data.TxType
 import com.mizan.money.ui.Dates
@@ -60,10 +64,28 @@ data class WidgetData(
     val pctLabel: String,
     val pct: Float,
     val hasBudget: Boolean,
+    val paceLabel: String,
+    val paceDelta: Float,
     val daysLeftLabel: String,
     val daysLeftValue: String,
     val dailyLabel: String,
     val dailyValue: String,
+    val incomeLabel: String,
+    val incomeValue: String,
+    val netLabel: String,
+    val netValue: String,
+    val netIsNegative: Boolean,
+    val goalLabel: String,
+    val goalName: String,
+    val goalPctLabel: String,
+    val goalPct: Float,
+    val hasGoal: Boolean,
+    val billLabel: String,
+    val billMerchant: String,
+    val billAmount: String,
+    val billWhen: String,
+    val billUrgent: Boolean,
+    val hasBill: Boolean,
     val lastTxLabel: String,
     val lastTxMerchant: String,
     val lastTxCategory: String,
@@ -73,9 +95,13 @@ data class WidgetData(
 )
 
 class MizanWidget : GlanceAppWidget() {
+    // Exact lets the content read its real footprint (LocalSize) and show more
+    // sections on taller sizes / hide them on short ones instead of clipping.
+    override val sizeMode: SizeMode = SizeMode.Exact
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val data = loadWidgetData(context)
-        provideContent { WidgetContent(data) }
+        provideContent { WidgetContent(data, LocalSize.current) }
     }
 }
 
@@ -87,6 +113,8 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
     val ctx = localizedContext(context)
     val txs = app.repository.allTransactions().first()
     val budgets = app.repository.budgets().first()
+    val goals = app.repository.goals().first()
+    val recurring = app.repository.recurringItems().first()
 
     val prefs = context.getSharedPreferences("mizan_prefs", Context.MODE_PRIVATE)
     val startDay = prefs.getInt("month_start_day", 1)
@@ -110,9 +138,22 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
     // Deplete over the remaining days of the cycle so the number actually
     // tells the user what they can still spend per day.
     val cycleEnd = range.last + 1
-    val daysLeft = ceil((cycleEnd - System.currentTimeMillis()).toDouble() / 86_400_000.0)
+    val now = System.currentTimeMillis()
+    val daysLeft = ceil((cycleEnd - now).toDouble() / 86_400_000.0)
         .toInt().coerceAtLeast(1)
     val remaining = (budget - summary.spent).coerceAtLeast(0.0)
+
+    // Pace compares how much of the budget is spent against how much of the
+    // month has elapsed: >0 means spending faster than the month is passing.
+    val elapsedFraction = ((now - range.first).toDouble() / (cycleEnd - range.first).toDouble())
+        .coerceIn(0.0, 1.0).toFloat()
+    val paceDelta = pct - elapsedFraction
+    val paceLabel = when {
+        !hasBudget -> ""
+        paceDelta > 0.05f -> ctx.getString(R.string.widget_pace_ahead)
+        paceDelta < -0.05f -> ctx.getString(R.string.widget_pace_behind)
+        else -> ctx.getString(R.string.widget_pace_on)
+    }
 
     // Skip self-transfers (money moved between the user's own accounts) so the
     // "last transaction" reflects real spending/income, like the app's lists.
@@ -121,6 +162,15 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
     val lastMerchant = last?.let {
         it.merchant?.takeIf { m -> m.isNotBlank() } ?: categoryDisplayName(ctx, it.category)
     } ?: ctx.getString(R.string.widget_no_tx)
+
+    // Nearest active savings goal (soonest deadline) for a one-line progress row.
+    val activeGoal = goals
+        .filter { !it.isArchived && it.targetAmount > 0.0 }
+        .minByOrNull { it.targetDate ?: Long.MAX_VALUE }
+    val goalPct = activeGoal?.let { (it.currentAmount / it.targetAmount).toFloat().coerceIn(0f, 1f) } ?: 0f
+
+    val bill = nearestBill(recurring)
+    val net = summary.net
 
     return WidgetData(
         monthLabel = monthLabel(ctx, range.first),
@@ -135,11 +185,32 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
         pctLabel = if (hasBudget) "${(pct * 100).toInt()}%" else "",
         pct = pct,
         hasBudget = hasBudget,
+        paceLabel = paceLabel,
+        paceDelta = paceDelta,
         daysLeftLabel = ctx.getString(R.string.widget_days_left_label),
         daysLeftValue = if (daysLeft <= 1) ctx.getString(R.string.widget_days_last)
         else ctx.getString(R.string.widget_days_left_fmt, daysLeft),
         dailyLabel = ctx.getString(R.string.widget_daily_label),
         dailyValue = if (hasBudget) money(remaining / daysLeft) else "—",
+        incomeLabel = ctx.getString(R.string.dash_total_income),
+        incomeValue = money(summary.income),
+        netLabel = ctx.getString(R.string.pdf_net_label),
+        netValue = money(net),
+        netIsNegative = net < 0,
+        goalLabel = ctx.getString(R.string.widget_goal_label),
+        goalName = activeGoal?.name.orEmpty(),
+        goalPctLabel = if (activeGoal != null) "${(goalPct * 100).toInt()}%" else "",
+        goalPct = goalPct,
+        hasGoal = activeGoal != null,
+        billLabel = ctx.getString(R.string.dash_upcoming_bills),
+        billMerchant = bill?.first?.merchant.orEmpty(),
+        billAmount = bill?.let { "~" + money(it.first.expectedAmount) }.orEmpty(),
+        billWhen = bill?.let {
+            if (it.second == 0) ctx.getString(R.string.dash_today)
+            else ctx.getString(R.string.dash_in_days, it.second)
+        }.orEmpty(),
+        billUrgent = (bill?.second ?: Int.MAX_VALUE) <= 1,
+        hasBill = bill != null,
         lastTxLabel = if (last != null)
             ctx.getString(R.string.widget_last_tx_label) + "  ·  " + shortDate(last.timestamp)
         else ctx.getString(R.string.widget_last_tx_label),
@@ -149,6 +220,22 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
         lastTxIsExpense = lastIsExpense,
         hasLastTx = last != null,
     )
+}
+
+// Next due recurring bill within the current calendar month, mirroring the
+// logic used by the dashboard's "upcoming bills" row.
+private fun nearestBill(items: List<RecurringItemEntity>): Pair<RecurringItemEntity, Int>? {
+    val today = java.util.Calendar.getInstance()
+    val todayDay = today.get(java.util.Calendar.DAY_OF_MONTH)
+    val daysInMonth = today.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+    return items.filter { it.reminderEnabled }.map { item ->
+        val daysUntil = if (item.expectedDayOfMonth >= todayDay) {
+            item.expectedDayOfMonth - todayDay
+        } else {
+            (daysInMonth - todayDay) + item.expectedDayOfMonth
+        }
+        item to daysUntil
+    }.minByOrNull { it.second }
 }
 
 private fun shortDate(ts: Long): String {
@@ -176,7 +263,17 @@ private fun monthLabel(context: Context, ts: Long): String {
 }
 
 @Composable
-private fun WidgetContent(data: WidgetData) {
+private fun WidgetContent(data: WidgetData, size: DpSize) {
+    // Progressive disclosure: the widget keeps its core (budget + bar) at any
+    // size and reveals the extra rows only when the cell is tall enough, so it
+    // never clips on a small home-screen cell.
+    val h = size.height
+    val showDays = h >= 260.dp
+    val showLastTx = h >= 340.dp
+    val showIncome = h >= 375.dp
+    val showGoal = h >= 450.dp && data.hasGoal
+    val showBill = h >= 525.dp && data.hasBill
+
     val cardBg = ColorProvider(Color(0xFF16151C))
     val pillBg = ColorProvider(Color(0xFF23222B))
     val divider = ColorProvider(Color(0xFF2A2A36))
@@ -185,14 +282,26 @@ private fun WidgetContent(data: WidgetData) {
     val track = ColorProvider(Color(0xFF2A2A36))
     val pos = Color(0xFF34D399)
     val neg = Color(0xFFFF6B7D)
+    val amber = Color(0xFFFFB84D)
+    val yellow = Color(0xFFF6D365)
     val accent = ColorProvider(
         when {
+            !data.hasBudget -> Color(0xFF7C72F0)
             data.pct >= 1.0f -> neg
-            data.pct >= 0.8f -> Color(0xFFFFB84D)
-            data.pct > 0f    -> pos
-            else             -> Color(0xFF7C72F0)
+            data.pct >= 0.85f || data.paceDelta > 0.10f -> amber
+            data.paceDelta > 0.03f -> yellow
+            else -> pos
         }
     )
+    val paceColor = ColorProvider(
+        when {
+            data.paceDelta > 0.10f -> neg
+            data.paceDelta > 0.03f -> amber
+            data.paceDelta < -0.03f -> pos
+            else -> Color(0xFFACA9B8)
+        }
+    )
+    val netColor = ColorProvider(if (data.netIsNegative) neg else pos)
     val lastAmountColor = ColorProvider(if (data.lastTxIsExpense) neg else pos)
 
     Column(
@@ -270,58 +379,57 @@ private fun WidgetContent(data: WidgetData) {
                     .background(track)
             ) { }
         }
+        if (data.hasBudget && data.paceLabel.isNotBlank()) {
+            Spacer(modifier = GlanceModifier.height(6.dp))
+            Text(
+                text = data.paceLabel,
+                style = TextStyle(color = paceColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            )
+        }
 
         Spacer(modifier = GlanceModifier.height(14.dp))
         Divider(divider)
         Spacer(modifier = GlanceModifier.height(14.dp))
 
-        // ---- 2x2 metrics: spent/remaining then days-left/daily ----
+        // ---- Metrics: spent/remaining, then days-left/daily (+ income/net) ----
         Row(modifier = GlanceModifier.fillMaxWidth()) {
             Metric(data.spentLabel, data.spentAmount, Alignment.Start)
             Metric(data.remainingLabel, data.remainingAmount, Alignment.End)
         }
-        Spacer(modifier = GlanceModifier.height(12.dp))
-        Row(modifier = GlanceModifier.fillMaxWidth()) {
-            Metric(data.daysLeftLabel, data.daysLeftValue, Alignment.Start)
-            Metric(data.dailyLabel, data.dailyValue, Alignment.End)
+        if (showDays) {
+            Spacer(modifier = GlanceModifier.height(12.dp))
+            Row(modifier = GlanceModifier.fillMaxWidth()) {
+                Metric(data.daysLeftLabel, data.daysLeftValue, Alignment.Start)
+                Metric(data.dailyLabel, data.dailyValue, Alignment.End)
+            }
+        }
+        if (showIncome) {
+            Spacer(modifier = GlanceModifier.height(12.dp))
+            Row(modifier = GlanceModifier.fillMaxWidth()) {
+                Metric(data.incomeLabel, data.incomeValue, Alignment.Start)
+                MetricValue(data.netLabel, data.netValue, netColor, Alignment.End)
+            }
         }
 
-        Spacer(modifier = GlanceModifier.height(14.dp))
-        Divider(divider)
-        Spacer(modifier = GlanceModifier.height(12.dp))
+        if (showLastTx) {
+            Spacer(modifier = GlanceModifier.height(14.dp))
+            Divider(divider)
+            Spacer(modifier = GlanceModifier.height(12.dp))
+            LastTxRow(data, soft, white, lastAmountColor)
+        }
 
-        // ---- Last transaction ----
-        Row(
-            modifier = GlanceModifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                Text(
-                    text = data.lastTxLabel,
-                    style = TextStyle(color = soft, fontSize = 10.sp)
-                )
-                Spacer(modifier = GlanceModifier.height(3.dp))
-                Text(
-                    text = data.lastTxMerchant,
-                    maxLines = 1,
-                    style = TextStyle(color = white, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                )
-                if (data.hasLastTx && data.lastTxCategory.isNotBlank()) {
-                    Spacer(modifier = GlanceModifier.height(1.dp))
-                    Text(
-                        text = data.lastTxCategory,
-                        maxLines = 1,
-                        style = TextStyle(color = soft, fontSize = 10.sp)
-                    )
-                }
-            }
-            if (data.hasLastTx) {
-                Spacer(modifier = GlanceModifier.width(8.dp))
-                Text(
-                    text = data.lastTxAmount,
-                    style = TextStyle(color = lastAmountColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                )
-            }
+        if (showGoal) {
+            Spacer(modifier = GlanceModifier.height(14.dp))
+            Divider(divider)
+            Spacer(modifier = GlanceModifier.height(12.dp))
+            GoalRow(data, soft, white, track)
+        }
+
+        if (showBill) {
+            Spacer(modifier = GlanceModifier.height(14.dp))
+            Divider(divider)
+            Spacer(modifier = GlanceModifier.height(12.dp))
+            BillRow(data, soft, white, neg)
         }
 
         Spacer(modifier = GlanceModifier.height(14.dp))
@@ -343,20 +451,144 @@ private fun WidgetContent(data: WidgetData) {
     }
 }
 
+@Composable
+private fun LastTxRow(
+    data: WidgetData,
+    soft: ColorProvider,
+    white: ColorProvider,
+    amountColor: ColorProvider,
+) {
+    Row(
+        modifier = GlanceModifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = GlanceModifier.defaultWeight()) {
+            Text(
+                text = data.lastTxLabel,
+                style = TextStyle(color = soft, fontSize = 10.sp)
+            )
+            Spacer(modifier = GlanceModifier.height(3.dp))
+            Text(
+                text = data.lastTxMerchant,
+                maxLines = 1,
+                style = TextStyle(color = white, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            )
+            if (data.hasLastTx && data.lastTxCategory.isNotBlank()) {
+                Spacer(modifier = GlanceModifier.height(1.dp))
+                Text(
+                    text = data.lastTxCategory,
+                    maxLines = 1,
+                    style = TextStyle(color = soft, fontSize = 10.sp)
+                )
+            }
+        }
+        if (data.hasLastTx) {
+            Spacer(modifier = GlanceModifier.width(8.dp))
+            Text(
+                text = data.lastTxAmount,
+                style = TextStyle(color = amountColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            )
+        }
+    }
+}
+
+@Composable
+private fun GoalRow(
+    data: WidgetData,
+    soft: ColorProvider,
+    white: ColorProvider,
+    track: ColorProvider,
+) {
+    val goalColor = ColorProvider(Color(0xFF7C72F0))
+    Column(modifier = GlanceModifier.fillMaxWidth()) {
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = GlanceModifier.defaultWeight()) {
+                Text(text = data.goalLabel, style = TextStyle(color = soft, fontSize = 10.sp))
+                Spacer(modifier = GlanceModifier.height(2.dp))
+                Text(
+                    text = data.goalName,
+                    maxLines = 1,
+                    style = TextStyle(color = white, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                )
+            }
+            Spacer(modifier = GlanceModifier.width(8.dp))
+            Text(
+                text = data.goalPctLabel,
+                style = TextStyle(color = goalColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            )
+        }
+        Spacer(modifier = GlanceModifier.height(6.dp))
+        LinearProgressIndicator(
+            progress = data.goalPct.coerceIn(0f, 1f),
+            modifier = GlanceModifier.fillMaxWidth().height(5.dp).cornerRadius(3.dp),
+            color = goalColor,
+            backgroundColor = track
+        )
+    }
+}
+
+@Composable
+private fun BillRow(
+    data: WidgetData,
+    soft: ColorProvider,
+    white: ColorProvider,
+    danger: Color,
+) {
+    val whenColor = ColorProvider(if (data.billUrgent) danger else Color(0xFFACA9B8))
+    Row(
+        modifier = GlanceModifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = GlanceModifier.defaultWeight()) {
+            Text(text = data.billLabel, style = TextStyle(color = soft, fontSize = 10.sp))
+            Spacer(modifier = GlanceModifier.height(2.dp))
+            Text(
+                text = data.billMerchant,
+                maxLines = 1,
+                style = TextStyle(color = white, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            )
+        }
+        Spacer(modifier = GlanceModifier.width(8.dp))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = data.billAmount,
+                style = TextStyle(color = white, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            )
+            Spacer(modifier = GlanceModifier.height(2.dp))
+            Text(
+                text = data.billWhen,
+                style = TextStyle(color = whenColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            )
+        }
+    }
+}
+
 // A metric cell. It is a RowScope extension because `defaultWeight` is only
 // available inside a Row, and being an extension lets the two cells split the
 // width evenly (start-aligned label/value vs end-aligned) without extra glue.
 @Composable
 private fun RowScope.Metric(label: String, value: String, alignment: Alignment.Horizontal) {
+    MetricValue(label, value, ColorProvider(Color(0xFFFFFFFF)), alignment)
+}
+
+@Composable
+private fun RowScope.MetricValue(
+    label: String,
+    value: String,
+    valueColor: ColorProvider,
+    alignment: Alignment.Horizontal,
+) {
     val soft = ColorProvider(Color(0xFFACA9B8))
-    val white = ColorProvider(Color(0xFFFFFFFF))
     Column(horizontalAlignment = alignment, modifier = GlanceModifier.defaultWeight()) {
         Text(text = label, style = TextStyle(color = soft, fontSize = 11.sp))
         Spacer(modifier = GlanceModifier.height(4.dp))
         Text(
             text = value,
             maxLines = 1,
-            style = TextStyle(color = white, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            style = TextStyle(color = valueColor, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         )
     }
 }

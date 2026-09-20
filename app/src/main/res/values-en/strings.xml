@@ -490,6 +490,10 @@
     <string name="widget_daily_label">Daily allowance</string>
     <string name="widget_last_tx_label">Last transaction</string>
     <string name="widget_no_tx">No transactions yet</string>
+    <string name="widget_pace_ahead">Ahead of pace</string>
+    <string name="widget_pace_behind">Behind pace</string>
+    <string name="widget_pace_on">On pace</string>
+    <string name="widget_goal_label">Savings goal</string>
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">Exchange rates</string>
