@@ -101,9 +101,11 @@ class MizanWidget : GlanceAppWidget() {
     // instead of overflowing/clipping. LocalSize is always provided here.
     override val sizeMode: SizeMode = SizeMode.Responsive(
         setOf(
-            DpSize(250.dp, 150.dp),
-            DpSize(250.dp, 330.dp),
-            DpSize(250.dp, 520.dp),
+            DpSize(250.dp, 130.dp),
+            DpSize(250.dp, 200.dp),
+            DpSize(250.dp, 320.dp),
+            DpSize(250.dp, 430.dp),
+            DpSize(250.dp, 540.dp),
         )
     )
 
@@ -337,24 +339,28 @@ private object WColors {
 
 @Composable
 private fun WidgetContent(data: WidgetData, size: DpSize) {
-    // Three tiers keep the widget useful at any size: the small cell shows the
-    // budget and progress bar, medium adds the day/allowance stats, and the
-    // full cell adds income/net, the savings goal, the next bill and the last
-    // transaction.
+    // The size classes are declared roughly one launcher cell apart, so the
+    // widget grows one section at a time as the user resizes it instead of
+    // jumping straight from tiny to huge.
+    val h = size.height
     val tier = when {
-        size.height < 240.dp -> 0
-        size.height < 420.dp -> 1
-        else -> 2
+        h <= 165.dp -> 0
+        h <= 260.dp -> 1
+        h <= 375.dp -> 2
+        h <= 485.dp -> 3
+        else -> 4
     }
-    val medium = tier >= 1
-    val full = tier >= 2
+    val showStats = tier >= 1        // pace + spent/remaining
+    val showDayStats = tier >= 2     // days-left/daily + income/net
+    val showActivity = tier >= 3     // last transaction + savings goal
+    val showBill = tier >= 4         // next upcoming bill
 
     val accent = ColorProvider(
         when {
             !data.hasBudget -> Color(0xFF7C72F0)
             data.pct >= 1.0f -> WColors.neg
             data.pct >= 0.85f || data.paceDelta > 0.10f -> WColors.amber
-            data.paceDelta > 0.03f -> WColors.yellow
+            data.pct >= 0.70f || data.paceDelta > 0.03f -> WColors.yellow
             else -> WColors.pos
         }
     )
@@ -444,7 +450,7 @@ private fun WidgetContent(data: WidgetData, size: DpSize) {
                     .background(WColors.track)
             ) { }
         }
-        if (medium && data.hasBudget && data.paceLabel.isNotBlank()) {
+        if (showStats && data.hasBudget && data.paceLabel.isNotBlank()) {
             Spacer(modifier = GlanceModifier.height(6.dp))
             Text(
                 text = data.paceLabel,
@@ -452,7 +458,7 @@ private fun WidgetContent(data: WidgetData, size: DpSize) {
             )
         }
 
-        if (medium) {
+        if (showStats) {
             Spacer(modifier = GlanceModifier.height(14.dp))
             Divider(WColors.divider)
             Spacer(modifier = GlanceModifier.height(14.dp))
@@ -462,12 +468,12 @@ private fun WidgetContent(data: WidgetData, size: DpSize) {
                 Metric(data.spentLabel, data.spentAmount, WColors.white, Alignment.Start)
                 Metric(data.remainingLabel, data.remainingAmount, WColors.white, Alignment.End)
             }
-            Spacer(modifier = GlanceModifier.height(12.dp))
-            Row(modifier = GlanceModifier.fillMaxWidth()) {
-                Metric(data.daysLeftLabel, data.daysLeftValue, WColors.white, Alignment.Start)
-                Metric(data.dailyLabel, data.dailyValue, WColors.white, Alignment.End)
-            }
-            if (full) {
+            if (showDayStats) {
+                Spacer(modifier = GlanceModifier.height(12.dp))
+                Row(modifier = GlanceModifier.fillMaxWidth()) {
+                    Metric(data.daysLeftLabel, data.daysLeftValue, WColors.white, Alignment.Start)
+                    Metric(data.dailyLabel, data.dailyValue, WColors.white, Alignment.End)
+                }
                 Spacer(modifier = GlanceModifier.height(12.dp))
                 Row(modifier = GlanceModifier.fillMaxWidth()) {
                     Metric(data.incomeLabel, data.incomeValue, WColors.white, Alignment.Start)
@@ -475,42 +481,25 @@ private fun WidgetContent(data: WidgetData, size: DpSize) {
                 }
             }
 
-            if (full && data.hasLastTx) {
+            if (showActivity && data.hasLastTx) {
                 Spacer(modifier = GlanceModifier.height(14.dp))
                 Divider(WColors.divider)
                 Spacer(modifier = GlanceModifier.height(12.dp))
                 LastTxRow(data, lastAmountColor)
             }
 
-            if (full && data.hasGoal) {
+            if (showActivity && data.hasGoal) {
                 Spacer(modifier = GlanceModifier.height(14.dp))
                 Divider(WColors.divider)
                 Spacer(modifier = GlanceModifier.height(12.dp))
                 GoalRow(data)
             }
 
-            if (full && data.hasBill) {
+            if (showBill && data.hasBill) {
                 Spacer(modifier = GlanceModifier.height(14.dp))
                 Divider(WColors.divider)
                 Spacer(modifier = GlanceModifier.height(12.dp))
                 BillRow(data)
-            }
-
-            Spacer(modifier = GlanceModifier.height(14.dp))
-
-            // ---- View details ----
-            Box(
-                modifier = GlanceModifier
-                    .fillMaxWidth()
-                    .background(WColors.pillBg)
-                    .cornerRadius(14.dp)
-                    .padding(vertical = 11.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = data.viewDetailsLabel,
-                    style = TextStyle(color = WColors.white, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                )
             }
         }
     }
