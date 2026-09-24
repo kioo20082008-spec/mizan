@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shell -->
+    <string name="home_sms_banner_grant">إذن الرسائل غير ممنوح — اضغط لمنحه وتتبّع عملياتك تلقائياً</string>
+    <string name="home_sms_banner_receive">إذن استقبال الرسائل غير ممنوح — اضغط لمنحه حتى تُسجَّل العمليات الجديدة تلقائياً</string>
+
+    <!-- Home -->
+    <string name="home_set_budget_cta">حدّد ميزانيتك الشهرية</string>
+    <string name="home_daily_allowance">مصروفك اليومي المتاح</string>
+    <string name="home_spent_today">صرفت اليوم</string>
+    <string name="home_amount_currency_fmt">%1$s %2$s</string>
+    <string name="home_bill_expected_fmt">متوقع · %1$s</string>
+    <string name="home_add_transaction">أضف عملية</string>
+
+    <!-- Transactions -->
+    <string name="home_tx_summary_spent">المصروف</string>
+    <string name="home_tx_summary_income">الدخل</string>
+    <string name="home_tx_summary_count">العمليات</string>
+    <string name="home_filter_remove">إزالة الفلتر</string>
+    <string name="home_filter_this_month">هذا الشهر</string>
+    <string name="home_filter_last_month">الشهر الماضي</string>
+    <string name="home_filter_last_3_months">آخر ٣ أشهر</string>
+    <string name="home_filter_all_time">الكل</string>
+    <string name="home_filter_custom">مخصص</string>
+
+    <!-- Dialogs -->
+    <string name="home_ok">تم</string>
+    <string name="home_tx_date">التاريخ</string>
+    <string name="home_tx_manual">عملية يدوية</string>
+    <string name="home_amount_invalid">أدخل مبلغاً أكبر من صفر</string>
+</resources>

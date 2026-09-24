@@ -11,8 +11,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,6 +36,7 @@ import com.mizan.money.advisor.MonthSummary
 import com.mizan.money.data.RecurringItemEntity
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TOTAL_BUDGET
+import com.mizan.money.data.TxType
 import java.util.Calendar
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -46,7 +48,9 @@ fun DashboardScreen(
     vm: MainViewModel,
     offset: Int,
     onOffsetChange: (Int) -> Unit,
-    onNavigateToTransactions: (String?) -> Unit
+    onNavigateToTransactions: (String?) -> Unit,
+    onOpenPlanning: () -> Unit = {},
+    onAddTransaction: () -> Unit = {}
 ) {
     val txs by vm.transactions.collectAsState()
     val manualSalary by vm.manualSalary.collectAsState()
@@ -55,11 +59,17 @@ fun DashboardScreen(
     val rates by vm.exchangeRates.collectAsState()
     val recurringItems by vm.recurringItems.collectAsState()
     val categories by vm.categories.collectAsState()
-    val upcomingBills = remember(recurringItems) { upcomingBillsWithinDays(recurringItems, 5) }
+    val upcomingBills = remember(recurringItems, txs, startDay) {
+        upcomingBillsWithinDays(recurringItems, txs, Dates.monthRange(0, startDay), 5)
+    }
     var selectedTx by remember { mutableStateOf<TransactionEntity?>(null) }
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay, rates) { FinancialAdvisor.summarize(txs, range.first, range.last, rates) }
+    val todaySpent = remember(txs, rates) {
+        val dayStart = startOfToday()
+        FinancialAdvisor.summarize(txs, dayStart, dayStart + 86_400_000L - 1, rates).spent.coerceAtLeast(0.0)
+    }
     val monthKey = remember(offset, startDay) { Dates.monthKey(offset, startDay) }
     val manualBudget = remember(budgets, monthKey) {
         budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }?.limitAmount?.takeIf { it > 0 }
@@ -78,17 +88,18 @@ fun DashboardScreen(
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        item { MonthHeader(offset, startDay, range, onPrev = goPrev, onNext = goNext) }
-
         item {
             HeroCard(
                 s = summary,
                 offset = offset,
+                startDay = startDay,
                 range = range,
                 budget = planningIncome,
                 isManualBudget = manualBudget != null,
-                onSwipePrev = goPrev,
-                onSwipeNext = goNext
+                todaySpent = todaySpent,
+                onPrev = goPrev,
+                onNext = goNext,
+                onSetBudget = onOpenPlanning
             )
         }
 
@@ -97,14 +108,17 @@ fun DashboardScreen(
                 SectionCard(stringResource(R.string.dash_upcoming_bills)) {
                     upcomingBills.take(4).forEachIndexed { i, bill ->
                         val urgent = bill.daysUntil <= 1
+                        val whenText = if (bill.daysUntil == 0) stringResource(R.string.dash_today)
+                            else stringResource(R.string.dash_in_days, bill.daysUntil)
                         ListRow(
                             icon = catIcon(bill.item.category),
                             iconTint = catColor(bill.item.category),
                             title = bill.item.merchant,
                             subtitle = categoryDisplay(bill.item.category),
-                            trailing = "~" + fmt(bill.item.expectedAmount),
-                            trailingSub = if (bill.daysUntil == 0) stringResource(R.string.dash_today)
-                                else stringResource(R.string.dash_in_days, bill.daysUntil),
+                            trailing = fmt(bill.item.expectedAmount),
+                            // Amount is an estimate from past charges, so say so
+                            // in words instead of a cryptic leading "~".
+                            trailingSub = stringResource(R.string.home_bill_expected_fmt, whenText),
                             trailingSubColor = if (urgent) Danger else InkSoft,
                             showDivider = i < minOf(upcomingBills.size, 4) - 1
                         )
@@ -116,7 +130,11 @@ fun DashboardScreen(
         if (summary.categoryTotals.isNotEmpty()) {
             item {
                 val top = summary.categoryTotals.take(5)
-                SectionCard(stringResource(R.string.dash_top_spending)) {
+                SectionCard(
+                    stringResource(R.string.dash_top_spending),
+                    actionLabel = stringResource(R.string.dash_view_all),
+                    onAction = { onNavigateToTransactions(null) }
+                ) {
                     top.forEachIndexed { i, cat ->
                         val color = catColor(cat.category)
                         ListRow(
@@ -162,9 +180,21 @@ fun DashboardScreen(
                 }
             }
         } else if (txs.isNotEmpty()) {
-            item { EmptyState(stringResource(R.string.dash_empty_month)) }
+            item {
+                HomeEmptyState(
+                    stringResource(R.string.dash_empty_month),
+                    ctaLabel = if (offset == 0) stringResource(R.string.home_add_transaction) else null,
+                    onCta = onAddTransaction
+                )
+            }
         } else {
-            item { EmptyState(stringResource(R.string.dash_empty_ever)) }
+            item {
+                HomeEmptyState(
+                    stringResource(R.string.dash_empty_ever),
+                    ctaLabel = stringResource(R.string.home_add_transaction),
+                    onCta = onAddTransaction
+                )
+            }
         }
     }
 
@@ -185,30 +215,59 @@ fun DashboardScreen(
 private fun daysLeftIn(range: LongRange): Int =
     ceil((range.last + 1 - System.currentTimeMillis()).toDouble() / 86_400_000.0).toInt().coerceAtLeast(1)
 
+private fun startOfToday(): Long = Calendar.getInstance().apply {
+    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+}.timeInMillis
+
 @Composable
-private fun MonthHeader(offset: Int, startDay: Int, range: LongRange, onPrev: () -> Unit, onNext: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onPrev, modifier = Modifier.size(48.dp)) {
+private fun HomeEmptyState(text: String, ctaLabel: String?, onCta: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        IconBadge(Icons.AutoMirrored.Outlined.ReceiptLong, InkFaint, White, size = 72.dp, iconSize = 30.dp)
+        Spacer(Modifier.height(14.dp))
+        Text(text, style = BodyMuted)
+        if (ctaLabel != null) {
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = onCta,
+                shape = RoundedCornerShape(Pill),
+                colors = ButtonDefaults.buttonColors(containerColor = Indigo, contentColor = Lime),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                Icon(Icons.Default.Add, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(ctaLabel, style = Body.copy(color = Lime, fontWeight = FontWeight.SemiBold))
+            }
+        }
+    }
+}
+
+// Compact month switcher that lives inside the hero card: ‹ month › as one pill.
+@Composable
+private fun MonthPill(offset: Int, startDay: Int, onPrev: () -> Unit, onNext: () -> Unit) {
+    Row(
+        Modifier.clip(RoundedCornerShape(Pill)).background(PaperOuter).padding(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onPrev, modifier = Modifier.size(36.dp)) {
             Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
+                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 stringResource(R.string.dash_month_prev),
                 tint = Ink, modifier = Modifier.size(20.dp)
             )
         }
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(monthName(offset, startDay), style = H2)
-            if (offset == 0) {
-                val days = daysLeftIn(range)
-                Text(
-                    if (days <= 1) stringResource(R.string.widget_days_last)
-                    else stringResource(R.string.widget_left_short_fmt, days),
-                    style = Eyebrow.copy(color = InkSoft)
-                )
-            }
-        }
-        IconButton(onClick = onNext, enabled = offset < 0, modifier = Modifier.size(48.dp)) {
+        Text(
+            monthName(offset, startDay),
+            style = Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+        IconButton(onClick = onNext, enabled = offset < 0, modifier = Modifier.size(36.dp)) {
             Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 stringResource(R.string.dash_month_next),
                 tint = if (offset < 0) Ink else Ink.copy(alpha = 0.2f),
                 modifier = Modifier.size(20.dp)
@@ -223,11 +282,14 @@ private fun MonthHeader(offset: Int, startDay: Int, range: LongRange, onPrev: ()
 private fun HeroCard(
     s: MonthSummary,
     offset: Int,
+    startDay: Int,
     range: LongRange,
     budget: Double,
     isManualBudget: Boolean,
-    onSwipePrev: () -> Unit,
-    onSwipeNext: () -> Unit
+    todaySpent: Double,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onSetBudget: () -> Unit
 ) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val currency = currencyLabel("SAR")
@@ -251,15 +313,30 @@ private fun HeroCard(
                             // In RTL the newer month sits to the left, so a
                             // rightward drag brings it in (and vice versa in LTR).
                             val towardNewer = if (rtl) drag > 0 else drag < 0
-                            if (towardNewer) onSwipeNext() else onSwipePrev()
+                            if (towardNewer) onNext() else onPrev()
                         }
                         drag = 0f
                     },
                     onHorizontalDrag = { _, dx -> drag += dx }
                 )
             }
-            .padding(24.dp)
+            .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 24.dp)
     ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            MonthPill(offset, startDay, onPrev, onNext)
+            Spacer(Modifier.weight(1f))
+            if (offset == 0) {
+                val days = daysLeftIn(range)
+                Text(
+                    if (days <= 1) stringResource(R.string.widget_days_last)
+                    else stringResource(R.string.widget_left_short_fmt, days),
+                    style = Eyebrow.copy(color = InkSoft),
+                    maxLines = 1
+                )
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+
         val labelRes = when {
             !hasBudget && s.net < 0 -> R.string.dash_label_negative_net
             !hasBudget && offset < 0 -> R.string.dash_label_past_month
@@ -284,18 +361,6 @@ private fun HeroCard(
                 currency,
                 style = Body.copy(color = InkSoft, fontWeight = FontWeight.Medium, fontSize = 16.sp),
                 modifier = Modifier.padding(bottom = 6.dp)
-            )
-        }
-
-        if (hasBudget && !over && offset == 0) {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                stringResource(
-                    R.string.dash_daily_allowance_fmt,
-                    fmt(remaining / daysLeftIn(range)),
-                    currency
-                ),
-                style = Body.copy(color = Ink)
             )
         }
 
@@ -324,23 +389,74 @@ private fun HeroCard(
                     style = Body.copy(color = if (over) Danger else Ink, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 )
             }
+            if (offset == 0) {
+                // Secondary stats: how much can still go out per day, and how
+                // much already went out today.
+                Spacer(Modifier.height(18.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    HeroStat(
+                        Icons.Default.CalendarToday, Indigo,
+                        stringResource(R.string.home_daily_allowance),
+                        stringResource(
+                            R.string.home_amount_currency_fmt,
+                            fmt(if (over) 0.0 else remaining / daysLeftIn(range)),
+                            currency
+                        ),
+                        Modifier.weight(1f),
+                        prominent = true
+                    )
+                    HeroStat(
+                        Icons.Default.Payments, Amber,
+                        stringResource(R.string.home_spent_today),
+                        stringResource(R.string.home_amount_currency_fmt, fmt(todaySpent), currency),
+                        Modifier.weight(1f)
+                    )
+                }
+            }
         } else {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 HeroStat(Icons.Default.ArrowDownward, Success, stringResource(R.string.dash_total_income), fmt(s.income), Modifier.weight(1f))
                 HeroStat(Icons.Default.ArrowUpward, Danger, stringResource(R.string.dash_total_spend), fmt(s.spent), Modifier.weight(1f))
+            }
+            if (offset == 0) {
+                Spacer(Modifier.height(18.dp))
+                Button(
+                    onClick = onSetBudget,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(Pill),
+                    colors = ButtonDefaults.buttonColors(containerColor = Indigo, contentColor = Lime)
+                ) {
+                    Icon(Icons.Default.AccountBalanceWallet, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.home_set_budget_cta),
+                        style = Body.copy(color = Lime, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun HeroStat(icon: ImageVector, tint: Color, label: String, value: String, modifier: Modifier = Modifier) {
+private fun HeroStat(
+    icon: ImageVector,
+    tint: Color,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    prominent: Boolean = false
+) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         IconBadge(icon, tint, tint.copy(alpha = 0.12f), size = 38.dp, iconSize = 18.dp)
         Spacer(Modifier.width(10.dp))
         Column {
-            Text(label, style = Eyebrow.copy(color = InkSoft))
-            Text(value, style = Body.copy(color = Ink, fontWeight = FontWeight.Bold))
+            Text(label, style = Eyebrow.copy(color = InkSoft), maxLines = 1)
+            Text(
+                value,
+                style = if (prominent) H2.copy(fontSize = 17.sp) else Body.copy(color = Ink, fontWeight = FontWeight.Bold),
+                maxLines = 1
+            )
         }
     }
 }
@@ -348,16 +464,49 @@ private fun HeroStat(icon: ImageVector, tint: Color, label: String, value: Strin
 // ============ UPCOMING BILLS ============
 private data class UpcomingBill(val item: RecurringItemEntity, val daysUntil: Int)
 
-private fun upcomingBillsWithinDays(items: List<RecurringItemEntity>, window: Int): List<UpcomingBill> {
-    val today = Calendar.getInstance()
+// A reminder's day may be 29-31 (or 0 / 31 meaning "end of month"): clamp it
+// to the month's real length so February still gets its reminder.
+private fun dueDayIn(expected: Int, monthLength: Int): Int =
+    if (expected <= 0 || expected >= 31) monthLength else expected.coerceAtMost(monthLength)
+
+private fun upcomingBillsWithinDays(
+    items: List<RecurringItemEntity>,
+    txs: List<TransactionEntity>,
+    cycle: LongRange,
+    window: Int
+): List<UpcomingBill> {
+    val today = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+    }
     val todayDay = today.get(Calendar.DAY_OF_MONTH)
     val daysInMonth = today.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val nextMonth = (today.clone() as Calendar).apply {
+        set(Calendar.DAY_OF_MONTH, 1); add(Calendar.MONTH, 1)
+    }
+    val daysInNextMonth = nextMonth.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val candidates = txs.filter {
+        it.type == TxType.EXPENSE && it.timestamp in cycle && !it.merchant.isNullOrBlank()
+    }
     return items.filter { it.reminderEnabled }.mapNotNull { item ->
-        val daysUntil = if (item.expectedDayOfMonth >= todayDay) {
-            item.expectedDayOfMonth - todayDay
+        val dueThisMonth = dueDayIn(item.expectedDayOfMonth, daysInMonth)
+        val daysUntil = if (dueThisMonth >= todayDay) {
+            dueThisMonth - todayDay
         } else {
-            (daysInMonth - todayDay) + item.expectedDayOfMonth
+            (daysInMonth - todayDay) + dueDayIn(item.expectedDayOfMonth, daysInNextMonth)
         }
-        if (daysUntil <= window) UpcomingBill(item, daysUntil) else null
+        if (daysUntil > window) return@mapNotNull null
+        // Already paid this cycle? Only payments reasonably close to this due
+        // date count, so last month's charge doesn't hide next month's bill.
+        val dueAt = today.timeInMillis + daysUntil * 86_400_000L
+        val earliest = maxOf(cycle.first, dueAt - 25L * 86_400_000L)
+        val merchant = item.merchant.trim()
+        val paid = merchant.isNotEmpty() && candidates.any { tx ->
+            val m = tx.merchant!!.trim()
+            tx.timestamp >= earliest &&
+                (m.contains(merchant, ignoreCase = true) || merchant.contains(m, ignoreCase = true)) &&
+                abs(tx.amount - item.expectedAmount) <= item.expectedAmount * 0.2
+        }
+        if (paid) null else UpcomingBill(item, daysUntil)
     }.sortedBy { it.daysUntil }
 }

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shell -->
+    <string name="home_sms_banner_grant">SMS permission not granted — tap to allow automatic tracking</string>
+    <string name="home_sms_banner_receive">SMS receive permission not granted — tap to allow so new transactions are added automatically</string>
+
+    <!-- Home -->
+    <string name="home_set_budget_cta">Set your monthly budget</string>
+    <string name="home_daily_allowance">Daily allowance</string>
+    <string name="home_spent_today">Spent today</string>
+    <string name="home_amount_currency_fmt">%1$s %2$s</string>
+    <string name="home_bill_expected_fmt">Expected · %1$s</string>
+    <string name="home_add_transaction">Add transaction</string>
+
+    <!-- Transactions -->
+    <string name="home_tx_summary_spent">Spent</string>
+    <string name="home_tx_summary_income">Income</string>
+    <string name="home_tx_summary_count">Transactions</string>
+    <string name="home_filter_remove">Remove filter</string>
+    <string name="home_filter_this_month">This month</string>
+    <string name="home_filter_last_month">Last month</string>
+    <string name="home_filter_last_3_months">Last 3 months</string>
+    <string name="home_filter_all_time">All time</string>
+    <string name="home_filter_custom">Custom</string>
+
+    <!-- Dialogs -->
+    <string name="home_ok">OK</string>
+    <string name="home_tx_date">Date</string>
+    <string name="home_tx_manual">Manual entry</string>
+    <string name="home_amount_invalid">Enter an amount greater than zero</string>
+</resources>

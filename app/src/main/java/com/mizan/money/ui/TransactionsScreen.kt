@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -39,8 +41,8 @@ import java.util.Locale
 
 // ============ ADVANCED FILTER STATE ============
 // Pure in-memory model — every field is optional, an "empty" filter means
-// "show everything". Lives only while the screen is composed (no persistence):
-// the whole point is a quick, one-off narrowing of the list.
+// "show everything". Held in MainViewModel (not persisted to disk) so it
+// survives tab switches but not an app restart.
 data class TxFilter(
     val dateFrom: Long? = null,
     val dateTo: Long? = null,
@@ -77,158 +79,176 @@ data class TxFilter(
 }
 
 // ============ TRANSACTIONS ============
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun TransactionsScreen(vm: MainViewModel, initialCategory: String? = null) {
+fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
     val txs by vm.transactions.collectAsState()
     val categories by vm.categories.collectAsState()
     val recurringItems by vm.recurringItems.collectAsState()
-    var query by remember { mutableStateOf("") }
-    // A category shortcut (Home/Planning) opens the list pre-filtered through the
-    // regular filter, so it shows up as a removable "active filter" chip instead
-    // of a raw category key typed into the search box.
-    var filter by remember(initialCategory) {
-        mutableStateOf(TxFilter(categories = setOfNotNull(initialCategory)))
-    }
+    val rates by vm.exchangeRates.collectAsState()
+    val startDay by vm.monthStartDay.collectAsState()
+    // Hoisted into the ViewModel so search/filters survive tab switches.
+    val query by vm.txQuery.collectAsState()
+    val filter by vm.txFilter.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<TransactionEntity?>(null) }
+    val ctx = LocalContext.current
 
-    val filtered = remember(txs, query, filter) {
+    val filtered = remember(txs, query, filter, categories) {
+        val q = normalizeSearchDigits(query.trim())
+        val qNum = q.replace(",", "").replace("٬", "").replace("٫", ".")
         txs.filter { tx ->
             if (!filter.matches(tx)) return@filter false
-            if (query.isBlank()) return@filter true
-            (tx.merchant ?: "").contains(query, ignoreCase = true) ||
-                tx.category.contains(query, ignoreCase = true) ||
-                FinancialAdvisor.fmt(tx.amount).contains(query)
+            if (q.isEmpty()) return@filter true
+            (tx.merchant ?: "").contains(q, ignoreCase = true) ||
+                tx.category.contains(q, ignoreCase = true) ||
+                categoryDisplayName(ctx, tx.category).contains(q, ignoreCase = true) ||
+                (tx.bankName ?: "").contains(q, ignoreCase = true) ||
+                (qNum.isNotEmpty() && qNum.any { it.isDigit() } && (
+                    FinancialAdvisor.fmt(tx.amount).replace(",", "").contains(qNum) ||
+                        FinancialAdvisor.fmt(tx.amount).contains(q)
+                    ))
         }
     }
+    val totals = remember(filtered, rates) {
+        FinancialAdvisor.summarize(filtered, 0L, Long.MAX_VALUE, rates)
+    }
 
-    val grouped = remember(filtered) {
+    val grouped = remember(filtered, rates) {
         filtered.groupBy { tx ->
             val c = Calendar.getInstance().apply { timeInMillis = tx.timestamp }
             c.get(Calendar.YEAR) * 1000 + c.get(Calendar.DAY_OF_YEAR)
-        }.toList()
+        }.toList().map { (day, dayTxs) ->
+            Triple(day, dayTxs, FinancialAdvisor.summarize(dayTxs, 0L, Long.MAX_VALUE, rates).spent)
+        }
     }
 
     val availableBanks = remember(txs) {
         txs.mapNotNull { it.bankName?.trim()?.takeIf { b -> b.isNotEmpty() } }.toSet().sorted()
     }
 
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 96.dp),
-    ) {
-        item {
-            Row(
-                Modifier.fillMaxWidth()
-                    .padding(bottom = 12.dp)
-                    .clip(RoundedCornerShape(Pill))
-                    .background(White)
-                    .padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Search, null, Modifier.size(18.dp), tint = InkFaint)
-                Spacer(Modifier.width(10.dp))
-                TextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = { Text(stringResource(R.string.tx_search_hint), style = BodyMuted) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    textStyle = Body
-                )
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = { query = "" }, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Close, stringResource(R.string.tx_clear_search), Modifier.size(16.dp), tint = InkFaint)
-                    }
+    Column(Modifier.fillMaxSize()) {
+        // Search bar is pinned above the list (outside the LazyColumn).
+        Row(
+            Modifier.fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp)
+                .clip(RoundedCornerShape(Pill))
+                .background(White)
+                .padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Search, null, Modifier.size(18.dp), tint = InkFaint)
+            Spacer(Modifier.width(10.dp))
+            TextField(
+                value = query,
+                onValueChange = { vm.setTxQuery(it) },
+                placeholder = { Text(stringResource(R.string.tx_search_hint), style = BodyMuted, maxLines = 1) },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                textStyle = Body
+            )
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { vm.setTxQuery("") }, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Close, stringResource(R.string.tx_clear_search), Modifier.size(16.dp), tint = InkFaint)
                 }
-                // Filter icon + active-count badge
-                Box(modifier = Modifier.size(44.dp)) {
-                    IconButton(
-                        onClick = { showFilterSheet = true },
-                        modifier = Modifier.size(44.dp)
+            }
+            // Filter icon + active-count badge
+            Box(modifier = Modifier.size(44.dp)) {
+                IconButton(
+                    onClick = { showFilterSheet = true },
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Tune,
+                        stringResource(R.string.tx_filter_icon),
+                        tint = if (filter.isEmpty) InkSoft else Indigo
+                    )
+                }
+                if (!filter.isEmpty) {
+                    Box(
+                        Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 4.dp)
+                            .size(18.dp).clip(RoundedCornerShape(Pill)).background(Indigo),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.Tune,
-                            stringResource(R.string.tx_filter_icon),
-                            tint = if (filter.isEmpty) InkSoft else Indigo
+                        Text(
+                            filter.activeCount.toString(),
+                            color = Lime,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                    if (!filter.isEmpty) {
-                        Box(
-                            Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 4.dp)
-                                .size(18.dp).clip(RoundedCornerShape(Pill)).background(Danger),
-                            contentAlignment = Alignment.Center
+                }
+            }
+        }
+        // Active filters as removable pills, plus "clear all".
+        if (!filter.isEmpty) {
+            ActiveFilterChips(
+                filter = filter,
+                onChange = { vm.setTxFilter(it) },
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp)
+            )
+        }
+
+        LazyColumn(
+            Modifier.fillMaxWidth().weight(1f),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 96.dp),
+        ) {
+            if (filtered.isEmpty()) {
+                item {
+                    val noTxs = txs.isEmpty()
+                    val filteredOut = !filter.isEmpty
+                    TxEmptyState(
+                        text = if (noTxs) stringResource(R.string.tx_empty_ever)
+                            else if (filteredOut) stringResource(R.string.tx_filter_no_results)
+                            else stringResource(R.string.tx_empty_search),
+                        ctaLabel = when {
+                            noTxs -> stringResource(R.string.home_add_transaction)
+                            filteredOut -> stringResource(R.string.tx_filter_clear_all)
+                            else -> null
+                        },
+                        onCta = { if (noTxs) onAddTransaction() else vm.setTxFilter(TxFilter()) }
+                    )
+                }
+            } else {
+                item(key = "summary") {
+                    TxSummaryCard(totals.spent, totals.income, filtered.size, Modifier.animateItem())
+                }
+                // One UI list: rows grouped per day under a small date header.
+                grouped.forEach { (day, dayTxs, daySpent) ->
+                    item(key = "day-$day") {
+                        Row(
+                            Modifier.animateItem().fillMaxWidth()
+                                .padding(start = 8.dp, end = 8.dp, top = 14.dp, bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                filter.activeCount.toString(),
-                                color = androidx.compose.ui.graphics.Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                                dayHeader(dayTxs.first().timestamp),
+                                style = Body.copy(color = InkSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                                modifier = Modifier.weight(1f)
                             )
+                            if (daySpent > 0.005) {
+                                Text(
+                                    "-" + fmt(daySpent),
+                                    style = Body.copy(color = InkSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                )
+                            }
                         }
                     }
-                }
-            }
-        }
-        // Active-filter summary row
-        if (!filter.isEmpty) {
-            item {
-                Row(
-                    Modifier.fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                        .clip(RoundedCornerShape(Pill))
-                        .background(IndigoSoft)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.FilterAlt, null, Modifier.size(14.dp), tint = Indigo)
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        stringResource(R.string.tx_filter_active_fmt, filter.activeCount),
-                        style = Body.copy(color = Indigo, fontSize = 12.sp, fontWeight = FontWeight.Bold),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        stringResource(R.string.tx_filter_clear_all),
-                        style = Body.copy(color = Indigo, fontSize = 12.sp, fontWeight = FontWeight.Bold),
-                        modifier = Modifier.clickable { filter = TxFilter() }.padding(6.dp)
-                    )
-                }
-            }
-        }
-        if (filtered.isEmpty()) {
-            item {
-                EmptyState(
-                    if (txs.isEmpty()) stringResource(R.string.tx_empty_ever)
-                    else if (!filter.isEmpty) stringResource(R.string.tx_filter_no_results)
-                    else stringResource(R.string.tx_empty_search)
-                )
-            }
-        } else {
-            // One UI list: rows grouped per day under a small date header.
-            grouped.forEach { (day, dayTxs) ->
-                item(key = "day-$day") {
-                    Text(
-                        dayHeader(dayTxs.first().timestamp),
-                        style = Body.copy(color = InkSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                        modifier = Modifier.animateItem().padding(start = 8.dp, end = 8.dp, top = 14.dp, bottom = 8.dp)
-                    )
-                }
-                itemsIndexed(dayTxs, key = { _, tx -> tx.id }) { i, tx ->
-                    TransactionCard(
-                        tx,
-                        modifier = Modifier.animateItem(),
-                        position = rowPos(i, dayTxs.size),
-                        showDate = false,
-                        onClick = { selected = tx }
-                    )
+                    itemsIndexed(dayTxs, key = { _, tx -> tx.id }) { i, tx ->
+                        TransactionCard(
+                            tx,
+                            modifier = Modifier.animateItem(),
+                            position = rowPos(i, dayTxs.size),
+                            showDate = false,
+                            onClick = { selected = tx }
+                        )
+                    }
                 }
             }
         }
@@ -249,9 +269,138 @@ fun TransactionsScreen(vm: MainViewModel, initialCategory: String? = null) {
             initial = filter,
             categories = categories,
             availableBanks = availableBanks,
+            startDay = startDay,
             onDismiss = { showFilterSheet = false },
-            onApply = { newFilter -> filter = newFilter; showFilterSheet = false },
+            onApply = { newFilter -> vm.setTxFilter(newFilter); showFilterSheet = false },
         )
+    }
+}
+
+// Search accepts Arabic-Indic / Persian digits by mapping them to ASCII, the
+// same digit mapping sanitizeAmountInput uses (letters are kept here).
+private fun normalizeSearchDigits(s: String): String {
+    val ar = "٠١٢٣٤٥٦٧٨٩"
+    val fa = "۰۱۲۳۴۵۶۷۸۹"
+    return s.map { c ->
+        val i = ar.indexOf(c).takeIf { it >= 0 } ?: fa.indexOf(c)
+        if (i >= 0) '0' + i else c
+    }.joinToString("")
+}
+
+@Composable
+private fun TxSummaryCard(spent: Double, income: Double, count: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(RadiusLg))
+            .background(White)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SummaryStat(stringResource(R.string.home_tx_summary_spent), fmt(spent), Ink, Modifier.weight(1f))
+        SummaryDivider()
+        SummaryStat(stringResource(R.string.home_tx_summary_income), fmt(income), Success, Modifier.weight(1f))
+        SummaryDivider()
+        SummaryStat(
+            stringResource(R.string.home_tx_summary_count),
+            if (isArabicUi()) toArabicIndicDigits(count.toString()) else count.toString(),
+            Ink,
+            Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun SummaryDivider() {
+    Box(Modifier.padding(horizontal = 8.dp).width(1.dp).height(32.dp).background(Line))
+}
+
+@Composable
+private fun SummaryStat(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, style = Eyebrow.copy(color = InkSoft), maxLines = 1)
+        Spacer(Modifier.height(2.dp))
+        Text(value, style = NumBold.copy(color = color, fontSize = 15.sp), maxLines = 1)
+    }
+}
+
+@Composable
+private fun TxEmptyState(text: String, ctaLabel: String?, onCta: () -> Unit) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        EmptyState(text)
+        if (ctaLabel != null) {
+            Button(
+                onClick = onCta,
+                shape = RoundedCornerShape(Pill),
+                colors = ButtonDefaults.buttonColors(containerColor = Indigo, contentColor = Lime),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                Text(ctaLabel, style = Body.copy(color = Lime, fontWeight = FontWeight.SemiBold))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ActiveFilterChips(filter: TxFilter, onChange: (TxFilter) -> Unit, modifier: Modifier = Modifier) {
+    val locale = LocalContext.current.resources.configuration.locales[0]
+    FlowRow(
+        modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        filter.categories.forEach { c ->
+            RemovablePill(categoryDisplay(c)) { onChange(filter.copy(categories = filter.categories - c)) }
+        }
+        filter.type?.let { t ->
+            RemovablePill(
+                stringResource(if (t == TxType.EXPENSE) R.string.tx_type_expense else R.string.tx_type_income)
+            ) { onChange(filter.copy(type = null)) }
+        }
+        if (filter.dateFrom != null || filter.dateTo != null) {
+            val df = remember(locale) { SimpleDateFormat("d MMM", locale) }
+            val from = filter.dateFrom?.let { df.format(java.util.Date(it)) } ?: "…"
+            val to = filter.dateTo?.let { df.format(java.util.Date(it)) } ?: "…"
+            RemovablePill("$from – $to") { onChange(filter.copy(dateFrom = null, dateTo = null)) }
+        }
+        if (filter.amountMin != null || filter.amountMax != null) {
+            val min = filter.amountMin?.let { fmt(it) } ?: "…"
+            val max = filter.amountMax?.let { fmt(it) } ?: "…"
+            RemovablePill("$min – $max") { onChange(filter.copy(amountMin = null, amountMax = null)) }
+        }
+        filter.banks.forEach { b ->
+            RemovablePill(b) { onChange(filter.copy(banks = filter.banks - b)) }
+        }
+        TextButton(
+            onClick = { onChange(TxFilter()) },
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+            modifier = Modifier.height(34.dp)
+        ) {
+            Text(
+                stringResource(R.string.tx_filter_clear_all),
+                style = Body.copy(color = Indigo, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            )
+        }
+    }
+}
+
+@Composable
+private fun RemovablePill(label: String, onRemove: () -> Unit) {
+    Row(
+        Modifier.height(34.dp)
+            .clip(RoundedCornerShape(Pill))
+            .background(IndigoSoft)
+            .clickable(onClick = onRemove)
+            .padding(start = 12.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = Body.copy(color = Indigo, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+            maxLines = 1
+        )
+        Spacer(Modifier.width(4.dp))
+        Icon(Icons.Default.Close, stringResource(R.string.home_filter_remove), Modifier.size(16.dp), tint = Indigo)
     }
 }
 

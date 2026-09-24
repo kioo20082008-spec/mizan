@@ -37,6 +37,21 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     // goals this cycle and exclude it from "spent" (it's savings, not spending).
     val goalContributions = repo.goalContributions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    // Transactions search + filter live here (not in the screen's Compose
+    // state) so they survive switching tabs and coming back.
+    private val _txQuery = MutableStateFlow("")
+    val txQuery: StateFlow<String> = _txQuery
+    fun setTxQuery(q: String) { _txQuery.value = q }
+    private val _txFilter = MutableStateFlow(TxFilter())
+    val txFilter: StateFlow<TxFilter> = _txFilter
+    fun setTxFilter(f: TxFilter) { _txFilter.value = f }
+    // Category shortcuts (Home/Planning/Insights) open the list pre-filtered to
+    // that category; "view all" (null) shows the unfiltered list.
+    fun showTransactionsFor(category: String?) {
+        _txQuery.value = ""
+        _txFilter.value = TxFilter(categories = setOfNotNull(category))
+    }
+
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning
 
@@ -46,6 +61,15 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     // that are picked up live by SmsReceiver instead.
     fun hasCompletedInitialScan(): Boolean = prefs.getBoolean("initial_scan_done", false)
     fun markInitialScanDone() = prefs.edit().putBoolean("initial_scan_done", true).apply()
+
+    // The user chose "continue without SMS" on onboarding: don't show the
+    // permission screen again (a banner in the app still offers the grant).
+    fun hasSkippedSmsOnboarding(): Boolean = prefs.getBoolean("skip_sms_onboarding", false)
+    fun setSkippedSmsOnboarding() = prefs.edit().putBoolean("skip_sms_onboarding", true).apply()
+    // Whether the SMS permission was ever requested, to tell "never asked"
+    // apart from "permanently denied" (both report no rationale).
+    fun hasRequestedSmsPermission(): Boolean = prefs.getBoolean("sms_perm_requested", false)
+    fun markSmsPermissionRequested() = prefs.edit().putBoolean("sms_perm_requested", true).apply()
 
     // Lets a user whose "month" doesn't start on the 1st (e.g. salary lands on
     // the 29th) have every screen's monthly totals follow that cycle instead of
@@ -248,14 +272,21 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
             }
         }
     }
-    fun addManual(amount: Double, merchant: String, category: String, type: TxType) {
+    // `timestamp` defaults to "now"; the add sheet passes the date the user
+    // picked (keeping the current time of day) for back-dated entries.
+    fun addManual(
+        amount: Double,
+        merchant: String,
+        category: String,
+        type: TxType,
+        timestamp: Long = System.currentTimeMillis()
+    ) {
         viewModelScope.launch {
-            val now = System.currentTimeMillis()
             repo.add(TransactionEntity(
                 amount = amount, merchant = merchant.ifBlank { null }, category = category,
                 type = type, rawSms = "إدخال يدوي",
                 smsHash = "manual-${java.util.UUID.randomUUID()}",
-                timestamp = now, isManual = true))
+                timestamp = timestamp, isManual = true))
             WidgetUpdater.refresh(getApplication())
             checkBudgetThreshold()
         }
@@ -442,7 +473,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
                 RecurringItemEntity(
                     merchant = merchant,
                     expectedAmount = amount,
-                    expectedDayOfMonth = dayOfMonth.coerceIn(1, 28),
+                    expectedDayOfMonth = dayOfMonth.coerceIn(1, 31),
                     category = category,
                     reminderEnabled = enabled,
                     isFixed = isFixed

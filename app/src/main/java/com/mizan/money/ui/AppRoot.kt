@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -25,6 +26,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -66,8 +68,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -96,6 +100,9 @@ fun AppRoot() {
     var hasSms by remember { mutableStateOf(checkSms(ctx)) }
     var scanned by remember { mutableStateOf(vm.hasCompletedInitialScan()) }
     var permissionAttempted by remember { mutableStateOf(false) }
+    // "Continue without SMS" on onboarding: the app works on manual entries
+    // and the in-app banner keeps offering the permission.
+    var skippedSms by remember { mutableStateOf(vm.hasSkippedSmsOnboarding()) }
 
     var themeMode by remember { mutableStateOf(ThemePreference.load(ctx)) }
     val isDark = when (themeMode) {
@@ -114,6 +121,24 @@ fun AppRoot() {
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { hasSms = checkSms(ctx); permissionAttempted = true }
+    // Asks for the SMS permissions, or — once Android stops showing the
+    // system prompt (denied permanently) — opens the app's settings page.
+    val requestSms: () -> Unit = {
+        // READ_SMS may already be granted with only RECEIVE_SMS missing.
+        val perm = if (checkSms(ctx)) Manifest.permission.RECEIVE_SMS else Manifest.permission.READ_SMS
+        val activity = ctx.findActivity()
+        val permanentlyDenied = activity != null && vm.hasRequestedSmsPermission() &&
+            !ActivityCompat.shouldShowRequestPermissionRationale(activity, perm)
+        if (permanentlyDenied) {
+            openAppSettings(ctx)
+        } else {
+            vm.markSmsPermissionRequested()
+            launcher.launch(arrayOf(
+                Manifest.permission.READ_SMS,
+                Manifest.permission.RECEIVE_SMS
+            ))
+        }
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -152,8 +177,12 @@ fun AppRoot() {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                         Surface(Modifier.fillMaxWidth().fillMaxHeight(), color = Paper) {
                             val stage = when {
-                                !hasSms -> 0
-                                !scanned -> 1
+                                !hasSms && !skippedSms -> 0
+                                !hasSms -> 2
+                                // Granted later from the in-app banner: scan in
+                                // the background (progress bar) instead of
+                                // swapping the whole app for the scan screen.
+                                !scanned && !skippedSms -> 1
                                 else -> 2
                             }
                             AnimatedContent(
@@ -176,21 +205,26 @@ fun AppRoot() {
                                     0 -> PermissionScreen(
                                         showSettingsLink = permissionAttempted,
                                         onGrant = {
+                                            vm.markSmsPermissionRequested()
                                             launcher.launch(arrayOf(
                                                 Manifest.permission.READ_SMS,
                                                 Manifest.permission.RECEIVE_SMS
                                             ))
                                         },
-                                        onOpenSettings = {
-                                            ctx.startActivity(
-                                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                                                    .setData(Uri.fromParts("package", ctx.packageName, null))
-                                            )
+                                        onOpenSettings = { openAppSettings(ctx) },
+                                        onContinueWithoutSms = {
+                                            vm.setSkippedSmsOnboarding()
+                                            skippedSms = true
                                         }
                                     )
-                                    1 -> ScanningScreen()
+                                    1 -> {
+                                        val scannedTxs by vm.transactions.collectAsState()
+                                        ScanningScreen(foundCount = scannedTxs.size)
+                                    }
                                     else -> RootScaffold(
                                         vm = vm,
+                                        hasSms = hasSms,
+                                        onRequestSms = requestSms,
                                         themeMode = themeMode,
                                         onThemeModeChange = { newMode ->
                                             themeMode = newMode
@@ -222,6 +256,20 @@ private fun checkReceiveSms(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECEIVE_SMS) ==
         PackageManager.PERMISSION_GRANTED
 
+private fun openAppSettings(ctx: Context) {
+    ctx.startActivity(
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .setData(Uri.fromParts("package", ctx.packageName, null))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    )
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is android.content.ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 private fun isRtlSystem(ctx: Context): Boolean =
     ctx.resources.configuration.layoutDirection == android.util.LayoutDirection.RTL
 
@@ -229,6 +277,8 @@ private fun isRtlSystem(ctx: Context): Boolean =
 @Composable
 private fun RootScaffold(
     vm: MainViewModel,
+    hasSms: Boolean,
+    onRequestSms: () -> Unit,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     languageMode: LanguageMode,
@@ -237,9 +287,14 @@ private fun RootScaffold(
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
-    var categoryFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var showAdd by rememberSaveable { mutableStateOf(false) }
     val categories by vm.categories.collectAsState()
+    val startDay by vm.monthStartDay.collectAsState()
+    // Category shortcuts (Home/Planning/Insights) open Transactions filtered to
+    // that category; null ("view all") opens it unfiltered.
+    val openTransactions: (String?) -> Unit = { cat -> vm.showTransactionsFor(cat); tab = 1 }
+    // Back from any other tab returns Home instead of leaving the app.
+    BackHandler(enabled = tab != 0) { tab = 0 }
     val isScanning by vm.isScanning.collectAsState()
     val ctx = LocalContext.current
     var hasReceiveSms by remember { mutableStateOf(checkReceiveSms(ctx)) }
@@ -264,6 +319,7 @@ private fun RootScaffold(
     val rangePx = with(density) { (expandedH - collapsedH).toPx() }
     var headerOffset by remember { mutableFloatStateOf(0f) } // 0 = expanded, -rangePx = collapsed
     LaunchedEffect(tab) { headerOffset = 0f }
+    LaunchedEffect(hasSms) { hasReceiveSms = checkReceiveSms(ctx) }
     val headerScroll = remember(rangePx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -281,11 +337,26 @@ private fun RootScaffold(
                 headerOffset = next
                 return Offset(0f, used)
             }
+
+            // One UI never leaves the title half-collapsed: once scrolling
+            // settles, snap to whichever state is closer.
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                val start = headerOffset
+                if (start < 0f && start > -rangePx) {
+                    val target = if (start > -rangePx / 2f) 0f else -rangePx
+                    animate(start, target, animationSpec = tween(200, easing = FastOutSlowInEasing)) { v, _ ->
+                        headerOffset = v
+                    }
+                }
+                return Velocity.Zero
+            }
         }
     }
     val expandFraction = if (rangePx > 0f) 1f + headerOffset / rangePx else 1f
+    // Home's large title is the month being viewed (more useful than the app
+    // name); the greeting sits under it as a small subtitle.
     val title = when (tab) {
-        0 -> stringResource(R.string.app_name)
+        0 -> monthName(monthOffset, startDay)
         1 -> stringResource(R.string.tx_title)
         2 -> stringResource(R.string.planning_title)
         else -> stringResource(R.string.insights_title)
@@ -324,7 +395,7 @@ private fun RootScaffold(
             }
         }
         AnimatedVisibility(
-            visible = !hasReceiveSms,
+            visible = !hasSms || !hasReceiveSms,
             enter = fadeIn(tween(300)) + expandVertically(tween(300, easing = FastOutSlowInEasing)),
             exit = fadeOut(tween(200)) + shrinkVertically(tween(240, easing = FastOutSlowInEasing))
         ) {
@@ -333,16 +404,19 @@ private fun RootScaffold(
                     .padding(start = 20.dp, end = 20.dp, bottom = 10.dp)
                     .clip(RoundedCornerShape(RadiusMd))
                     .background(White)
-                    .clickable { showSettings = true }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .clickable(onClick = onRequestSms)
+                    .padding(start = 16.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Default.Info, null, Modifier.size(20.dp), tint = Amber)
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    stringResource(R.string.receive_sms_warning),
-                    style = Body.copy(fontSize = 13.sp, color = Ink)
+                    stringResource(if (hasSms) R.string.home_sms_banner_receive else R.string.home_sms_banner_grant),
+                    style = Body.copy(fontSize = 13.sp, color = Ink),
+                    modifier = Modifier.weight(1f)
                 )
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = InkFaint)
             }
         }
         AnimatedVisibility(
@@ -374,10 +448,20 @@ private fun RootScaffold(
                 label = "tab"
             ) { t ->
                 when (t) {
-                    0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
-                    1 -> TransactionsScreen(vm, initialCategory = categoryFilter)
-                    2 -> PlanningScreen(vm, monthOffset, onOpenCategory = { cat -> categoryFilter = cat; tab = 1 })
-                    else -> InsightsScreen(vm, monthOffset)
+                    0 -> DashboardScreen(
+                        vm, monthOffset,
+                        onOffsetChange = { monthOffset = it },
+                        onNavigateToTransactions = openTransactions,
+                        onOpenPlanning = { tab = 2 },
+                        onAddTransaction = { showAdd = true }
+                    )
+                    1 -> TransactionsScreen(vm, onAddTransaction = { showAdd = true })
+                    2 -> PlanningScreen(vm, monthOffset, onOpenCategory = { cat -> openTransactions(cat) })
+                    else -> InsightsScreen(
+                        vm, monthOffset,
+                        onOpenCategory = { cat -> openTransactions(cat) },
+                        onOpenPlanning = { tab = 2 }
+                    )
                 }
             }
             // Adding a transaction is the most common manual action, so it is
@@ -388,15 +472,15 @@ private fun RootScaffold(
                 onClick = { showAdd = true }
             )
         }
-        // Picking a tab from the bar always shows that tab unfiltered; only the
-        // category shortcuts on Home/Planning pre-filter the transactions list.
-        BottomNav(tab) { categoryFilter = null; tab = it }
+        // Search/filters on Transactions are kept in the ViewModel, so they
+        // survive switching tabs from the bar.
+        BottomNav(tab) { tab = it }
     }
     if (showAdd) {
         AddDialog(
             categories = categories,
             onDismiss = { showAdd = false },
-            onSave = { a, m, c, t -> vm.addManual(a, m, c, t); showAdd = false }
+            onSave = { a, m, c, t, ts -> vm.addManual(a, m, c, t, ts); showAdd = false }
         )
     }
     if (showSettings) {
@@ -425,9 +509,9 @@ private fun AddFab(visible: Boolean, modifier: Modifier, onClick: () -> Unit) {
     ) {
         Box(
             Modifier.size(56.dp)
-                .shadow(6.dp, CircleShape)
+                .shadow(3.dp, CircleShape)
                 .clip(CircleShape)
-                .background(Ink900)
+                .background(Indigo)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
