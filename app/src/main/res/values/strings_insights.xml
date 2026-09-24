@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Advice: health summary -->
+    <string name="insights_health_no_alerts">لا توجد تنبيهات</string>
+    <plurals name="insights_health_alerts">
+        <item quantity="zero">لا توجد تنبيهات</item>
+        <item quantity="one">تنبيه واحد</item>
+        <item quantity="two">تنبيهان</item>
+        <item quantity="few">%1$s تنبيهات</item>
+        <item quantity="many">%1$s تنبيهًا</item>
+        <item quantity="other">%1$s تنبيه</item>
+    </plurals>
+    <string name="insights_health_budget_fmt">صرفت %1$s٪ من الميزانية</string>
+    <string name="insights_health_no_budget">لا توجد ميزانية بعد</string>
+    <string name="insights_health_join_fmt">%1$s · %2$s</string>
+
+    <!-- Reports -->
+    <string name="insights_percent_fmt">%1$s٪</string>
+    <string name="insights_more_categories_fmt">+%1$s أخرى</string>
+    <string name="insights_compare_pace_fmt">بنفس الوتيرة: أول %1$s يوم من الدورة</string>
+    <string name="insights_this_month_so_far">هذا الشهر حتى الآن</string>
+    <string name="insights_last_month_same_day_fmt">الشهر الماضي حتى يوم %1$s</string>
+    <string name="insights_diff_same">مثل الشهر الماضي</string>
+    <string name="insights_share_report">مشاركة تقرير الشهر</string>
+    <string name="insights_share_report_sub">جدول CSV أو ملف PDF</string>
+    <string name="insights_export_csv_sub">كل عمليات الشهر في جدول يفتح في Excel</string>
+    <string name="insights_export_pdf_sub">تقرير مرتب بالملخص والفئات والنصائح</string>
+
+    <!-- Onboarding -->
+    <string name="onb_supported_banks">البنوك المدعومة</string>
+    <string name="onb_bank_alinma">مصرف الإنماء</string>
+    <string name="onb_bank_barq">برق</string>
+    <string name="onb_continue_manual">أدخل يدوياً بدون رسائل</string>
+    <string name="onb_scan_found_fmt">لقيت %1$s عملية</string>
+
+    <!-- Settings (single list) -->
+    <string name="stg2_saved">تم الحفظ</string>
+    <string name="stg2_section_general">عام</string>
+    <string name="stg2_section_budget">الميزانية</string>
+    <string name="stg2_section_backup">النسخ الاحتياطي</string>
+    <string name="stg2_section_advanced">متقدم</string>
+    <string name="stg2_section_about">حول التطبيق</string>
+    <string name="stg2_not_set">غير محدد</string>
+    <string name="stg2_day_fmt">يوم %1$s</string>
+    <string name="stg2_rules_count_fmt">عدد القواعد: %1$s</string>
+    <string name="stg2_version">الإصدار</string>
+    <string name="stg2_privacy_title">الخصوصية</string>
+    <string name="stg2_cloud_unavailable">غير متاح في هذه النسخة</string>
+    <string name="stg2_cloud_sign_in_row">سجّل الدخول لحفظ نسخة في السحابة</string>
+    <string name="stg2_cloud_upload_title">نسخ احتياطي الآن</string>
+    <string name="stg2_cloud_intro">سجّل الدخول لحفظ نسخة من بياناتك في حسابك السحابي واستعادتها على أي جهاز. لا يُرفع شيء إلا عندما تضغط «نسخ احتياطي الآن».</string>
+    <string name="stg2_err_wrong_credentials">البريد الإلكتروني أو كلمة المرور غير صحيحة</string>
+    <string name="stg2_err_no_account">لا يوجد حساب بهذا البريد — أنشئ حساباً جديداً</string>
+    <string name="stg2_err_email_taken">هذا البريد مسجّل مسبقاً — سجّل الدخول بدلاً من ذلك</string>
+    <string name="stg2_err_weak_password">كلمة المرور ضعيفة — استخدم ٦ أحرف على الأقل</string>
+    <string name="stg2_err_network">لا يوجد اتصال بالإنترنت، حاول مرة أخرى</string>
+    <string name="stg2_err_too_many">محاولات كثيرة، انتظر قليلاً ثم حاول مجدداً</string>
+    <string name="stg2_err_no_google">لا يوجد حساب Google على هذا الجهاز</string>
+    <string name="stg2_err_generic">تعذّر تسجيل الدخول، حاول مرة أخرى</string>
+</resources>

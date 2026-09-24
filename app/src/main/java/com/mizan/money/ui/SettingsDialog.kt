@@ -1,26 +1,14 @@
 package com.mizan.money.ui
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,49 +16,53 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.mizan.money.BuildConfig
 import com.mizan.money.MoneyApp
 import com.mizan.money.R
 import com.mizan.money.cloud.CloudBackup
 import com.mizan.money.data.BackupData
 import com.mizan.money.data.BackupManager
+import com.mizan.money.data.ExchangeRates
 import com.mizan.money.widget.WidgetTheme
 import com.mizan.money.widget.WidgetThemePreference
 import com.mizan.money.widget.WidgetUpdater
 import com.mizan.money.ui.theme.LanguageMode
-import com.mizan.money.ui.theme.LanguagePreference
-import com.mizan.money.ui.theme.ProvideMizanTheme
 import com.mizan.money.ui.theme.ThemeMode
-import com.mizan.money.ui.theme.ThemePreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+// Which bottom sheet (if any) is open. Plain strings so rememberSaveable can
+// keep it across rotation.
+private const val SHEET_NONE = ""
+private const val SHEET_NAME = "name"
+private const val SHEET_LANGUAGE = "language"
+private const val SHEET_THEME = "theme"
+private const val SHEET_MONTH = "month"
+private const val SHEET_RATES = "rates"
+private const val SHEET_RULES = "rules"
+private const val SHEET_CLOUD = "cloud"
 
 @Composable
 internal fun SettingsDialog(
@@ -96,39 +88,21 @@ internal fun SettingsDialog(
     val notifPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> vm.setNotificationsEnabled(granted) }
-    var nameInput by remember(ownerName) { mutableStateOf(ownerName) }
-    // Re-seeds itself whenever the saved rates change (i.e. right after a save),
-    // so the fields always show the persisted values.
-    var rateInputs by remember(rates) {
-        mutableStateOf(
-            rates.filterKeys { it != "SAR" }.mapValues {
-                if (it.value % 1.0 == 0.0) it.value.toInt().toString() else it.value.toString()
-            }
-        )
-    }
-    var ruleKeyword by remember { mutableStateOf("") }
-    var ruleCategory by remember { mutableStateOf("") }
-    // Seed the default selection once categories are available, without
-    // clobbering whatever the user has since picked.
-    LaunchedEffect(categories) {
-        if (ruleCategory.isBlank() && categories.isNotEmpty()) ruleCategory = categories.first()
-    }
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+
+    var sheet by rememberSaveable { mutableStateOf(SHEET_NONE) }
     var showExportConfirm by remember { mutableStateOf(false) }
     var pendingRestoreJson by remember { mutableStateOf<String?>(null) }
-    var restoreResult by remember { mutableStateOf<Boolean?>(null) }
 
-    // ---- Cloud backup (Firebase) ----
-    var cloudOpen by rememberSaveable { mutableStateOf(false) }
-    var cloudEmail by rememberSaveable { mutableStateOf("") }
-    var cloudPassword by remember { mutableStateOf("") }
+    // ---- Cloud backup ----
     var cloudBusy by remember { mutableStateOf(false) }
-    var cloudMessage by remember { mutableStateOf<String?>(null) }
     var cloudSignedIn by remember { mutableStateOf(false) }
     var showCloudRestoreConfirm by remember { mutableStateOf(false) }
 
     val app = ctx.applicationContext as MoneyApp
     val backupShareTitle = stringResource(R.string.stg_backup_share)
+    val savedText = stringResource(R.string.stg2_saved)
+    fun toast(msg: String) = Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+
     val restoreLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -140,7 +114,7 @@ internal fun SettingsDialog(
                     ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
                 } catch (e: Exception) { null }
                 withContext(Dispatchers.Main) {
-                    if (text == null) restoreResult = false else pendingRestoreJson = text
+                    if (text == null) toast(ctx.getString(R.string.stg_restore_failed)) else pendingRestoreJson = text
                 }
             }
         }
@@ -149,57 +123,11 @@ internal fun SettingsDialog(
     LaunchedEffect(Unit) {
         CloudBackup.init(ctx)
         cloudSignedIn = CloudBackup.isSignedIn
-        if (cloudEmail.isBlank()) cloudEmail = CloudBackup.currentEmail ?: ""
-    }
-
-    val runCloudAuth: (Boolean) -> Unit = { isSignUp ->
-        if (cloudEmail.isBlank() || cloudPassword.isBlank()) {
-            cloudMessage = ctx.getString(R.string.stg_cloud_credentials_required)
-        } else {
-            scope.launch {
-                cloudBusy = true
-                cloudMessage = null
-                val result = if (isSignUp) CloudBackup.signUp(cloudEmail, cloudPassword)
-                             else CloudBackup.signIn(cloudEmail, cloudPassword)
-                cloudBusy = false
-                if (result.isSuccess) {
-                    cloudSignedIn = CloudBackup.isSignedIn
-                    cloudPassword = ""
-                    cloudMessage = null
-                } else {
-                    cloudMessage = result.exceptionOrNull()?.localizedMessage
-                        ?: ctx.getString(R.string.stg_cloud_failed)
-                }
-            }
-        }
-    }
-
-    val runCloudGoogle: () -> Unit = {
-        scope.launch {
-            cloudBusy = true
-            cloudMessage = null
-            try {
-                val result = CloudBackup.signInWithGoogle(ctx)
-                if (result.isSuccess) {
-                    cloudSignedIn = CloudBackup.isSignedIn
-                    cloudMessage = null
-                } else {
-                    val e = result.exceptionOrNull()
-                    cloudMessage = e?.let { "${it::class.java.simpleName}: ${it.localizedMessage ?: ""}" }
-                        ?: ctx.getString(R.string.stg_cloud_failed)
-                }
-            } catch (t: Throwable) {
-                cloudMessage = "${t::class.java.simpleName}: ${t.localizedMessage ?: ""}"
-            } finally {
-                cloudBusy = false
-            }
-        }
     }
 
     val runCloudUpload: () -> Unit = {
         scope.launch {
             cloudBusy = true
-            cloudMessage = null
             val ok = try {
                 val dao = app.db.backupDao()
                 val data = withContext(Dispatchers.IO) {
@@ -217,10 +145,11 @@ internal fun SettingsDialog(
                 false
             }
             cloudBusy = false
-            cloudMessage = ctx.getString(if (ok) R.string.stg_cloud_upload_ok else R.string.stg_cloud_failed)
+            toast(ctx.getString(if (ok) R.string.stg_cloud_upload_ok else R.string.stg_cloud_failed))
         }
     }
 
+    // ================= Confirm dialogs (destructive / sharing) =================
     if (showCloudRestoreConfirm) {
         AlertDialog(
             onDismissRequest = { showCloudRestoreConfirm = false },
@@ -233,7 +162,6 @@ internal fun SettingsDialog(
                     showCloudRestoreConfirm = false
                     scope.launch {
                         cloudBusy = true
-                        cloudMessage = null
                         val ok = try {
                             val data = CloudBackup.download().getOrThrow()
                             withContext(Dispatchers.IO) { app.db.backupDao().restore(data) }
@@ -243,8 +171,7 @@ internal fun SettingsDialog(
                             false
                         }
                         cloudBusy = false
-                        cloudOpen = true
-                        cloudMessage = ctx.getString(if (ok) R.string.stg_cloud_restore_ok else R.string.stg_cloud_failed)
+                        toast(ctx.getString(if (ok) R.string.stg_cloud_restore_ok else R.string.stg_cloud_failed))
                     }
                 }) { Text(stringResource(R.string.stg_cloud_restore_action), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold)) }
             },
@@ -273,7 +200,9 @@ internal fun SettingsDialog(
                             WidgetUpdater.refresh(ctx)
                             true
                         } catch (e: Exception) { false }
-                        withContext(Dispatchers.Main) { restoreResult = ok }
+                        withContext(Dispatchers.Main) {
+                            toast(ctx.getString(if (ok) R.string.stg_restore_ok else R.string.stg_restore_failed))
+                        }
                     }
                 }) { Text(stringResource(R.string.stg_restore_action), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold)) }
             },
@@ -284,25 +213,6 @@ internal fun SettingsDialog(
             }
         )
     }
-    restoreResult?.let { ok ->
-        AlertDialog(
-            onDismissRequest = { restoreResult = null },
-            containerColor = White,
-            shape = RoundedCornerShape(RadiusXl),
-            title = {
-                Text(
-                    if (ok) stringResource(R.string.stg_restore_ok) else stringResource(R.string.stg_restore_failed),
-                    style = H2
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { restoreResult = null }) {
-                    Text(stringResource(R.string.settings_close), style = Body.copy(color = InkSoft))
-                }
-            }
-        )
-    }
-
 
     if (showExportConfirm) {
         AlertDialog(
@@ -328,8 +238,7 @@ internal fun SettingsDialog(
         )
     }
 
-    // Full screen rather than a floating dialog: settings has four tabs of
-    // content, which was cramped inside a 480dp-tall popup.
+    // ================= Screen =================
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -345,651 +254,782 @@ internal fun SettingsDialog(
                 Spacer(Modifier.width(4.dp))
                 Text(stringResource(R.string.settings_title), style = H1)
             }
-            Column(Modifier.weight(1f).padding(horizontal = 20.dp)) {
-                TabSwitcher(
-                    listOf(
-                        stringResource(R.string.stg_tab_data),
-                        stringResource(R.string.stg_tab_appearance),
-                        stringResource(R.string.stg_tab_finance),
-                        stringResource(R.string.stg_tab_about),
-                    ),
-                    tab
-                ) { tab = it }
-                Spacer(Modifier.height(18.dp))
-                Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                    when (tab) {
-                        // ==================== DATA ====================
-                        0 -> {
-                            SettingsActionRow(
-                                icon = Icons.Default.Sync,
-                                iconTint = Indigo,
-                                background = IndigoSoft,
-                                title = if (isScanning) stringResource(R.string.stg_rescan_busy)
-                                        else stringResource(R.string.stg_rescan_title),
-                                subtitle = stringResource(R.string.stg_rescan_subtitle),
-                                enabled = !isScanning,
-                                onClick = onRescan
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            SettingsActionRow(
-                                icon = Icons.Default.Share,
-                                iconTint = InkSoft,
-                                title = stringResource(R.string.stg_export_title),
-                                subtitle = if (txs.isEmpty()) stringResource(R.string.stg_export_none)
-                                           else stringResource(R.string.stg_export_subtitle),
-                                enabled = txs.isNotEmpty(),
-                                onClick = { showExportConfirm = true }
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            SettingsActionRow(
-                                icon = Icons.Default.Backup,
-                                iconTint = Indigo,
-                                title = stringResource(R.string.stg_backup_title),
-                                subtitle = stringResource(R.string.stg_backup_subtitle),
-                                onClick = {
-                                    scope.launch(Dispatchers.IO) {
-                                        val dao = app.db.backupDao()
-                                        val data = BackupData(
-                                            transactions = dao.transactions(),
-                                            budgets = dao.budgets(),
-                                            goals = dao.goals(),
-                                            debts = dao.debts(),
-                                            recurringItems = dao.recurringItems(),
-                                            goalContributions = dao.goalContributions(),
-                                        )
-                                        val file = writeBackupFile(ctx, BackupManager.toJson(data))
-                                        withContext(Dispatchers.Main) {
-                                            shareExportFile(ctx, file, "application/json", backupShareTitle)
-                                        }
-                                    }
-                                }
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            SettingsActionRow(
-                                icon = Icons.Default.Restore,
-                                iconTint = Danger,
-                                title = stringResource(R.string.stg_restore_title),
-                                subtitle = stringResource(R.string.stg_restore_subtitle),
-                                onClick = {
-                                    restoreLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
-                                }
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            SettingsSection(
-                                icon = Icons.Default.Cloud,
-                                tint = IndigoDeep,
-                                title = stringResource(R.string.stg_cloud_title),
-                                summary = when {
-                                    !CloudBackup.isConfigured -> stringResource(R.string.stg_cloud_not_configured)
-                                    cloudSignedIn -> stringResource(
-                                        R.string.stg_cloud_signed_in_fmt,
-                                        CloudBackup.currentEmail ?: ""
-                                    )
-                                    else -> stringResource(R.string.stg_cloud_signed_out)
-                                },
-                                expanded = cloudOpen,
-                                onToggle = { cloudOpen = !cloudOpen }
-                            ) {
-                                if (!CloudBackup.isConfigured) {
-                                    Text(stringResource(R.string.stg_cloud_disabled_desc), style = Eyebrow)
-                                } else if (cloudSignedIn) {
-                                    Text(stringResource(R.string.stg_cloud_intro), style = Eyebrow)
-                                    Spacer(Modifier.height(10.dp))
-                                    SettingsActionRow(
-                                        icon = Icons.Default.CloudUpload,
-                                        iconTint = Indigo,
-                                        background = IndigoSoft,
-                                        title = stringResource(R.string.stg_cloud_upload_title),
-                                        subtitle = stringResource(R.string.stg_cloud_upload_subtitle),
-                                        enabled = !cloudBusy,
-                                        onClick = runCloudUpload
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    SettingsActionRow(
-                                        icon = Icons.Default.CloudDownload,
-                                        iconTint = Danger,
-                                        title = stringResource(R.string.stg_cloud_download_title),
-                                        subtitle = stringResource(R.string.stg_cloud_download_subtitle),
-                                        enabled = !cloudBusy,
-                                        onClick = { showCloudRestoreConfirm = true }
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    SettingsActionRow(
-                                        icon = Icons.AutoMirrored.Filled.Logout,
-                                        iconTint = InkSoft,
-                                        title = stringResource(R.string.stg_cloud_sign_out),
-                                        subtitle = CloudBackup.currentEmail ?: "",
-                                        enabled = !cloudBusy,
-                                        onClick = {
-                                            CloudBackup.signOut()
-                                            cloudSignedIn = false
-                                            cloudMessage = null
-                                        }
-                                    )
-                                } else {
-                                    Text(stringResource(R.string.stg_cloud_intro), style = Eyebrow)
-                                    Spacer(Modifier.height(10.dp))
-                                    if (CloudBackup.isGoogleSignInConfigured) {
-                                        SettingsActionRow(
-                                            icon = Icons.Default.AccountCircle,
-                                            iconTint = Indigo,
-                                            background = IndigoSoft,
-                                            title = stringResource(R.string.stg_cloud_google),
-                                            subtitle = stringResource(R.string.stg_cloud_google_sub),
-                                            enabled = !cloudBusy,
-                                            onClick = runCloudGoogle
-                                        )
-                                        Spacer(Modifier.height(10.dp))
-                                        Row(
-                                            Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Box(Modifier.weight(1f).height(1.dp).background(Line))
-                                            Text(
-                                                stringResource(R.string.stg_cloud_or),
-                                                style = Eyebrow,
-                                                modifier = Modifier.padding(horizontal = 10.dp)
-                                            )
-                                            Box(Modifier.weight(1f).height(1.dp).background(Line))
-                                        }
-                                        Spacer(Modifier.height(10.dp))
-                                    }
-                                    OutlinedTextField(
-                                        value = cloudEmail,
-                                        onValueChange = { cloudEmail = it.trim() },
-                                        placeholder = { Text(stringResource(R.string.stg_cloud_email_hint), style = Eyebrow) },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(RadiusSm),
-                                        textStyle = Body
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    OutlinedTextField(
-                                        value = cloudPassword,
-                                        onValueChange = { cloudPassword = it },
-                                        placeholder = { Text(stringResource(R.string.stg_cloud_password_hint), style = Eyebrow) },
-                                        visualTransformation = PasswordVisualTransformation(),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(RadiusSm),
-                                        textStyle = Body
-                                    )
-                                    Spacer(Modifier.height(10.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Box(
-                                            Modifier.weight(1f)
-                                                .clip(RoundedCornerShape(RadiusSm))
-                                                .background(if (cloudBusy) PaperOuter else Indigo)
-                                                .clickable(enabled = !cloudBusy) { runCloudAuth(false) }
-                                                .padding(vertical = 12.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                stringResource(R.string.stg_cloud_sign_in),
-                                                style = Body.copy(
-                                                    color = if (cloudBusy) InkFaint else White,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            )
-                                        }
-                                        Box(
-                                            Modifier.weight(1f)
-                                                .clip(RoundedCornerShape(RadiusSm))
-                                                .background(PaperOuter)
-                                                .clickable(enabled = !cloudBusy) { runCloudAuth(true) }
-                                                .padding(vertical = 12.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                stringResource(R.string.stg_cloud_sign_up),
-                                                style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)
-                                            )
-                                        }
-                                    }
-                                }
-                                if (cloudBusy) {
-                                    Spacer(Modifier.height(10.dp))
-                                    LinearProgressIndicator(
-                                        Modifier.fillMaxWidth(),
-                                        color = Indigo,
-                                        trackColor = IndigoSoft
-                                    )
-                                }
-                                cloudMessage?.let {
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(it, style = Eyebrow)
-                                }
+            Column(
+                Modifier.weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 4.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // ==================== GENERAL ====================
+                SectionCard(stringResource(R.string.stg2_section_general)) {
+                    SettingsRow(
+                        icon = Icons.Default.Person, tint = Purple,
+                        title = stringResource(R.string.stg_name_label),
+                        value = ownerName.ifBlank { stringResource(R.string.stg2_not_set) },
+                        onClick = { sheet = SHEET_NAME }
+                    )
+                    SettingsRow(
+                        icon = Icons.Default.Language, tint = Indigo,
+                        title = stringResource(R.string.settings_language),
+                        value = stringResource(
+                            when (languageMode) {
+                                LanguageMode.SYSTEM -> R.string.settings_language_system
+                                LanguageMode.ARABIC -> R.string.settings_language_arabic
+                                LanguageMode.ENGLISH -> R.string.settings_language_english
                             }
-                        }
-
-                        // ================= APPEARANCE =================
-                        1 -> {
-                            SettingsFieldHeader(
-                                stringResource(R.string.settings_language),
-                                stringResource(R.string.settings_language_desc)
-                            )
-                            SettingsSegmented(
-                                options = listOf(
-                                    LanguageMode.SYSTEM to stringResource(R.string.settings_language_system),
-                                    LanguageMode.ARABIC to stringResource(R.string.settings_language_arabic),
-                                    LanguageMode.ENGLISH to stringResource(R.string.settings_language_english),
-                                ),
-                                selected = languageMode,
-                                onSelect = onLanguageModeChange
-                            )
-                            SettingsDivider()
-                            SettingsFieldHeader(
-                                stringResource(R.string.stg_theme_label),
-                                stringResource(R.string.stg_theme_desc)
-                            )
-                            SettingsSegmented(
-                                options = listOf(
-                                    ThemeMode.SYSTEM to stringResource(R.string.stg_theme_system),
-                                    ThemeMode.LIGHT to stringResource(R.string.stg_theme_light),
-                                    ThemeMode.DARK to stringResource(R.string.stg_theme_dark),
-                                ),
-                                selected = themeMode,
-                                onSelect = onThemeModeChange
-                            )
-                            SettingsDivider()
-                            SettingsFieldHeader(
+                        ),
+                        onClick = { sheet = SHEET_LANGUAGE }
+                    )
+                    SettingsRow(
+                        icon = Icons.Default.DarkMode, tint = IndigoDeep,
+                        title = stringResource(R.string.stg_theme_label),
+                        value = stringResource(
+                            when (themeMode) {
+                                ThemeMode.SYSTEM -> R.string.stg_theme_system
+                                ThemeMode.LIGHT -> R.string.stg_theme_light
+                                ThemeMode.DARK -> R.string.stg_theme_dark
+                            }
+                        ),
+                        onClick = { sheet = SHEET_THEME }
+                    )
+                    Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconBadge(Icons.Default.Palette, Amber, Amber.copy(alpha = 0.12f), size = 40.dp, iconSize = 20.dp)
+                            Spacer(Modifier.width(14.dp))
+                            Text(
                                 stringResource(R.string.stg_widget_color_label),
-                                stringResource(R.string.stg_widget_color_desc)
+                                style = Body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                             )
-                            WidgetColorPicker()
                         }
-
-                        // ==================== FINANCE ====================
-                        2 -> {
-                            var open by rememberSaveable { mutableStateOf("") }
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SettingsSection(
-                                    icon = Icons.Default.Person,
-                                    tint = Purple,
-                                    title = stringResource(R.string.stg_name_label),
-                                    summary = stringResource(R.string.stg_name_desc),
-                                    expanded = open == "name",
-                                    onToggle = { open = if (open == "name") "" else "name" }
-                                ) {
-                                    SettingsInputRow(
-                                        value = nameInput,
-                                        onValueChange = { nameInput = it },
-                                        placeholder = stringResource(R.string.stg_name_hint),
-                                        onSave = { vm.setOwnerName(nameInput) }
-                                    )
-                                }
-                                SettingsSection(
-                                    icon = Icons.Default.CalendarMonth,
-                                    tint = Amber,
-                                    title = stringResource(R.string.stg_month_start_label),
-                                    summary = stringResource(R.string.stg_month_start_desc),
-                                    expanded = open == "month",
-                                    onToggle = { open = if (open == "month") "" else "month" }
-                                ) {
-                                    Row(
-                                        Modifier.fillMaxWidth()
-                                            .clip(RoundedCornerShape(RadiusMd))
-                                            .background(PaperOuter)
-                                            .padding(horizontal = 6.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        IconButton(onClick = { vm.setMonthStartDay(startDay - 1) }, enabled = startDay > 1) {
-                                            Icon(Icons.Default.Remove, stringResource(R.string.stg_decrease), tint = if (startDay > 1) Indigo else InkFaint)
-                                        }
-                                        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                            Text(stringResource(R.string.stg_month_start_day_fmt, startDay), style = Body.copy(fontWeight = FontWeight.Bold))
-                                        }
-                                        IconButton(onClick = { vm.setMonthStartDay(startDay + 1) }, enabled = startDay < 28) {
-                                            Icon(Icons.Default.Add, stringResource(R.string.stg_increase), tint = if (startDay < 28) Indigo else InkFaint)
-                                        }
-                                    }
-                                }
-                                SettingsSection(
-                                    icon = Icons.Default.SwapHoriz,
-                                    tint = Success,
-                                    title = stringResource(R.string.stg_rates_label),
-                                    summary = stringResource(R.string.stg_rates_desc),
-                                    expanded = open == "rates",
-                                    onToggle = { open = if (open == "rates") "" else "rates" }
-                                ) {
-                                    com.mizan.money.data.ExchangeRates.supported.forEach { code ->
-                                        Row(
-                                            Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(stringResource(R.string.stg_rate_fmt, code), style = Body)
-                                            Spacer(Modifier.width(10.dp))
-                                            OutlinedTextField(
-                                                value = rateInputs[code] ?: "",
-                                                onValueChange = { rateInputs = rateInputs + (code to sanitizeAmountInput(it)) },
-                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                                modifier = Modifier.weight(1f),
-                                                singleLine = true,
-                                                shape = RoundedCornerShape(RadiusSm),
-                                                textStyle = Body
-                                            )
-                                            Spacer(Modifier.width(6.dp))
-                                            Text(stringResource(R.string.stg_rate_unit), style = BodyMuted)
-                                            Spacer(Modifier.width(8.dp))
-                                            Box(
-                                                Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
-                                                    .clickable { vm.setExchangeRate(code, rateInputs[code]?.toDoubleOrNull() ?: 0.0) },
-                                                contentAlignment = Alignment.Center
-                                            ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = Lime, modifier = Modifier.size(20.dp)) }
-                                        }
-                                    }
-                                }
-                                SettingsSection(
-                                    icon = Icons.Default.AutoFixHigh,
-                                    tint = IndigoDeep,
-                                    title = stringResource(R.string.stg_custom_rules_title),
-                                    summary = stringResource(R.string.stg_custom_rules_desc),
-                                    expanded = open == "rules",
-                                    onToggle = { open = if (open == "rules") "" else "rules" }
-                                ) {
-                                    if (customRules.isEmpty()) {
-                                        Text(stringResource(R.string.stg_custom_rules_empty), style = Eyebrow)
-                                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(12.dp))
+                        WidgetColorPicker()
+                    }
+                    SettingsDivider()
+                    SettingsRow(
+                        icon = Icons.Default.Notifications, tint = Danger,
+                        title = stringResource(R.string.stg_notif_label),
+                        value = stringResource(R.string.stg_notif_desc),
+                        showDivider = false,
+                        onClick = {
+                            val turningOn = !notificationsEnabled
+                            if (turningOn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                vm.setNotificationsEnabled(turningOn)
+                            }
+                        },
+                        trailing = {
+                            Switch(
+                                checked = notificationsEnabled,
+                                onCheckedChange = { turningOn ->
+                                    if (turningOn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     } else {
-                                        customRules.forEachIndexed { index, rule ->
-                                            Row(
-                                                Modifier.fillMaxWidth().padding(bottom = 6.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text("${rule.first} → ${rule.second}", style = Body, modifier = Modifier.weight(1f))
-                                                IconButton(onClick = { vm.removeCustomRule(index) }) {
-                                                    Icon(
-                                                        Icons.Default.Delete,
-                                                        stringResource(R.string.stg_custom_rule_delete),
-                                                        tint = Danger,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        Spacer(Modifier.height(6.dp))
+                                        vm.setNotificationsEnabled(turningOn)
                                     }
-                                    OutlinedTextField(
-                                        value = ruleKeyword,
-                                        onValueChange = { ruleKeyword = it },
-                                        placeholder = { Text(stringResource(R.string.stg_custom_rule_keyword_hint), style = Eyebrow) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(RadiusSm),
-                                        textStyle = Body
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        categories.chunked(2).forEach { row ->
-                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                row.forEach { c ->
-                                                    Box(
-                                                        Modifier.weight(1f)
-                                                            .clip(RoundedCornerShape(RadiusSm))
-                                                            .background(if (ruleCategory == c) IndigoSoft else PaperOuter)
-                                                            .clickable { ruleCategory = c }
-                                                            .padding(vertical = 8.dp, horizontal = 6.dp),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Text(
-                                                            categoryDisplay(c),
-                                                            style = Eyebrow.copy(
-                                                                color = if (ruleCategory == c) Indigo else InkSoft,
-                                                                fontWeight = if (ruleCategory == c) FontWeight.Bold else FontWeight.Normal
-                                                            )
-                                                        )
-                                                    }
-                                                }
-                                                if (row.size == 1) Spacer(Modifier.weight(1f))
-                                            }
-                                        }
-                                    }
-                                    Spacer(Modifier.height(8.dp))
-                                    val canAdd = ruleKeyword.isNotBlank() && ruleCategory.isNotBlank()
-                                    Box(
-                                        Modifier.fillMaxWidth()
-                                            .clip(RoundedCornerShape(RadiusSm))
-                                            .background(if (canAdd) Indigo else PaperOuter)
-                                            .clickable(enabled = canAdd) {
-                                                vm.addCustomRule(ruleKeyword, ruleCategory)
-                                                ruleKeyword = ""
-                                            }
-                                            .padding(vertical = 10.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            stringResource(R.string.stg_custom_rule_add),
-                                            style = Body.copy(color = if (canAdd) White else InkFaint, fontWeight = FontWeight.Bold)
-                                        )
-                                    }
-                                    Spacer(Modifier.height(12.dp))
-                                    SettingsActionRow(
-                                        icon = Icons.Default.AutoFixHigh,
-                                        iconTint = Indigo,
-                                        title = stringResource(R.string.stg_recategorize_title),
-                                        subtitle = stringResource(R.string.stg_recategorize_desc),
-                                        onClick = { vm.recategorizeAll() }
-                                    )
-                                    if (lastRecategorize > 0) {
-                                        Spacer(Modifier.height(6.dp))
-                                        Text(stringResource(R.string.stg_recategorize_done_fmt, lastRecategorize), style = Eyebrow)
-                                    }
-                                }
-                                SettingsSection(
-                                    icon = Icons.Default.Notifications,
-                                    tint = Indigo,
-                                    title = stringResource(R.string.stg_notif_label),
-                                    summary = stringResource(R.string.stg_notif_desc),
-                                    switchState = notificationsEnabled,
-                                    onSwitchChange = { turningOn ->
-                                        if (turningOn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                        } else {
-                                            vm.setNotificationsEnabled(turningOn)
-                                        }
-                                    }
+                                },
+                                colors = oneUiSwitchColors()
+                            )
+                        }
+                    )
+                }
+
+                // ==================== BUDGET ====================
+                SectionCard(stringResource(R.string.stg2_section_budget)) {
+                    SettingsRow(
+                        icon = Icons.Default.CalendarMonth, tint = Amber,
+                        title = stringResource(R.string.stg_month_start_label),
+                        value = stringResource(R.string.stg2_day_fmt, insNum(startDay)),
+                        onClick = { sheet = SHEET_MONTH }
+                    )
+                    SettingsRow(
+                        icon = Icons.Default.SwapHoriz, tint = Success,
+                        title = stringResource(R.string.stg_rates_label),
+                        value = ratesSummary(rates),
+                        onClick = { sheet = SHEET_RATES }
+                    )
+                    SettingsRow(
+                        icon = Icons.Default.Rule, tint = IndigoDeep,
+                        title = stringResource(R.string.stg_custom_rules_title),
+                        value = if (customRules.isEmpty()) stringResource(R.string.stg_custom_rules_desc)
+                                else stringResource(R.string.stg2_rules_count_fmt, insNum(customRules.size)),
+                        onClick = { sheet = SHEET_RULES }
+                    )
+                    SettingsRow(
+                        icon = Icons.Default.AutoFixHigh, tint = Indigo,
+                        title = stringResource(R.string.stg_recategorize_title),
+                        value = if (lastRecategorize > 0) stringResource(R.string.stg_recategorize_done_fmt, lastRecategorize)
+                                else stringResource(R.string.stg_recategorize_desc),
+                        showDivider = false,
+                        onClick = { vm.recategorizeAll() }
+                    )
+                }
+
+                // ==================== BACKUP ====================
+                SectionCard(stringResource(R.string.stg2_section_backup)) {
+                    SettingsRow(
+                        icon = Icons.Default.Backup, tint = Indigo,
+                        title = stringResource(R.string.stg_backup_title),
+                        value = stringResource(R.string.stg_backup_subtitle),
+                        onClick = {
+                            scope.launch(Dispatchers.IO) {
+                                val dao = app.db.backupDao()
+                                val data = BackupData(
+                                    transactions = dao.transactions(),
+                                    budgets = dao.budgets(),
+                                    goals = dao.goals(),
+                                    debts = dao.debts(),
+                                    recurringItems = dao.recurringItems(),
+                                    goalContributions = dao.goalContributions(),
                                 )
+                                val file = writeBackupFile(ctx, BackupManager.toJson(data))
+                                withContext(Dispatchers.Main) {
+                                    shareExportFile(ctx, file, "application/json", backupShareTitle)
+                                }
                             }
                         }
-
-                        // ===================== ABOUT =====================
+                    )
+                    SettingsRow(
+                        icon = Icons.Default.Restore, tint = Danger,
+                        title = stringResource(R.string.stg_restore_title),
+                        value = stringResource(R.string.stg_restore_subtitle),
+                        onClick = { restoreLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }
+                    )
+                    when {
+                        !CloudBackup.isConfigured -> SettingsRow(
+                            icon = Icons.Default.Cloud, tint = InkSoft,
+                            title = stringResource(R.string.stg_cloud_title),
+                            value = stringResource(R.string.stg2_cloud_unavailable),
+                            showDivider = false,
+                            enabled = false
+                        )
+                        !cloudSignedIn -> SettingsRow(
+                            icon = Icons.Default.Cloud, tint = IndigoDeep,
+                            title = stringResource(R.string.stg_cloud_title),
+                            value = stringResource(R.string.stg2_cloud_sign_in_row),
+                            showDivider = false,
+                            onClick = { sheet = SHEET_CLOUD }
+                        )
                         else -> {
-                            Text(stringResource(R.string.app_name), style = Body.copy(fontWeight = FontWeight.Bold))
-                            Spacer(Modifier.height(4.dp))
-                            Row(
-                                Modifier.clip(RoundedCornerShape(Pill)).background(Success.copy(alpha = 0.12f))
-                                    .padding(horizontal = 10.dp, vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Shield, null, Modifier.size(14.dp), tint = Success)
-                                Spacer(Modifier.width(6.dp))
-                                Text(stringResource(R.string.dash_local_badge), style = Eyebrow.copy(color = Success, fontWeight = FontWeight.Bold))
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Text(stringResource(R.string.stg_privacy_body), style = BodyMuted)
+                            SettingsRow(
+                                icon = Icons.Default.CloudUpload, tint = Indigo,
+                                title = stringResource(R.string.stg2_cloud_upload_title),
+                                value = stringResource(R.string.stg_cloud_signed_in_fmt, CloudBackup.currentEmail ?: ""),
+                                enabled = !cloudBusy,
+                                onClick = runCloudUpload,
+                                busy = cloudBusy
+                            )
+                            SettingsRow(
+                                icon = Icons.Default.CloudDownload, tint = Danger,
+                                title = stringResource(R.string.stg_cloud_download_title),
+                                value = stringResource(R.string.stg_cloud_download_subtitle),
+                                enabled = !cloudBusy,
+                                onClick = { showCloudRestoreConfirm = true }
+                            )
+                            SettingsRow(
+                                icon = Icons.AutoMirrored.Filled.Logout, tint = InkSoft,
+                                title = stringResource(R.string.stg_cloud_sign_out),
+                                value = CloudBackup.currentEmail,
+                                showDivider = false,
+                                enabled = !cloudBusy,
+                                onClick = {
+                                    CloudBackup.signOut()
+                                    cloudSignedIn = false
+                                }
+                            )
                         }
                     }
                 }
+
+                // ==================== ADVANCED ====================
+                SectionCard(stringResource(R.string.stg2_section_advanced)) {
+                    SettingsRow(
+                        icon = Icons.Default.Sync, tint = Indigo,
+                        title = if (isScanning) stringResource(R.string.stg_rescan_busy)
+                                else stringResource(R.string.stg_rescan_title),
+                        value = stringResource(R.string.stg_rescan_subtitle),
+                        enabled = !isScanning,
+                        onClick = onRescan
+                    )
+                    SettingsRow(
+                        icon = Icons.Default.BugReport, tint = InkSoft,
+                        title = stringResource(R.string.stg_export_title),
+                        value = if (txs.isEmpty()) stringResource(R.string.stg_export_none)
+                                else stringResource(R.string.stg_export_subtitle),
+                        showDivider = false,
+                        enabled = txs.isNotEmpty(),
+                        onClick = { showExportConfirm = true }
+                    )
+                }
+
+                // ==================== ABOUT ====================
+                SectionCard(stringResource(R.string.stg2_section_about)) {
+                    SettingsRow(
+                        icon = Icons.Default.Info, tint = Indigo,
+                        title = stringResource(R.string.stg2_version),
+                        value = appVersionName(ctx)
+                    )
+                    SettingsRow(
+                        icon = Icons.Default.Shield, tint = Success,
+                        title = stringResource(R.string.stg2_privacy_title),
+                        value = stringResource(R.string.stg_privacy_body),
+                        valueMaxLines = 6,
+                        showDivider = false
+                    )
+                }
+            }
+            // Sheets live inside the Dialog so they always open above it.
+            // ================= Sheets =================
+            val closeSheet = { sheet = SHEET_NONE }
+            when (sheet) {
+                SHEET_NAME -> SettingsNameSheet(
+                    initial = ownerName,
+                    onDismiss = closeSheet,
+                    onSave = { vm.setOwnerName(it); sheet = SHEET_NONE; toast(savedText) }
+                )
+                SHEET_LANGUAGE -> SettingsChoiceSheet(
+                    title = stringResource(R.string.settings_language),
+                    options = listOf(
+                        LanguageMode.SYSTEM to stringResource(R.string.settings_language_system),
+                        LanguageMode.ARABIC to stringResource(R.string.settings_language_arabic),
+                        LanguageMode.ENGLISH to stringResource(R.string.settings_language_english),
+                    ),
+                    selected = languageMode,
+                    onDismiss = closeSheet,
+                    onSelect = { sheet = SHEET_NONE; onLanguageModeChange(it) }
+                )
+                SHEET_THEME -> SettingsChoiceSheet(
+                    title = stringResource(R.string.stg_theme_label),
+                    options = listOf(
+                        ThemeMode.SYSTEM to stringResource(R.string.stg_theme_system),
+                        ThemeMode.LIGHT to stringResource(R.string.stg_theme_light),
+                        ThemeMode.DARK to stringResource(R.string.stg_theme_dark),
+                    ),
+                    selected = themeMode,
+                    onDismiss = closeSheet,
+                    onSelect = { sheet = SHEET_NONE; onThemeModeChange(it) }
+                )
+                SHEET_MONTH -> SettingsDayPickerSheet(
+                    selected = startDay,
+                    onDismiss = closeSheet,
+                    onPick = { vm.setMonthStartDay(it); sheet = SHEET_NONE; toast(savedText) }
+                )
+                SHEET_RATES -> SettingsRatesSheet(
+                    rates = rates,
+                    onDismiss = closeSheet,
+                    onSave = { edited ->
+                        edited.forEach { (code, v) -> vm.setExchangeRate(code, v) }
+                        sheet = SHEET_NONE
+                        toast(savedText)
+                    }
+                )
+                SHEET_RULES -> SettingsRulesSheet(
+                    rules = customRules,
+                    categories = categories,
+                    onAdd = { k, c -> vm.addCustomRule(k, c) },
+                    onRemove = { vm.removeCustomRule(it) },
+                    onDismiss = closeSheet
+                )
+                SHEET_CLOUD -> SettingsCloudSignInSheet(
+                    onDismiss = closeSheet,
+                    onSignedIn = {
+                        cloudSignedIn = CloudBackup.isSignedIn
+                        sheet = SHEET_NONE
+                        toast(ctx.getString(R.string.stg_cloud_signed_in_fmt, CloudBackup.currentEmail ?: ""))
+                    }
+                )
             }
         }
     }
 }
 
-// ============ SETTINGS BUILDING BLOCKS ============
+private fun appVersionName(ctx: Context): String =
+    BuildConfig.VERSION_NAME.ifBlank {
+        try {
+            ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
+        } catch (e: Exception) { "" }
+    }
+
+private fun rateText(v: Double): String =
+    if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()
+
 @Composable
-private fun SettingsSection(
+private fun ratesSummary(rates: Map<String, Double>): String {
+    val arabic = isArabicUi()
+    return ExchangeRates.supported.joinToString(" · ") { code ->
+        val v = rateText(rates[code] ?: 0.0)
+        "$code ${if (arabic) toArabicIndicDigits(v) else v}"
+    }
+}
+
+// ============ SETTINGS BUILDING BLOCKS ============
+// One UI list row: circular icon, title, current value underneath, and a
+// trailing chevron (or custom trailing content such as a switch).
+@Composable
+private fun SettingsRow(
     icon: ImageVector,
     tint: Color,
     title: String,
-    summary: String,
-    expanded: Boolean = false,
-    onToggle: (() -> Unit)? = null,
-    switchState: Boolean? = null,
-    onSwitchChange: ((Boolean) -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit = {},
+    value: String? = null,
+    valueMaxLines: Int = 2,
+    showDivider: Boolean = true,
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null,
+    busy: Boolean = false,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
-    val expandable = onToggle != null
     Column(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(RadiusLg))
-            .background(White)
+            .then(if (onClick != null) Modifier.clickable(enabled = enabled, onClick = onClick) else Modifier)
     ) {
         Row(
             Modifier.fillMaxWidth()
-                .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .alpha(if (enabled) 1f else 0.5f)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconBadge(icon, tint, tint.copy(alpha = 0.12f), size = 40.dp, iconSize = 20.dp)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = Body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
-                if (summary.isNotBlank()) {
+                if (!value.isNullOrBlank()) {
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        summary,
+                        value,
                         style = Body.copy(fontSize = 13.sp, color = InkSoft),
-                        maxLines = 1,
+                        maxLines = valueMaxLines,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-            if (switchState != null) {
+            if (busy) {
                 Spacer(Modifier.width(8.dp))
-                Switch(
-                    checked = switchState,
-                    onCheckedChange = { onSwitchChange?.invoke(it) },
-                    colors = oneUiSwitchColors()
-                )
-            } else if (expandable) {
+                CircularProgressIndicator(Modifier.size(20.dp), color = Indigo, strokeWidth = 2.dp)
+            } else if (trailing != null) {
                 Spacer(Modifier.width(8.dp))
-                Icon(
-                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = InkFaint,
-                    modifier = Modifier.size(20.dp)
-                )
+                trailing()
+            } else if (onClick != null) {
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = InkFaint)
             }
         }
-        if (expandable) {
-            AnimatedVisibility(visible = expanded) {
-                Column(
-                    Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 16.dp),
-                    content = content
-                )
-            }
-        }
+        if (showDivider) SettingsDivider()
     }
-}
-
-@Composable
-private fun SettingsFieldHeader(title: String, desc: String) {
-    Text(title, style = Body.copy(fontWeight = FontWeight.Bold))
-    Spacer(Modifier.height(4.dp))
-    Text(desc, style = Eyebrow)
-    Spacer(Modifier.height(10.dp))
 }
 
 @Composable
 private fun SettingsDivider() {
-    Spacer(Modifier.height(18.dp))
-    Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
-    Spacer(Modifier.height(18.dp))
+    Box(Modifier.padding(start = 70.dp, end = 16.dp).fillMaxWidth().height(1.dp).background(Line))
 }
 
 @Composable
-private fun SettingsActionRow(
-    icon: ImageVector,
-    iconTint: Color,
+private fun SheetCancelButton(onClick: () -> Unit, label: String = stringResource(R.string.stg_cancel)) {
+    TextButton(onClick = onClick) { Text(label, style = Body.copy(color = InkSoft)) }
+}
+
+@Composable
+private fun SheetPrimaryButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(Pill),
+        colors = ButtonDefaults.buttonColors(containerColor = Indigo, contentColor = Lime)
+    ) { Text(label, style = Body.copy(color = if (enabled) Lime else InkFaint, fontWeight = FontWeight.Bold)) }
+}
+
+@Composable
+private fun SettingsNameSheet(initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var input by rememberSaveable { mutableStateOf(initial) }
+    FormSheet(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.stg_name_label), style = H2) },
+        text = {
+            Column {
+                Text(stringResource(R.string.stg_name_desc), style = BodyMuted)
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    placeholder = { Text(stringResource(R.string.stg_name_hint), style = BodyMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(RadiusSm),
+                    textStyle = Body
+                )
+            }
+        },
+        dismissButton = { SheetCancelButton(onDismiss) },
+        confirmButton = { SheetPrimaryButton(stringResource(R.string.stg_save)) { onSave(input) } }
+    )
+}
+
+@Composable
+private fun <T> SettingsChoiceSheet(
     title: String,
-    subtitle: String,
-    background: Color = White,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    Row(
-        Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(RadiusLg))
-            .background(if (background == IndigoSoft) White else background)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp)
-            .graphicsLayer { alpha = if (enabled) 1f else 0.5f },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconBadge(icon, iconTint, iconTint.copy(alpha = 0.12f), size = 40.dp, iconSize = 20.dp)
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = Body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
-            Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = Body.copy(fontSize = 13.sp, color = InkSoft))
-        }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = InkFaint)
-    }
-}
-
-@Composable
-private fun <T> SettingsSegmented(
     options: List<Pair<T, String>>,
     selected: T,
+    onDismiss: () -> Unit,
     onSelect: (T) -> Unit,
 ) {
-    Row(
-        Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(Pill))
-            .background(PaperOuter)
-            .padding(4.dp)
-    ) {
-        options.forEach { (value, label) ->
-            val sel = selected == value
-            Box(
-                Modifier.weight(1f)
-                    .clip(RoundedCornerShape(Pill))
-                    .background(if (sel) White else Color.Transparent)
-                    .clickable { onSelect(value) }
-                    .padding(vertical = 10.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    label,
-                    style = Body.copy(
-                        fontSize = 13.sp,
-                        color = if (sel) Ink else InkSoft,
-                        fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium
-                    )
+    FormSheet(
+        onDismissRequest = onDismiss,
+        title = { Text(title, style = H2) },
+        text = {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(RadiusLg)).background(Paper)) {
+                options.forEachIndexed { i, (value, label) ->
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clickable { onSelect(value) }
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = value == selected,
+                            onClick = { onSelect(value) },
+                            colors = RadioButtonDefaults.colors(selectedColor = Indigo, unselectedColor = InkFaint)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(label, style = Body.copy(fontSize = 15.sp), modifier = Modifier.weight(1f))
+                    }
+                    if (i < options.lastIndex) {
+                        Box(Modifier.padding(start = 60.dp, end = 16.dp).fillMaxWidth().height(1.dp).background(Line))
+                    }
+                }
+            }
+        },
+        confirmButton = { SheetCancelButton(onDismiss) }
+    )
+}
+
+// Grid of days 1-28 (the ViewModel clamps to 28 so every month can host it).
+@Composable
+private fun SettingsDayPickerSheet(selected: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    FormSheet(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.stg_month_start_label), style = H2) },
+        text = {
+            Column {
+                Text(stringResource(R.string.stg_month_start_desc), style = BodyMuted)
+                Spacer(Modifier.height(14.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (1..28).chunked(7).forEach { week ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            week.forEach { day ->
+                                val sel = day == selected
+                                Box(
+                                    Modifier.weight(1f)
+                                        .aspectRatio(1f)
+                                        .clip(RoundedCornerShape(Pill))
+                                        .background(if (sel) Indigo else Color.Transparent)
+                                        .clickable { onPick(day) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        insNum(day),
+                                        style = Body.copy(
+                                            fontSize = 15.sp,
+                                            color = if (sel) Lime else Ink,
+                                            fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { SheetCancelButton(onDismiss) }
+    )
+}
+
+@Composable
+private fun SettingsRatesSheet(
+    rates: Map<String, Double>,
+    onDismiss: () -> Unit,
+    onSave: (Map<String, Double>) -> Unit,
+) {
+    var inputs by remember(rates) {
+        mutableStateOf(ExchangeRates.supported.associateWith { rateText(rates[it] ?: 0.0) })
+    }
+    FormSheet(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.stg_rates_label), style = H2) },
+        text = {
+            Column {
+                Text(stringResource(R.string.stg_rates_desc), style = BodyMuted)
+                Spacer(Modifier.height(12.dp))
+                ExchangeRates.supported.forEach { code ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.stg_rate_fmt, code), style = Body, modifier = Modifier.width(72.dp))
+                        OutlinedTextField(
+                            value = inputs[code] ?: "",
+                            onValueChange = { inputs = inputs + (code to sanitizeAmountInput(it)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(RadiusSm),
+                            textStyle = Body
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.stg_rate_unit), style = BodyMuted)
+                    }
+                }
+            }
+        },
+        dismissButton = { SheetCancelButton(onDismiss) },
+        confirmButton = {
+            SheetPrimaryButton(stringResource(R.string.stg_save)) {
+                onSave(inputs.mapValues { it.value.toDoubleOrNull() ?: 0.0 })
+            }
+        }
+    )
+}
+
+@Composable
+private fun SettingsRulesSheet(
+    rules: List<Pair<String, String>>,
+    categories: List<String>,
+    onAdd: (String, String) -> Unit,
+    onRemove: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var keyword by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf(categories.firstOrNull() ?: "") }
+    FormSheet(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.stg_custom_rules_title), style = H2) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.stg_custom_rules_desc), style = BodyMuted)
+                Spacer(Modifier.height(12.dp))
+                if (rules.isEmpty()) {
+                    Text(stringResource(R.string.stg_custom_rules_empty), style = Body.copy(fontSize = 13.sp, color = InkSoft))
+                    Spacer(Modifier.height(8.dp))
+                } else {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(RadiusMd)).background(Paper)) {
+                        rules.forEachIndexed { index, rule ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(rule.first, style = Body, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false))
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowForward, null,
+                                    Modifier.padding(horizontal = 8.dp).size(16.dp), tint = InkFaint
+                                )
+                                Text(categoryDisplay(rule.second), style = Body.copy(color = Indigo, fontWeight = FontWeight.SemiBold),
+                                    maxLines = 1, modifier = Modifier.weight(1f))
+                                IconButton(onClick = { onRemove(index) }) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        stringResource(R.string.stg_custom_rule_delete),
+                                        tint = Danger,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            if (index < rules.lastIndex) {
+                                Box(Modifier.padding(horizontal = 14.dp).fillMaxWidth().height(1.dp).background(Line))
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                }
+                OutlinedTextField(
+                    value = keyword,
+                    onValueChange = { keyword = it },
+                    placeholder = { Text(stringResource(R.string.stg_custom_rule_keyword_hint), style = BodyMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(RadiusSm),
+                    textStyle = Body
                 )
+                Spacer(Modifier.height(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    categories.chunked(2).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            row.forEach { c ->
+                                val sel = category == c
+                                Box(
+                                    Modifier.weight(1f)
+                                        .clip(RoundedCornerShape(Pill))
+                                        .background(if (sel) IndigoSoft else PaperOuter)
+                                        .clickable { category = c }
+                                        .padding(vertical = 9.dp, horizontal = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        categoryDisplay(c),
+                                        style = Body.copy(
+                                            fontSize = 13.sp,
+                                            color = if (sel) Indigo else InkSoft,
+                                            fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal
+                                        ),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        },
+        dismissButton = { SheetCancelButton(onDismiss, stringResource(R.string.settings_close)) },
+        confirmButton = {
+            val canAdd = keyword.isNotBlank() && category.isNotBlank()
+            SheetPrimaryButton(stringResource(R.string.stg_custom_rule_add), enabled = canAdd) {
+                onAdd(keyword, category)
+                keyword = ""
+            }
+        }
+    )
+}
+
+// Maps sign-in failures to plain-language messages; null = stay silent (the
+// user cancelled the account picker themselves). Type checks, not class
+// names, so it keeps working after R8 renames classes.
+private fun cloudErrorRes(t: Throwable?): Int? {
+    var e: Throwable? = t
+    var depth = 0
+    while (e != null && depth < 5) {
+        when (e) {
+            is androidx.credentials.exceptions.GetCredentialCancellationException -> return null
+            is androidx.credentials.exceptions.NoCredentialException -> return R.string.stg2_err_no_google
+            is com.google.firebase.auth.FirebaseAuthWeakPasswordException -> return R.string.stg2_err_weak_password
+            is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException -> return R.string.stg2_err_wrong_credentials
+            is com.google.firebase.auth.FirebaseAuthInvalidUserException -> return R.string.stg2_err_no_account
+            is com.google.firebase.auth.FirebaseAuthUserCollisionException -> return R.string.stg2_err_email_taken
+            is com.google.firebase.FirebaseTooManyRequestsException -> return R.string.stg2_err_too_many
+            is com.google.firebase.FirebaseNetworkException -> return R.string.stg2_err_network
+            is java.io.IOException -> return R.string.stg2_err_network
+        }
+        e = e.cause
+        depth++
+    }
+    return R.string.stg2_err_generic
+}
+
+@Composable
+private fun SettingsCloudSignInSheet(onDismiss: () -> Unit, onSignedIn: () -> Unit) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var email by rememberSaveable { mutableStateOf(CloudBackup.currentEmail ?: "") }
+    var password by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    fun handle(result: Result<Unit>) {
+        if (result.isSuccess) {
+            password = ""
+            onSignedIn()
+        } else {
+            error = cloudErrorRes(result.exceptionOrNull())?.let { ctx.getString(it) }
+        }
+    }
+    val runAuth: (Boolean) -> Unit = { isSignUp ->
+        if (email.isBlank() || password.isBlank()) {
+            error = ctx.getString(R.string.stg_cloud_credentials_required)
+        } else {
+            scope.launch {
+                busy = true
+                error = null
+                val result = if (isSignUp) CloudBackup.signUp(email, password) else CloudBackup.signIn(email, password)
+                busy = false
+                handle(result)
             }
         }
     }
-}
 
-@Composable
-private fun SettingsInputRow(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    onSave: () -> Unit,
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = { Text(placeholder, style = Eyebrow) },
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            modifier = Modifier.weight(1f),
-            singleLine = true,
-            shape = RoundedCornerShape(RadiusSm),
-            textStyle = Body
-        )
-        Spacer(Modifier.width(8.dp))
-        Box(
-            Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
-                .clickable(onClick = onSave),
-            contentAlignment = Alignment.Center
-        ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = Lime, modifier = Modifier.size(20.dp)) }
-    }
+    FormSheet(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.stg_cloud_title), style = H2) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.stg2_cloud_intro), style = BodyMuted)
+                Spacer(Modifier.height(14.dp))
+                if (CloudBackup.isGoogleSignInConfigured) {
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                busy = true
+                                error = null
+                                val result = try {
+                                    CloudBackup.signInWithGoogle(ctx)
+                                } catch (t: Throwable) {
+                                    Result.failure(t)
+                                }
+                                busy = false
+                                handle(result)
+                            }
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(Pill)
+                    ) {
+                        Icon(Icons.Default.AccountCircle, null, Modifier.size(18.dp), tint = Indigo)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.stg_cloud_google), style = Body.copy(color = Ink, fontWeight = FontWeight.SemiBold))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f).height(1.dp).background(Line))
+                        Text(
+                            stringResource(R.string.stg_cloud_or),
+                            style = Body.copy(fontSize = 13.sp, color = InkSoft),
+                            modifier = Modifier.padding(horizontal = 10.dp)
+                        )
+                        Box(Modifier.weight(1f).height(1.dp).background(Line))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it.trim() },
+                    placeholder = { Text(stringResource(R.string.stg_cloud_email_hint), style = BodyMuted) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(RadiusSm),
+                    textStyle = Body
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    placeholder = { Text(stringResource(R.string.stg_cloud_password_hint), style = BodyMuted) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(RadiusSm),
+                    textStyle = Body
+                )
+                if (busy) {
+                    Spacer(Modifier.height(12.dp))
+                    LinearProgressIndicator(Modifier.fillMaxWidth(), color = Indigo, trackColor = IndigoSoft)
+                }
+                error?.let {
+                    Spacer(Modifier.height(10.dp))
+                    Text(it, style = Body.copy(fontSize = 13.sp, color = Danger), textAlign = TextAlign.Start)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { runAuth(true) }, enabled = !busy) {
+                Text(stringResource(R.string.stg_cloud_sign_up), style = Body.copy(color = Indigo, fontWeight = FontWeight.SemiBold))
+            }
+        },
+        confirmButton = {
+            SheetPrimaryButton(stringResource(R.string.stg_cloud_sign_in), enabled = !busy) { runAuth(false) }
+        }
+    )
 }
 
 // Widget color swatches. AUTO is drawn half light / half dark; saving refreshes
@@ -1036,6 +1076,6 @@ private fun WidgetColorPicker() {
                 WidgetTheme.ROSE -> R.string.widget_theme_rose
             }
         ),
-        style = Eyebrow
+        style = Body.copy(fontSize = 13.sp, color = InkSoft)
     )
 }

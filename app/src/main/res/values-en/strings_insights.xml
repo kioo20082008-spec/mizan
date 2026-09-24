@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Advice: health summary -->
+    <string name="insights_health_no_alerts">No alerts</string>
+    <plurals name="insights_health_alerts">
+        <item quantity="one">%1$s alert</item>
+        <item quantity="other">%1$s alerts</item>
+    </plurals>
+    <string name="insights_health_budget_fmt">%1$s%% of budget spent</string>
+    <string name="insights_health_no_budget">No budget yet</string>
+    <string name="insights_health_join_fmt">%1$s · %2$s</string>
+
+    <!-- Reports -->
+    <string name="insights_percent_fmt">%1$s%%</string>
+    <string name="insights_more_categories_fmt">+%1$s more</string>
+    <string name="insights_compare_pace_fmt">Same pace: first %1$s days of the cycle</string>
+    <string name="insights_this_month_so_far">This month so far</string>
+    <string name="insights_last_month_same_day_fmt">Last month to day %1$s</string>
+    <string name="insights_diff_same">Same as last month</string>
+    <string name="insights_share_report">Share this month\'s report</string>
+    <string name="insights_share_report_sub">CSV spreadsheet or PDF</string>
+    <string name="insights_export_csv_sub">Every transaction this month, opens in Excel</string>
+    <string name="insights_export_pdf_sub">A tidy report with summary, categories and tips</string>
+
+    <!-- Onboarding -->
+    <string name="onb_supported_banks">Supported banks</string>
+    <string name="onb_bank_alinma">Alinma Bank</string>
+    <string name="onb_bank_barq">Barq</string>
+    <string name="onb_continue_manual">Enter manually without SMS</string>
+    <string name="onb_scan_found_fmt">Found %1$s transactions</string>
+
+    <!-- Settings (single list) -->
+    <string name="stg2_saved">Saved</string>
+    <string name="stg2_section_general">General</string>
+    <string name="stg2_section_budget">Budget</string>
+    <string name="stg2_section_backup">Backup</string>
+    <string name="stg2_section_advanced">Advanced</string>
+    <string name="stg2_section_about">About</string>
+    <string name="stg2_not_set">Not set</string>
+    <string name="stg2_day_fmt">Day %1$s</string>
+    <string name="stg2_rules_count_fmt">Rules: %1$s</string>
+    <string name="stg2_version">Version</string>
+    <string name="stg2_privacy_title">Privacy</string>
+    <string name="stg2_cloud_unavailable">Not available in this version</string>
+    <string name="stg2_cloud_sign_in_row">Sign in to keep a copy in the cloud</string>
+    <string name="stg2_cloud_upload_title">Back up now</string>
+    <string name="stg2_cloud_intro">Sign in to save a copy of your data to your cloud account and restore it on any device. Nothing is uploaded until you tap “Back up now”.</string>
+    <string name="stg2_err_wrong_credentials">Incorrect email or password</string>
+    <string name="stg2_err_no_account">No account with this email — create one instead</string>
+    <string name="stg2_err_email_taken">This email is already registered — sign in instead</string>
+    <string name="stg2_err_weak_password">Password is too weak — use at least 6 characters</string>
+    <string name="stg2_err_network">No internet connection. Please try again</string>
+    <string name="stg2_err_too_many">Too many attempts. Wait a moment and try again</string>
+    <string name="stg2_err_no_google">No Google account on this device</string>
+    <string name="stg2_err_generic">Couldn\'t sign in. Please try again</string>
+</resources>

@@ -17,6 +17,11 @@ import kotlin.math.max
 
 enum class Level { INFO, GOOD, WARN, DANGER }
 
+// Where tapping a tip should take the user. The advisor only fills this in
+// where it already knows the topic (a category, the budget, goals), so the UI
+// can turn the tip into a shortcut instead of a dead end.
+enum class AdviceTarget { NONE, CATEGORY, BUDGET, GOALS }
+
 // Advice now carries string-resource IDs (and their formatting args) instead
 // of pre-formatted Arabic strings — the UI resolves them through the active
 // locale, so the same advice pipeline works for both Arabic and English.
@@ -26,6 +31,8 @@ data class Advice(
     val bodyRes: Int,
     val bodyArgs: List<Any> = emptyList(),
     val level: Level,
+    val category: String? = null,
+    val target: AdviceTarget = AdviceTarget.NONE,
 )
 
 data class CategoryTotal(val category: String, val amount: Double, val share: Double)
@@ -130,6 +137,7 @@ object FinancialAdvisor {
                 titleRes = R.string.adv_waiting_income_title,
                 bodyRes = R.string.adv_waiting_income_body,
                 level = Level.INFO,
+                target = AdviceTarget.BUDGET,
             )
         } else {
             val pct = summary.spent / monthlyBudget
@@ -144,12 +152,14 @@ object FinancialAdvisor {
                     bodyRes = R.string.adv_over_budget_body,
                     bodyArgs = listOf(fmt(summary.spent), fmt(monthlyBudget), pctInt, fmt(summary.spent - monthlyBudget)),
                     level = Level.DANGER,
+                    target = AdviceTarget.BUDGET,
                 )
                 !isPastMonth && daysPassed >= 5 && projected > monthlyBudget * 1.05 -> list += Advice(
                     titleRes = R.string.adv_projected_title,
                     bodyRes = R.string.adv_projected_body_fmt,
                     bodyArgs = listOf(fmt(projected), fmt(projected - monthlyBudget)),
                     level = Level.WARN,
+                    target = AdviceTarget.BUDGET,
                 )
                 pct >= 0.8 -> list += Advice(
                     titleRes = R.string.adv_approaching_title,
@@ -157,6 +167,7 @@ object FinancialAdvisor {
                     bodyArgs = if (isPastMonth) listOf(pctInt, fmt(remaining))
                                else listOf(pctInt, fmt(remaining), daysLeft, fmt(safeDaily)),
                     level = Level.WARN,
+                    target = AdviceTarget.BUDGET,
                 )
                 else -> list += Advice(
                     titleRes = R.string.adv_on_track_title,
@@ -164,6 +175,7 @@ object FinancialAdvisor {
                     bodyArgs = if (isPastMonth) listOf(pctInt)
                                else listOf(pctInt, fmt(remaining), fmt(safeDaily)),
                     level = Level.GOOD,
+                    target = AdviceTarget.BUDGET,
                 )
             }
         }
@@ -189,6 +201,8 @@ object FinancialAdvisor {
                 bodyRes = R.string.adv_category_up_body_fmt,
                 bodyArgs = listOf(rising.first, fmt(rising.third), rising.second),
                 level = Level.WARN,
+                category = rising.first,
+                target = AdviceTarget.CATEGORY,
             )
         } else {
             summary.categoryTotals.firstOrNull()?.let { top ->
@@ -199,6 +213,8 @@ object FinancialAdvisor {
                         bodyRes = R.string.adv_top_category_body_fmt,
                         bodyArgs = listOf(top.category, fmt(top.amount), (top.share * 100).toInt(), fmt(top.amount * 0.2)),
                         level = Level.WARN,
+                        category = top.category,
+                        target = AdviceTarget.CATEGORY,
                     )
                 }
             }
@@ -211,6 +227,8 @@ object FinancialAdvisor {
                     bodyRes = R.string.adv_cash_body_fmt,
                     bodyArgs = listOf(fmt(cash.amount), (cash.share * 100).toInt()),
                     level = Level.INFO,
+                    category = CASH_WITHDRAWAL_CATEGORY,
+                    target = AdviceTarget.CATEGORY,
                 )
             }
         }
@@ -242,6 +260,7 @@ object FinancialAdvisor {
                     bodyRes = R.string.adv_goal_behind_body_fmt,
                     bodyArgs = listOf(behind.first.name, (behind.second * 100).toInt(), fmt(remaining)),
                     level = Level.WARN,
+                    target = AdviceTarget.GOALS,
                 )
             }
             val requiredMonthly = activeGoals.sumOf { goalMonthlySaving(it, now) }
@@ -252,6 +271,7 @@ object FinancialAdvisor {
                     bodyRes = if (sharePct >= 0) R.string.adv_goal_plan_body_fmt else R.string.adv_goal_plan_body_nofmt_fmt,
                     bodyArgs = if (sharePct >= 0) listOf(fmt(requiredMonthly), sharePct) else listOf(fmt(requiredMonthly)),
                     level = if (sharePct > 30) Level.WARN else Level.GOOD,
+                    target = AdviceTarget.GOALS,
                 )
             }
         }
@@ -267,6 +287,8 @@ object FinancialAdvisor {
                 bodyArgs = if (sharePct >= 0) listOf(subs.size, names, fmt(total), fmt(total * 12), sharePct)
                            else listOf(subs.size, names, fmt(total), fmt(total * 12)),
                 level = if (sharePct >= 10) Level.WARN else Level.INFO,
+                category = "اشتراكات",
+                target = AdviceTarget.CATEGORY,
             )
         }
 
@@ -300,6 +322,7 @@ object FinancialAdvisor {
                     bodyRes = R.string.adv_saved_goals_body_fmt,
                     bodyArgs = listOf(fmt(savedGoals), (savedGoals / summary.income * 100).toInt()),
                     level = Level.GOOD,
+                    target = AdviceTarget.GOALS,
                 )
             }
         }
@@ -324,6 +347,7 @@ object FinancialAdvisor {
                 else
                     listOf(fmt(planningIncome), fmt(planningIncome * 0.5), fmt(planningIncome * 0.3), fmt(planningIncome * 0.2)),
                 level = Level.INFO,
+                target = AdviceTarget.BUDGET,
             )
         }
 
