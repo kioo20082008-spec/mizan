@@ -268,12 +268,9 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
 // Next due recurring bill, mirroring the dashboard's "upcoming bills" row.
 private fun nearestBill(items: List<RecurringItemEntity>): Pair<RecurringItemEntity, Int>? {
     val today = java.util.Calendar.getInstance()
-    val todayDay = today.get(java.util.Calendar.DAY_OF_MONTH)
-    val daysInMonth = today.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+    // Due day is clamped to each month's real length (31 = "last day").
     return items.filter { it.reminderEnabled }.map { item ->
-        val daysUntil = if (item.expectedDayOfMonth >= todayDay) item.expectedDayOfMonth - todayDay
-        else (daysInMonth - todayDay) + item.expectedDayOfMonth
-        item to daysUntil
+        item to com.mizan.money.ui.planningDaysUntilDue(item.expectedDayOfMonth, today)
     }.minByOrNull { it.second }
 }
 

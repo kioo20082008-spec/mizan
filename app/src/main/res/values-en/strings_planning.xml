@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pl_cancel">Cancel</string>
+    <string name="pl_close">Close</string>
+    <string name="pl_save">Save</string>
+    <string name="pl_add">Add</string>
+
+    <string name="pl_section_bills">Monthly bills</string>
+    <string name="pl_section_debts">Installments &amp; debts</string>
+
+    <string name="pl_budget_fixed_label">Fixed expenses</string>
+    <string name="pl_budget_plan_desc">Bills, installments and savings set aside from your income before spending</string>
+    <string name="pl_budget_commit_empty">No fixed expenses yet. Add your bills and installments from the Commitments tab.</string>
+    <string name="pl_budget_add_income">Add your income</string>
+    <string name="pl_budget_income_sheet_title">Your monthly income</string>
+    <string name="pl_budget_income_sheet_desc">Used for your plan instead of the income detected from SMS. Leave empty to go back to automatic.</string>
+    <string name="pl_budget_income_field_fmt">Monthly salary (%1$s)</string>
+    <string name="pl_budget_total_field_fmt">Total budget (%1$s)</string>
+    <string name="pl_budget_total_unset">No budget set for this month yet</string>
+    <string name="pl_budget_edit_total">Edit budget</string>
+    <string name="pl_budget_allocated_fmt">Allocated %1$s of %2$s · Unallocated %3$s</string>
+    <string name="pl_budget_over_allocated_fmt">Allocated %1$s of %2$s · Over the total by %3$s</string>
+    <string name="pl_budget_allocated_no_total_fmt">Allocated %1$s across categories</string>
+    <string name="pl_budget_copied">Last month\'s budget copied ✓</string>
+    <string name="pl_budget_cat_limit_fmt">Monthly limit (%1$s)</string>
+    <string name="pl_budget_cat_limit_hint">Leave empty to remove the limit</string>
+    <string name="pl_budget_rollover_needs_limit">Set an amount first to enable rollover</string>
+    <string name="pl_budget_icon_label">Icon</string>
+    <string name="pl_budget_icon_change">Change</string>
+    <string name="pl_budget_delete_cat">Delete category</string>
+    <string name="pl_budget_delete_cat_title_fmt">Delete the “%1$s” category?</string>
+    <string name="pl_budget_delete_cat_desc">Only the category is removed from the list; your past transactions stay as they are.</string>
+    <string name="pl_budget_add_cat_title">New category</string>
+    <string name="pl_budget_spent_of_fmt">%1$s of %2$s</string>
+    <string name="pl_budget_spent_no_limit_fmt">Spent %1$s · No limit</string>
+
+    <string name="pl_goal_need_monthly_fmt">You need %1$s %2$s a month</string>
+    <string name="pl_goal_pick_date">Pick a date</string>
+    <string name="pl_goal_delete">Delete goal</string>
+    <string name="pl_goal_monthly_auto_fmt">Leave empty to save %1$s a month</string>
+
+    <string name="pl_debt_pay">Pay</string>
+    <string name="pl_debt_active_label">Active</string>
+    <string name="pl_debt_no_term">No installment plan</string>
+    <string name="pl_debt_date_unset">Not set — tap to choose</string>
+    <string name="pl_debt_name_error">Enter a name</string>
+    <string name="pl_debt_paid_error">More than the number of months</string>
+    <string name="pl_debt_pay_exceeds_fmt">More than what\'s left (%1$s)</string>
+    <string name="pl_debts_empty_desc">Track installments like Tabby, Tamara, a car loan or a credit card.</string>
+    <string name="pl_debt_add">Add installment</string>
+
+    <string name="pl_bills_empty_desc">Add monthly bills like rent, STC or electricity and we\'ll remind you before they\'re due.</string>
+    <string name="pl_bills_add">Add bill</string>
+    <string name="pl_bills_total_fmt">%1$s %2$s a month</string>
+    <string name="pl_today">Today</string>
+    <string name="pl_paid">Paid</string>
+    <string name="pl_last_day">Last day of month</string>
+    <string name="pl_due_day_label">Due day</string>
+    <string name="pl_day_fmt">Day %1$s</string>
+    <string name="pl_fixed_desc">Its amount is set aside from your budget up front as a fixed expense, before you start spending.</string>
+    <string name="pl_bill_delete">Delete reminder</string>
+
+    <plurals name="pl_bills_count">
+        <item quantity="one">%1$s bill</item>
+        <item quantity="other">%1$s bills</item>
+    </plurals>
+    <plurals name="pl_in_days">
+        <item quantity="one">In %1$s day</item>
+        <item quantity="other">In %1$s days</item>
+    </plurals>
+</resources>

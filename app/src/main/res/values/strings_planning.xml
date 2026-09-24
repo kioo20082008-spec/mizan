@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared -->
+    <string name="pl_cancel">إلغاء</string>
+    <string name="pl_close">إغلاق</string>
+    <string name="pl_save">حفظ</string>
+    <string name="pl_add">إضافة</string>
+
+    <!-- Commitments tab -->
+    <string name="pl_section_bills">فواتير شهرية</string>
+    <string name="pl_section_debts">أقساط وديون</string>
+
+    <!-- Budget -->
+    <string name="pl_budget_fixed_label">مصاريف ثابتة</string>
+    <string name="pl_budget_plan_desc">فواتير وأقساط وادخار محجوزة من دخلك قبل الصرف</string>
+    <string name="pl_budget_commit_empty">لا توجد مصاريف ثابتة بعد. أضف فواتيرك وأقساطك من تبويب الالتزامات.</string>
+    <string name="pl_budget_add_income">أضف دخلك</string>
+    <string name="pl_budget_income_sheet_title">دخلك الشهري</string>
+    <string name="pl_budget_income_sheet_desc">يُستخدم لحساب خطتك بدلاً من الدخل المكتشف من الرسائل. اتركه فارغاً للرجوع إلى الحساب التلقائي.</string>
+    <string name="pl_budget_income_field_fmt">الراتب الشهري (%1$s)</string>
+    <string name="pl_budget_total_field_fmt">الميزانية الإجمالية (%1$s)</string>
+    <string name="pl_budget_total_unset">لم تحدد ميزانية لهذا الشهر بعد</string>
+    <string name="pl_budget_edit_total">تعديل الميزانية</string>
+    <string name="pl_budget_allocated_fmt">موزّع %1$s من %2$s · غير موزّع %3$s</string>
+    <string name="pl_budget_over_allocated_fmt">موزّع %1$s من %2$s · تجاوزت الإجمالي بـ %3$s</string>
+    <string name="pl_budget_allocated_no_total_fmt">موزّع %1$s على التصنيفات</string>
+    <string name="pl_budget_copied">تم نسخ ميزانية الشهر الماضي ✓</string>
+    <string name="pl_budget_cat_limit_fmt">الحد الشهري (%1$s)</string>
+    <string name="pl_budget_cat_limit_hint">اتركه فارغاً لإزالة الحد</string>
+    <string name="pl_budget_rollover_needs_limit">حدّد مبلغاً أولاً لتفعيل الترحيل</string>
+    <string name="pl_budget_icon_label">الأيقونة</string>
+    <string name="pl_budget_icon_change">تغيير</string>
+    <string name="pl_budget_delete_cat">حذف التصنيف</string>
+    <string name="pl_budget_delete_cat_title_fmt">حذف تصنيف «%1$s»؟</string>
+    <string name="pl_budget_delete_cat_desc">يُحذف التصنيف من القائمة فقط، وتبقى عملياتك السابقة كما هي.</string>
+    <string name="pl_budget_add_cat_title">تصنيف جديد</string>
+    <string name="pl_budget_spent_of_fmt">%1$s من %2$s</string>
+    <string name="pl_budget_spent_no_limit_fmt">صرفت %1$s · بدون حد</string>
+
+    <!-- Goals -->
+    <string name="pl_goal_need_monthly_fmt">تحتاج %1$s %2$s شهرياً</string>
+    <string name="pl_goal_pick_date">تاريخ محدد</string>
+    <string name="pl_goal_delete">حذف الهدف</string>
+    <string name="pl_goal_monthly_auto_fmt">اتركه فارغاً لنحفظ %1$s شهرياً</string>
+
+    <!-- Debts -->
+    <string name="pl_debt_pay">سدّد</string>
+    <string name="pl_debt_active_label">نشطة</string>
+    <string name="pl_debt_no_term">بدون جدول أقساط</string>
+    <string name="pl_debt_date_unset">غير محدد — اضغط للاختيار</string>
+    <string name="pl_debt_name_error">أدخل اسماً</string>
+    <string name="pl_debt_paid_error">أكبر من عدد الأشهر</string>
+    <string name="pl_debt_pay_exceeds_fmt">أكثر من المتبقي (%1$s)</string>
+    <string name="pl_debts_empty_desc">تابع أقساطك مثل تابي وتمارا وقرض السيارة والبطاقة الائتمانية.</string>
+    <string name="pl_debt_add">إضافة قسط</string>
+
+    <!-- Bills / reminders -->
+    <string name="pl_bills_empty_desc">أضف فواتيرك الشهرية مثل الإيجار، STC، الكهرباء لنذكّرك قبل موعدها.</string>
+    <string name="pl_bills_add">إضافة فاتورة</string>
+    <string name="pl_bills_total_fmt">%1$s %2$s شهرياً</string>
+    <string name="pl_today">اليوم</string>
+    <string name="pl_paid">مدفوع</string>
+    <string name="pl_last_day">آخر الشهر</string>
+    <string name="pl_due_day_label">يوم الاستحقاق</string>
+    <string name="pl_day_fmt">يوم %1$s</string>
+    <string name="pl_fixed_desc">يُحجز مبلغها من ميزانيتك مقدّماً ضمن المصاريف الثابتة، قبل أن تبدأ الصرف.</string>
+    <string name="pl_bill_delete">حذف التذكير</string>
+
+    <plurals name="pl_bills_count">
+        <item quantity="zero">لا توجد فواتير</item>
+        <item quantity="one">فاتورة واحدة</item>
+        <item quantity="two">فاتورتان</item>
+        <item quantity="few">%1$s فواتير</item>
+        <item quantity="many">%1$s فاتورة</item>
+        <item quantity="other">%1$s فاتورة</item>
+    </plurals>
+    <plurals name="pl_in_days">
+        <item quantity="zero">اليوم</item>
+        <item quantity="one">بعد يوم</item>
+        <item quantity="two">بعد يومين</item>
+        <item quantity="few">بعد %1$s أيام</item>
+        <item quantity="many">بعد %1$s يوماً</item>
+        <item quantity="other">بعد %1$s يوم</item>
+    </plurals>
+</resources>

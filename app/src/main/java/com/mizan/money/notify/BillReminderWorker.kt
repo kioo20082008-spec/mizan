@@ -9,6 +9,7 @@ import androidx.work.WorkerParameters
 import com.mizan.money.MoneyApp
 import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
+import com.mizan.money.ui.planningDaysUntilDue
 import com.mizan.money.ui.theme.localizedContext
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
@@ -26,8 +27,6 @@ class BillReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             if (items.isEmpty()) return Result.success()
 
             val today = Calendar.getInstance()
-            val todayDay = today.get(Calendar.DAY_OF_MONTH)
-            val daysInMonth = today.getActualMaximum(Calendar.DAY_OF_MONTH)
             val monthKey = "%04d-%02d".format(today.get(Calendar.YEAR), today.get(Calendar.MONTH) + 1)
             val lctx = localizedContext(applicationContext)
 
@@ -37,11 +36,10 @@ class BillReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                 // Handles the wraparound for a bill due early next month while
                 // today is already late in the current one (e.g. due day 3,
                 // today day 29 of a 30-day month → 4 days away, not negative).
-                val daysUntil = if (item.expectedDayOfMonth >= todayDay) {
-                    item.expectedDayOfMonth - todayDay
-                } else {
-                    (daysInMonth - todayDay) + item.expectedDayOfMonth
-                }
+                // Due days 29-31 ("last day of month" is stored as 31) are
+                // clamped to each month's real length, so a 31st bill still
+                // fires on Feb 28/29 and on the 30th of 30-day months.
+                val daysUntil = planningDaysUntilDue(item.expectedDayOfMonth, today)
                 if (daysUntil in 0..3) {
                     val whenLabel = if (daysUntil == 0) lctx.getString(R.string.notif_bill_today)
                         else lctx.getString(R.string.notif_bill_in_days_fmt, daysUntil)
