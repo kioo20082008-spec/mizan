@@ -381,23 +381,11 @@ private fun RootScaffold(
             }
             // Adding a transaction is the most common manual action, so it is
             // one tap away on the two screens where money is viewed.
-            AnimatedVisibility(
+            AddFab(
                 visible = tab <= 1,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 20.dp),
-                enter = fadeIn(tween(200)) + scaleIn(tween(220)),
-                exit = fadeOut(tween(150)) + scaleOut(tween(150))
-            ) {
-                Box(
-                    Modifier.size(56.dp)
-                        .shadow(6.dp, CircleShape)
-                        .clip(CircleShape)
-                        .background(Ink900)
-                        .clickable { showAdd = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Add, stringResource(R.string.tx_add), Modifier.size(28.dp), tint = Lime)
-                }
-            }
+                onClick = { showAdd = true }
+            )
         }
         // Picking a tab from the bar always shows that tab unfiltered; only the
         // category shortcuts on Home/Planning pre-filter the transactions list.
@@ -420,6 +408,30 @@ private fun RootScaffold(
             onDismiss = { showSettings = false },
             onRescan = { vm.scanInbox(); showSettings = false }
         )
+    }
+}
+
+// Kept as its own composable: called inside a Box that itself sits in a Column,
+// AnimatedVisibility would otherwise resolve to the ColumnScope overload and
+// fail to compile.
+@Composable
+private fun AddFab(visible: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn(tween(200)) + scaleIn(tween(220)),
+        exit = fadeOut(tween(150)) + scaleOut(tween(150))
+    ) {
+        Box(
+            Modifier.size(56.dp)
+                .shadow(6.dp, CircleShape)
+                .clip(CircleShape)
+                .background(Ink900)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Add, stringResource(R.string.tx_add), Modifier.size(28.dp), tint = Lime)
+        }
     }
 }
 
