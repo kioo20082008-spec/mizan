@@ -342,7 +342,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                                         ) + rolloverSuffix
                                     } else stringResource(R.string.budget_no_limit_fmt, FinancialAdvisor.fmt(spentInCat)),
                                     style = Eyebrow.copy(
-                                        fontSize = 10.sp,
+                                        fontSize = 12.sp,
                                         color = if (isOver) Danger else InkFaint,
                                         fontWeight = if (isOver) FontWeight.Bold else FontWeight.Normal
                                     )
@@ -352,7 +352,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                                 Text(
                                     stringResource(R.string.budget_percent_fmt, (pct * 100).roundToInt()),
                                     style = Eyebrow.copy(
-                                        fontSize = 10.sp,
+                                        fontSize = 12.sp,
                                         color = if (isOver) Danger else Indigo,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -407,7 +407,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                             ) {
                                 Column(Modifier.weight(1f)) {
                                     Text(stringResource(R.string.budget_rollover_title), style = Body.copy(fontWeight = FontWeight.Medium))
-                                    Text(stringResource(R.string.budget_rollover_desc), style = Eyebrow.copy(fontSize = 11.sp))
+                                    Text(stringResource(R.string.budget_rollover_desc), style = Eyebrow.copy(fontSize = 12.sp))
                                 }
                                 Switch(
                                     checked = catRollover[cat] ?: false,
@@ -528,7 +528,7 @@ private fun BudgetPlanCard(
     SoftCard(Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.budget_plan_title), style = H2)
         Spacer(Modifier.height(2.dp))
-        Text(stringResource(R.string.budget_commitments_desc), style = Eyebrow.copy(fontSize = 11.sp))
+        Text(stringResource(R.string.budget_commitments_desc), style = Eyebrow.copy(fontSize = 12.sp))
         Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth()) {
             PlanStat(
@@ -592,7 +592,7 @@ private fun BudgetPlanCard(
 @Composable
 private fun PlanStat(label: String, value: String, color: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
     Column(modifier) {
-        Text(label, style = Eyebrow.copy(fontSize = 9.sp))
+        Text(label, style = Eyebrow.copy(fontSize = 12.sp))
         Spacer(Modifier.height(3.dp))
         Text(value, style = NumBold.copy(fontSize = 13.sp, color = color))
     }
@@ -618,7 +618,7 @@ private fun CommitmentGroup(
     items.forEach { c ->
         Row(Modifier.fillMaxWidth().padding(start = 21.dp, top = 3.dp, bottom = 3.dp)) {
             Text(c.label, style = BodyMuted.copy(fontSize = 12.sp), modifier = Modifier.weight(1f), maxLines = 1)
-            Text(FinancialAdvisor.fmt(c.amount) + " " + currency, style = Eyebrow.copy(fontSize = 11.sp))
+            Text(FinancialAdvisor.fmt(c.amount) + " " + currency, style = Eyebrow.copy(fontSize = 12.sp))
         }
     }
 }
@@ -640,7 +640,7 @@ private fun BudgetSuggestionsCard(
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.budget_suggestions_title), style = H2)
-                Text(stringResource(R.string.budget_suggestions_desc), style = Eyebrow.copy(fontSize = 10.sp))
+                Text(stringResource(R.string.budget_suggestions_desc), style = Eyebrow.copy(fontSize = 12.sp))
             }
             Spacer(Modifier.width(8.dp))
             Icon(
@@ -659,7 +659,7 @@ private fun BudgetSuggestionsCard(
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(categoryDisplay(s.category), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
-                            Text(FinancialAdvisor.fmt(s.amount) + " " + currency, style = Eyebrow.copy(fontSize = 10.sp))
+                            Text(FinancialAdvisor.fmt(s.amount) + " " + currency, style = Eyebrow.copy(fontSize = 12.sp))
                         }
                         Text(
                             stringResource(R.string.budget_apply_suggestion),
@@ -690,7 +690,7 @@ private fun CategoryIconPickerDialog(
     onDismiss: () -> Unit,
     onPick: (String?) -> Unit
 ) {
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),

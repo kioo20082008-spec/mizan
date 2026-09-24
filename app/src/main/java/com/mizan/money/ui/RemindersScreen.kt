@@ -143,7 +143,7 @@ private fun ReminderCard(
                 Text(item.merchant, style = H2.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     stringResource(R.string.reminders_day_fmt, item.expectedDayOfMonth) + " • " + categoryDisplay(item.category),
-                    style = Eyebrow.copy(fontSize = 10.sp)
+                    style = Eyebrow.copy(fontSize = 12.sp)
                 )
             }
             IconAction(Icons.Default.Edit, stringResource(R.string.reminders_edit_title), Indigo, IndigoSoft, onEdit)
@@ -173,7 +173,7 @@ private fun ReminderCard(
             Text(
                 stringResource(R.string.reminders_fixed_label),
                 style = Eyebrow.copy(
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                     color = if (item.isFixed) Indigo else InkFaint,
                     fontWeight = if (item.isFixed) FontWeight.Bold else FontWeight.Normal
                 ),
@@ -210,7 +210,7 @@ private fun ReminderEditorDialog(
     val valid = merchant.isNotBlank() && parsedAmount != null && parsedAmount > 0 && parsedDay != null && parsedDay in 1..28
     val editing = initial != null
 
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
@@ -269,7 +269,7 @@ private fun ReminderEditorDialog(
                                     Text(
                                         categoryDisplay(c),
                                         style = Eyebrow.copy(
-                                            fontSize = 10.sp,
+                                            fontSize = 12.sp,
                                             color = if (category == c) Indigo else InkSoft,
                                             fontWeight = if (category == c) FontWeight.Bold else FontWeight.Normal
                                         )
@@ -305,7 +305,7 @@ private fun ReminderEditorDialog(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.reminders_fixed_label), style = Body)
-                        Text(stringResource(R.string.budget_commitments_desc), style = Eyebrow.copy(fontSize = 10.sp))
+                        Text(stringResource(R.string.budget_commitments_desc), style = Eyebrow.copy(fontSize = 12.sp))
                     }
                     Switch(
                         checked = fixed,

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,7 +19,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,9 +33,11 @@ import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.advisor.MonthSummary
 import com.mizan.money.data.RecurringItemEntity
+import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TOTAL_BUDGET
 import java.util.Calendar
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 // ============ DASHBOARD ============
@@ -48,7 +54,9 @@ fun DashboardScreen(
     val budgets by vm.budgets.collectAsState()
     val rates by vm.exchangeRates.collectAsState()
     val recurringItems by vm.recurringItems.collectAsState()
+    val categories by vm.categories.collectAsState()
     val upcomingBills = remember(recurringItems) { upcomingBillsWithinDays(recurringItems, 5) }
+    var selectedTx by remember { mutableStateOf<TransactionEntity?>(null) }
 
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay, rates) { FinancialAdvisor.summarize(txs, range.first, range.last, rates) }
@@ -56,39 +64,32 @@ fun DashboardScreen(
     val manualBudget = remember(budgets, monthKey) {
         budgets.firstOrNull { it.monthKey == monthKey && it.category == TOTAL_BUDGET }?.limitAmount?.takeIf { it > 0 }
     }
+    // Same budget the home-screen widget uses, so the app and the widget always
+    // show the same "left to spend" number.
     val planningIncome = remember(summary, txs, manualSalary, manualBudget, rates) {
         manualBudget ?: (FinancialAdvisor.planningIncome(summary, txs, manualSalary, rates) ?: 0.0)
     }
     val monthTxs = remember(txs, range) { txs.filter { it.timestamp in range } }
+    val goPrev: () -> Unit = { onOffsetChange(offset - 1) }
+    val goNext: () -> Unit = { if (offset < 0) onOffsetChange(offset + 1) }
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 110.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 180.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
+        item { MonthHeader(offset, startDay, range, onPrev = goPrev, onNext = goNext) }
+
         item {
-            BalanceCard(
+            HeroCard(
                 s = summary,
                 offset = offset,
-                startDay = startDay,
+                range = range,
                 budget = planningIncome,
-                onPrev = { onOffsetChange(offset - 1) },
-                onNext = { if (offset < 0) onOffsetChange(offset + 1) }
+                isManualBudget = manualBudget != null,
+                onSwipePrev = goPrev,
+                onSwipeNext = goNext
             )
-        }
-
-        if (planningIncome > 0) {
-            item {
-                if (manualBudget != null) {
-                    BudgetStatusCard(planningIncome, summary.spent)
-                } else {
-                    BudgetStatusCard(
-                        planningIncome, summary.spent,
-                        title = stringResource(R.string.dash_card_income_title),
-                        capLabel = stringResource(R.string.dash_cap_income)
-                    )
-                }
-            }
         }
 
         if (upcomingBills.isNotEmpty()) {
@@ -131,12 +132,14 @@ fun DashboardScreen(
                     Text(
                         stringResource(R.string.dash_view_all),
                         style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold),
-                        modifier = Modifier.clickable { onNavigateToTransactions(null) }.padding(8.dp)
+                        modifier = Modifier.clip(RoundedCornerShape(RadiusSm))
+                            .clickable { onNavigateToTransactions(null) }
+                            .padding(horizontal = 10.dp, vertical = 12.dp)
                     )
                 }
             }
-            items(monthTxs.take(3)) { tx ->
-                TransactionCard(tx, modifier = Modifier.animateItem(), onClick = { onNavigateToTransactions(null) })
+            items(monthTxs.take(3), key = { it.id }) { tx ->
+                TransactionCard(tx, modifier = Modifier.animateItem(), onClick = { selectedTx = tx })
             }
         } else if (txs.isNotEmpty()) {
             item { EmptyState(stringResource(R.string.dash_empty_month)) }
@@ -144,164 +147,181 @@ fun DashboardScreen(
             item { EmptyState(stringResource(R.string.dash_empty_ever)) }
         }
     }
+
+    selectedTx?.let { current ->
+        TxDetailDialog(
+            tx = current,
+            categories = categories,
+            recurringItems = recurringItems,
+            onDismiss = { selectedTx = null },
+            onDelete = { vm.delete(current); selectedTx = null },
+            onSave = { updated, billReminder ->
+                vm.update(updated); vm.setBillReminder(updated, billReminder); selectedTx = null
+            }
+        )
+    }
 }
 
+private fun daysLeftIn(range: LongRange): Int =
+    ceil((range.last + 1 - System.currentTimeMillis()).toDouble() / 86_400_000.0).toInt().coerceAtLeast(1)
+
 @Composable
-private fun BalanceCard(s: MonthSummary, offset: Int, startDay: Int, budget: Double, onPrev: () -> Unit, onNext: () -> Unit) {
-    Box(
+private fun MonthHeader(offset: Int, startDay: Int, range: LongRange, onPrev: () -> Unit, onNext: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onPrev, modifier = Modifier.size(48.dp)) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                stringResource(R.string.dash_month_prev),
+                tint = Ink, modifier = Modifier.size(20.dp)
+            )
+        }
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(monthName(offset, startDay), style = H2)
+            if (offset == 0) {
+                val days = daysLeftIn(range)
+                Text(
+                    if (days <= 1) stringResource(R.string.widget_days_last)
+                    else stringResource(R.string.widget_left_short_fmt, days),
+                    style = Eyebrow.copy(color = InkSoft)
+                )
+            }
+        }
+        IconButton(onClick = onNext, enabled = offset < 0, modifier = Modifier.size(48.dp)) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowForward,
+                stringResource(R.string.dash_month_next),
+                tint = if (offset < 0) Ink else Ink.copy(alpha = 0.2f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+// The one number that matters: what's left to spend this cycle. Solid card,
+// no decoration — the number carries the design. Swipe sideways to change month.
+@Composable
+private fun HeroCard(
+    s: MonthSummary,
+    offset: Int,
+    range: LongRange,
+    budget: Double,
+    isManualBudget: Boolean,
+    onSwipePrev: () -> Unit,
+    onSwipeNext: () -> Unit
+) {
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val currency = currencyLabel("SAR")
+    val hasBudget = budget > 0
+    val remaining = budget - s.spent
+    val over = hasBudget && remaining < 0
+    val pct = if (hasBudget) (s.spent / budget).toFloat() else 0f
+    val anim by animateFloatAsState(pct.coerceIn(0f, 1f), tween(800), label = "hero")
+    val onHero = Color.White
+    var drag by remember { mutableFloatStateOf(0f) }
+
+    Column(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(RadiusXl))
-            .background(Brush.linearGradient(listOf(Ink800, Ink900)))
+            .background(Ink900)
+            .pointerInput(rtl, offset) {
+                detectHorizontalDragGestures(
+                    onDragStart = { drag = 0f },
+                    onDragCancel = { drag = 0f },
+                    onDragEnd = {
+                        if (abs(drag) > 60.dp.toPx()) {
+                            // In RTL the newer month sits to the left, so a
+                            // rightward drag brings it in (and vice versa in LTR).
+                            val towardNewer = if (rtl) drag > 0 else drag < 0
+                            if (towardNewer) onSwipeNext() else onSwipePrev()
+                        }
+                        drag = 0f
+                    },
+                    onHorizontalDrag = { _, dx -> drag += dx }
+                )
+            }
+            .padding(24.dp)
     ) {
-        Box(
-            Modifier.size(240.dp).align(Alignment.TopEnd).offset(x = 80.dp, y = (-100).dp)
-                .clip(CircleShape).background(Indigo.copy(alpha = 0.35f))
-        )
-        Box(
-            Modifier.size(140.dp).align(Alignment.BottomStart).offset(x = (-50).dp, y = 40.dp)
-                .clip(CircleShape).background(Lime.copy(alpha = 0.10f))
-        )
-        Column(Modifier.padding(26.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onPrev, modifier = Modifier.size(48.dp)) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        stringResource(R.string.dash_month_prev),
-                        tint = White, modifier = Modifier.size(16.dp)
-                    )
-                }
-                Text(
-                    monthName(offset, startDay),
-                    style = Body.copy(color = White, fontWeight = FontWeight.Bold),
-                    modifier = Modifier
+        val labelRes = when {
+            !hasBudget && s.net < 0 -> R.string.dash_label_negative_net
+            !hasBudget && offset < 0 -> R.string.dash_label_past_month
+            !hasBudget -> R.string.dash_label_available
+            over -> R.string.dash_label_over_budget
+            isManualBudget -> R.string.dash_label_remaining
+            else -> R.string.dash_label_remaining_income
+        }
+        val amount = if (hasBudget) remaining else s.net
+        val danger = amount < 0
+
+        Text(stringResource(labelRes), style = Body.copy(color = OnInkSoft))
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                (if (amount < 0) "-" else "") + FinancialAdvisor.fmt(abs(amount)),
+                style = Display.copy(color = if (danger) Danger else Lime),
+                maxLines = 1
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                currency,
+                style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium, fontSize = 16.sp),
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+        }
+
+        if (hasBudget && !over && offset == 0) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(
+                    R.string.dash_daily_allowance_fmt,
+                    FinancialAdvisor.fmt(remaining / daysLeftIn(range)),
+                    currency
+                ),
+                style = Body.copy(color = onHero)
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
+        if (hasBudget) {
+            Box(
+                Modifier.fillMaxWidth().height(8.dp)
+                    .clip(RoundedCornerShape(Pill))
+                    .background(onHero.copy(alpha = 0.12f))
+            ) {
+                Box(
+                    Modifier.fillMaxWidth(anim).fillMaxHeight()
                         .clip(RoundedCornerShape(Pill))
-                        .background(White.copy(alpha = 0.12f))
-                        .padding(horizontal = 14.dp, vertical = 5.dp)
-                )
-                IconButton(onClick = onNext, enabled = offset < 0, modifier = Modifier.size(48.dp)) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward,
-                        stringResource(R.string.dash_month_next),
-                        tint = White.copy(alpha = if (offset < 0) 1f else 0.3f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                Row(
-                    Modifier.clip(RoundedCornerShape(Pill)).background(Lime.copy(alpha = 0.16f))
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Shield, null, Modifier.size(12.dp), tint = Lime)
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.dash_local_badge), style = Eyebrow.copy(color = Lime, fontSize = 11.sp))
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-            val isOverBudget = budget > 0 && s.spent > budget
-            val isNegativeNet = budget <= 0 && s.net < 0
-            val isPastMonth = offset < 0
-            val labelRes = when {
-                isOverBudget -> R.string.dash_label_over_budget
-                isNegativeNet -> R.string.dash_label_negative_net
-                isPastMonth -> R.string.dash_label_past_month
-                else -> R.string.dash_label_available
-            }
-            val isDanger = isOverBudget || isNegativeNet
-            Text(stringResource(labelRes), style = Body.copy(color = OnInkSoft))
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    (if (isNegativeNet) "-" else "") + FinancialAdvisor.fmt(abs(s.net)),
-                    style = Display.copy(color = if (isDanger) Danger else Lime)
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    currencyLabel("SAR"),
-                    style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium, fontSize = 16.sp),
-                    modifier = Modifier.padding(bottom = 6.dp)
+                        .background(if (over) Danger else Lime)
                 )
             }
-
-            Spacer(Modifier.height(22.dp))
-            Box(Modifier.fillMaxWidth().height(1.dp).background(White.copy(alpha = 0.08f)))
-            Spacer(Modifier.height(18.dp))
-
+            Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Default.ArrowDownward, Lime, White.copy(alpha = 0.08f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
-                    Spacer(Modifier.width(10.dp))
-                    Column {
-                        Text(stringResource(R.string.dash_total_income), style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
-                        Text(FinancialAdvisor.fmt(s.income), style = Body.copy(color = White, fontWeight = FontWeight.Bold))
-                    }
-                }
-                Box(Modifier.width(1.dp).height(32.dp).background(White.copy(alpha = 0.08f)))
-                Spacer(Modifier.width(16.dp))
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Default.ArrowUpward, Danger, White.copy(alpha = 0.08f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
-                    Spacer(Modifier.width(10.dp))
-                    Column {
-                        Text(stringResource(R.string.dash_total_spend), style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
-                        Text(FinancialAdvisor.fmt(s.spent), style = Body.copy(color = White, fontWeight = FontWeight.Bold))
-                    }
-                }
+                Text(
+                    stringResource(R.string.dash_used_of_fmt, FinancialAdvisor.fmt(s.spent), FinancialAdvisor.fmt(budget), currency),
+                    style = Body.copy(color = OnInkSoft, fontSize = 13.sp),
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    "${(pct * 100).roundToInt()}%",
+                    style = Body.copy(color = if (over) Danger else onHero, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                )
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                HeroStat(Icons.Default.ArrowDownward, Lime, stringResource(R.string.dash_total_income), FinancialAdvisor.fmt(s.income), Modifier.weight(1f))
+                HeroStat(Icons.Default.ArrowUpward, Danger, stringResource(R.string.dash_total_spend), FinancialAdvisor.fmt(s.spent), Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-private fun BudgetStatusCard(
-    budget: Double,
-    spent: Double,
-    title: String = stringResource(R.string.dash_card_budget_title),
-    capLabel: String = stringResource(R.string.dash_cap_budget)
-) {
-    val pct = (spent / budget).coerceIn(0.0, 1.0).toFloat()
-    val anim by animateFloatAsState(pct, tween(800), label = "b")
-    val overBudget = spent > budget
-
-    SoftCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(title, style = H2, modifier = Modifier.weight(1f))
-            Text(
-                "${(spent / budget * 100).roundToInt()}٪",
-                style = Body.copy(color = if (overBudget) Danger else Indigo, fontWeight = FontWeight.Bold),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(RadiusSm))
-                    .background(if (overBudget) Danger.copy(alpha = 0.1f) else IndigoSoft)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            )
-        }
-        Spacer(Modifier.height(14.dp))
-        Box(
-            Modifier.fillMaxWidth().height(10.dp)
-                .clip(RoundedCornerShape(Pill))
-                .background(PaperOuter)
-        ) {
-            Box(
-                Modifier.fillMaxWidth(anim).fillMaxHeight()
-                    .clip(RoundedCornerShape(Pill))
-                    .background(
-                        Brush.horizontalGradient(
-                            if (overBudget) listOf(Danger, Danger) else listOf(Indigo, IndigoDeep)
-                        )
-                    )
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth()) {
-            Text(
-                stringResource(R.string.dash_spent_label, FinancialAdvisor.fmt(spent), currencyLabel("SAR")),
-                style = BodyMuted.copy(fontSize = 12.sp)
-            )
-            Spacer(Modifier.weight(1f))
-            Text(
-                stringResource(R.string.dash_cap_label, capLabel, FinancialAdvisor.fmt(budget), currencyLabel("SAR")),
-                style = BodyMuted.copy(fontSize = 12.sp)
-            )
+private fun HeroStat(icon: ImageVector, tint: Color, label: String, value: String, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        IconBadge(icon, tint, Color.White.copy(alpha = 0.08f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(label, style = Eyebrow.copy(color = OnInkSoft))
+            Text(value, style = Body.copy(color = Color.White, fontWeight = FontWeight.Bold))
         }
     }
 }
@@ -369,7 +389,7 @@ private fun UpcomingBillChip(bill: UpcomingBill) {
             if (bill.daysUntil == 0) stringResource(R.string.dash_today)
             else stringResource(R.string.dash_in_days, bill.daysUntil),
             style = Eyebrow.copy(
-                fontSize = 10.sp,
+                fontSize = 12.sp,
                 color = if (bill.daysUntil <= 1) Danger else InkFaint,
                 fontWeight = FontWeight.Bold
             )

@@ -45,6 +45,10 @@ import kotlin.math.roundToInt
 @Composable
 fun PlanningScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Unit = {}) {
     var subTab by rememberSaveable { mutableIntStateOf(0) }
+    // Debts and bill reminders are set up once and rarely touched, so they
+    // share one "commitments" tab behind a small secondary toggle instead of
+    // taking two of the main tabs.
+    var commitTab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(start = 20.dp, top = 4.dp, end = 20.dp, bottom = 10.dp)) {
             Text(stringResource(R.string.planning_title), style = H1)
@@ -53,15 +57,39 @@ fun PlanningScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> U
                 listOf(
                     stringResource(R.string.planning_tab_budget),
                     stringResource(R.string.planning_tab_goals),
-                    stringResource(R.string.planning_tab_debts),
-                    stringResource(R.string.planning_tab_reminders),
+                    stringResource(R.string.planning_tab_commitments),
                 ),
                 subTab
             ) { subTab = it }
+            if (subTab == 2) {
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        stringResource(R.string.planning_tab_reminders),
+                        stringResource(R.string.planning_tab_debts),
+                    ).forEachIndexed { i, label ->
+                        val sel = commitTab == i
+                        Text(
+                            label,
+                            style = Body.copy(
+                                fontSize = 13.sp,
+                                color = if (sel) Indigo else InkSoft,
+                                fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium
+                            ),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(Pill))
+                                .background(if (sel) IndigoSoft else Color.Transparent)
+                                .border(1.dp, if (sel) Color.Transparent else Line, RoundedCornerShape(Pill))
+                                .clickable { commitTab = i }
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                        )
+                    }
+                }
+            }
         }
         Box(Modifier.weight(1f)) {
             AnimatedContent(
-                targetState = subTab,
+                targetState = if (subTab == 2) 2 + commitTab else subTab,
                 modifier = Modifier.fillMaxSize(),
                 transitionSpec = {
                     val forward = targetState > initialState
@@ -78,8 +106,8 @@ fun PlanningScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> U
                 when (s) {
                     0 -> BudgetScreen(vm, offset, onOpenCategory)
                     1 -> GoalsSection(vm)
-                    2 -> DebtsSection(vm)
-                    3 -> RemindersSection(vm)
+                    2 -> RemindersSection(vm)
+                    3 -> DebtsSection(vm)
                     else -> BudgetScreen(vm, offset, onOpenCategory)
                 }
             }
@@ -220,7 +248,7 @@ private fun GoalsEmptyState(onCreate: (String) -> Unit) {
                             Modifier.weight(1f).clip(RoundedCornerShape(RadiusSm)).background(PaperOuter)
                                 .clickable { onCreate(label) }.padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
-                        ) { Text(label, style = Eyebrow.copy(fontSize = 11.sp, color = InkSoft)) }
+                        ) { Text(label, style = Eyebrow.copy(fontSize = 12.sp, color = InkSoft)) }
                     }
                     if (row.size == 1) Spacer(Modifier.weight(1f))
                 }
@@ -257,7 +285,7 @@ private fun GoalCard(
                         FinancialAdvisor.fmt(goal.targetAmount),
                         untilSuffix
                     ),
-                    style = Eyebrow.copy(fontSize = 10.sp)
+                    style = Eyebrow.copy(fontSize = 12.sp)
                 )
             }
             IconAction(Icons.Default.Edit, stringResource(R.string.goals_edit), Indigo, IndigoSoft, onEdit)
@@ -276,13 +304,13 @@ private fun GoalCard(
             Text(
                 if (reached) stringResource(R.string.goals_reached)
                 else stringResource(R.string.goals_progress_fmt, (pct * 100).roundToInt()),
-                style = Eyebrow.copy(fontSize = 11.sp, color = if (reached) Success else InkFaint, fontWeight = FontWeight.Bold)
+                style = Eyebrow.copy(fontSize = 12.sp, color = if (reached) Success else InkFaint, fontWeight = FontWeight.Bold)
             )
             Spacer(Modifier.weight(1f))
             if (!reached) {
                 Text(
                     stringResource(R.string.goals_remaining_fmt, FinancialAdvisor.fmt(remaining), currency),
-                    style = Eyebrow.copy(fontSize = 11.sp, color = InkSoft, fontWeight = FontWeight.Bold)
+                    style = Eyebrow.copy(fontSize = 12.sp, color = InkSoft, fontWeight = FontWeight.Bold)
                 )
             }
         }
@@ -306,7 +334,7 @@ private fun GoalCard(
             Text(
                 plan,
                 style = Eyebrow.copy(
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                     color = if (goal.monthlyAmount > 0) Success else if (overdue) Amber else InkFaint,
                     fontWeight = if (goal.monthlyAmount > 0 || overdue) FontWeight.Bold else FontWeight.Normal
                 )
@@ -353,7 +381,7 @@ private fun GoalEditorDialog(
     val valid = name.isNotBlank() && targetAmount != null && targetAmount > 0
     val editing = initial != null
 
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
@@ -472,7 +500,7 @@ private fun GoalAmountDialog(
         quick.add(stringResource(R.string.goals_quick_remaining) to remaining)
     }
 
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
@@ -496,7 +524,7 @@ private fun GoalAmountDialog(
                 Spacer(Modifier.height(12.dp))
                 Text(
                     stringResource(R.string.goals_current_balance_fmt, FinancialAdvisor.fmt(goal.currentAmount), currency),
-                    style = Eyebrow.copy(fontSize = 11.sp)
+                    style = Eyebrow.copy(fontSize = 12.sp)
                 )
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
@@ -525,7 +553,7 @@ private fun GoalAmountDialog(
                                         .clickable { amount = editableAmount(value) }.padding(vertical = 8.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(label, style = Eyebrow.copy(fontSize = 11.sp, color = Indigo, fontWeight = FontWeight.Bold))
+                                    Text(label, style = Eyebrow.copy(fontSize = 12.sp, color = Indigo, fontWeight = FontWeight.Bold))
                                 }
                             }
                             if (row.size == 1) Spacer(Modifier.weight(1f))
@@ -576,7 +604,7 @@ private fun ChoiceChip(label: String, selected: Boolean, modifier: Modifier = Mo
         Text(
             label,
             style = Eyebrow.copy(
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 color = if (selected) Indigo else InkSoft,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
             )
@@ -595,7 +623,7 @@ private fun IconAction(icon: ImageVector, desc: String, tint: Color, bg: Color, 
 @Composable
 private fun ContributeDialog(title: String, amountLabel: String, onDismiss: () -> Unit, onSave: (Double) -> Unit) {
     var amount by remember { mutableStateOf("") }
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
@@ -670,7 +698,7 @@ private fun DebtsSection(vm: MainViewModel) {
                         )
                         Text(
                             stringResource(R.string.debts_bnpl_track_hint_fmt, FinancialAdvisor.fmt(suggestion.second)),
-                            style = Eyebrow.copy(fontSize = 10.sp)
+                            style = Eyebrow.copy(fontSize = 12.sp)
                         )
                     }
                     TextButton(onClick = {
@@ -747,17 +775,17 @@ private fun DebtSummaryCard(debts: List<DebtEntity>) {
     SoftCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.debts_summary_remaining), style = Eyebrow.copy(fontSize = 9.sp))
+                Text(stringResource(R.string.debts_summary_remaining), style = Eyebrow.copy(fontSize = 12.sp))
                 Spacer(Modifier.height(3.dp))
                 Text(FinancialAdvisor.fmt(totalRemaining) + " " + currency, style = NumBold.copy(fontSize = 15.sp, color = Danger))
             }
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.debts_summary_monthly), style = Eyebrow.copy(fontSize = 9.sp))
+                Text(stringResource(R.string.debts_summary_monthly), style = Eyebrow.copy(fontSize = 12.sp))
                 Spacer(Modifier.height(3.dp))
                 Text(FinancialAdvisor.fmt(monthly) + " " + currency, style = NumBold.copy(fontSize = 15.sp, color = Amber))
             }
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.debts_summary_count_fmt, active.size), style = Eyebrow.copy(fontSize = 9.sp))
+                Text(stringResource(R.string.debts_summary_count_fmt, active.size), style = Eyebrow.copy(fontSize = 12.sp))
             }
         }
         if (monthly > 0) {
@@ -767,7 +795,7 @@ private fun DebtSummaryCard(debts: List<DebtEntity>) {
                 Spacer(Modifier.width(5.dp))
                 Text(
                     stringResource(R.string.debts_from_budget_fmt, FinancialAdvisor.fmt(monthly)),
-                    style = Eyebrow.copy(fontSize = 10.sp, color = Indigo, fontWeight = FontWeight.Bold)
+                    style = Eyebrow.copy(fontSize = 12.sp, color = Indigo, fontWeight = FontWeight.Bold)
                 )
             }
         }
@@ -797,7 +825,7 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, on
                         Box(Modifier.size(6.dp).clip(RoundedCornerShape(Pill)).background(Danger))
                     }
                 }
-                Text(debtTypeLabel(debt.type), style = Eyebrow.copy(fontSize = 10.sp))
+                Text(debtTypeLabel(debt.type), style = Eyebrow.copy(fontSize = 12.sp))
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
@@ -827,17 +855,17 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, on
                 if (debt.termMonths > 0) {
                     Text(
                         stringResource(R.string.debts_months_progress_fmt, debt.paidMonths, debt.termMonths),
-                        style = Eyebrow.copy(fontSize = 10.sp, color = InkFaint),
+                        style = Eyebrow.copy(fontSize = 12.sp, color = InkFaint),
                         modifier = Modifier.weight(1f)
                     )
                 } else {
-                    Text(stringResource(R.string.debts_date_none), style = Eyebrow.copy(fontSize = 10.sp), modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.debts_date_none), style = Eyebrow.copy(fontSize = 12.sp), modifier = Modifier.weight(1f))
                 }
                 if (dueSuffix.isNotBlank()) {
                     Text(
                         dueSuffix,
                         style = Eyebrow.copy(
-                            fontSize = 10.sp,
+                            fontSize = 12.sp,
                             color = if (dueSoon) Danger else InkFaint,
                             fontWeight = if (dueSoon) FontWeight.Bold else FontWeight.Normal
                         )
@@ -852,7 +880,7 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, on
                     FinancialAdvisor.fmt(debt.remainingAmount),
                     FinancialAdvisor.fmt(debt.totalAmount)
                 ),
-                style = Eyebrow.copy(fontSize = 10.sp, color = InkFaint)
+                style = Eyebrow.copy(fontSize = 12.sp, color = InkFaint)
             )
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -903,7 +931,7 @@ private fun DebtEditorDialog(
         else -> totalVal ?: 0.0
     }
 
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
@@ -931,7 +959,7 @@ private fun DebtEditorDialog(
                                 ) {
                                     Text(
                                         debtTypeLabel(t),
-                                        style = Eyebrow.copy(fontSize = 10.sp, color = if (type == t) Indigo else InkSoft, fontWeight = if (type == t) FontWeight.Bold else FontWeight.Normal)
+                                        style = Eyebrow.copy(fontSize = 12.sp, color = if (type == t) Indigo else InkSoft, fontWeight = if (type == t) FontWeight.Bold else FontWeight.Normal)
                                     )
                                 }
                             }
@@ -971,12 +999,12 @@ private fun DebtEditorDialog(
                     ) {
                         Text(
                             stringResource(R.string.debts_installment_preview_fmt, FinancialAdvisor.fmt(installment)),
-                            style = Eyebrow.copy(fontSize = 11.sp, color = Indigo, fontWeight = FontWeight.Bold)
+                            style = Eyebrow.copy(fontSize = 12.sp, color = Indigo, fontWeight = FontWeight.Bold)
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             stringResource(R.string.debts_remaining_preview_fmt, FinancialAdvisor.fmt(remaining)),
-                            style = Eyebrow.copy(fontSize = 11.sp)
+                            style = Eyebrow.copy(fontSize = 12.sp)
                         )
                     }
                 }
@@ -1021,7 +1049,7 @@ private fun DebtEditorDialog(
 private fun DebtDateField(label: String, value: Long?, onPick: (Long) -> Unit) {
     var show by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
-        Text(label, style = Eyebrow.copy(fontSize = 10.sp))
+        Text(label, style = Eyebrow.copy(fontSize = 12.sp))
         Spacer(Modifier.height(4.dp))
         Row(
             Modifier.fillMaxWidth()
@@ -1065,7 +1093,7 @@ private fun DebtPaymentDialog(
 ) {
     var amount by remember { mutableStateOf(moneyInput(debt.installmentAmount)) }
     var date by remember { mutableStateOf(System.currentTimeMillis()) }
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),

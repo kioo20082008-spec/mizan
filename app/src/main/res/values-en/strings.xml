@@ -564,4 +564,10 @@
     <string name="debts_details_show">Details</string>
     <string name="debts_details_hide">Hide details</string>
     <string name="cat_view_transactions_fmt">%1$s transactions</string>
+    <string name="dash_label_remaining">Left in your budget</string>
+    <string name="dash_label_remaining_income">Left from your income</string>
+    <string name="dash_daily_allowance_fmt">You can spend %1$s %2$s a day until the cycle ends</string>
+    <string name="dash_used_of_fmt">Spent %1$s of %2$s %3$s</string>
+    <string name="planning_tab_commitments">Commitments</string>
+    <string name="settings_back">Back</string>
 </resources>

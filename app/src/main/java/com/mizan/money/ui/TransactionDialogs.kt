@@ -114,7 +114,7 @@ internal fun AdvancedFilterSheet(
                     OutlinedTextField(
                         value = dateFromInput,
                         onValueChange = { dateFromInput = it },
-                        placeholder = { Text(stringResource(R.string.tx_filter_from_hint), style = Eyebrow.copy(fontSize = 11.sp)) },
+                        placeholder = { Text(stringResource(R.string.tx_filter_from_hint), style = Eyebrow.copy(fontSize = 12.sp)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         isError = dateFromInvalid,
@@ -124,7 +124,7 @@ internal fun AdvancedFilterSheet(
                     OutlinedTextField(
                         value = dateToInput,
                         onValueChange = { dateToInput = it },
-                        placeholder = { Text(stringResource(R.string.tx_filter_to_hint), style = Eyebrow.copy(fontSize = 11.sp)) },
+                        placeholder = { Text(stringResource(R.string.tx_filter_to_hint), style = Eyebrow.copy(fontSize = 12.sp)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         isError = dateToInvalid,
@@ -136,7 +136,7 @@ internal fun AdvancedFilterSheet(
                     Spacer(Modifier.height(6.dp))
                     Text(
                         stringResource(R.string.tx_filter_date_invalid),
-                        style = Eyebrow.copy(fontSize = 11.sp, color = Danger)
+                        style = Eyebrow.copy(fontSize = 12.sp, color = Danger)
                     )
                 }
                 Spacer(Modifier.height(20.dp))
@@ -148,7 +148,7 @@ internal fun AdvancedFilterSheet(
                     OutlinedTextField(
                         value = amountMinInput,
                         onValueChange = { amountMinInput = sanitizeAmountInput(it) },
-                        placeholder = { Text(stringResource(R.string.tx_filter_min_hint), style = Eyebrow.copy(fontSize = 11.sp)) },
+                        placeholder = { Text(stringResource(R.string.tx_filter_min_hint), style = Eyebrow.copy(fontSize = 12.sp)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -158,7 +158,7 @@ internal fun AdvancedFilterSheet(
                     OutlinedTextField(
                         value = amountMaxInput,
                         onValueChange = { amountMaxInput = sanitizeAmountInput(it) },
-                        placeholder = { Text(stringResource(R.string.tx_filter_max_hint), style = Eyebrow.copy(fontSize = 11.sp)) },
+                        placeholder = { Text(stringResource(R.string.tx_filter_max_hint), style = Eyebrow.copy(fontSize = 12.sp)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -294,7 +294,7 @@ private fun FlowChips(
                         Text(
                             labelOf(item),
                             style = Eyebrow.copy(
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = if (isSel) Indigo else InkSoft,
                                 fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
                             ),
@@ -353,7 +353,7 @@ internal fun TxDetailDialog(
         )
     }
 
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),
@@ -403,7 +403,7 @@ internal fun TxDetailDialog(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.tx_self_transfer_title), style = Body.copy(fontWeight = FontWeight.Medium))
-                            Text(stringResource(R.string.tx_self_transfer_desc), style = Eyebrow.copy(fontSize = 11.sp))
+                            Text(stringResource(R.string.tx_self_transfer_desc), style = Eyebrow.copy(fontSize = 12.sp))
                         }
                         Switch(
                             checked = isSelfTransfer,
@@ -425,7 +425,7 @@ internal fun TxDetailDialog(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.tx_exclude_daily_title), style = Body.copy(fontWeight = FontWeight.Medium))
-                            Text(stringResource(R.string.tx_exclude_daily_desc), style = Eyebrow.copy(fontSize = 11.sp))
+                            Text(stringResource(R.string.tx_exclude_daily_desc), style = Eyebrow.copy(fontSize = 12.sp))
                         }
                         Switch(
                             checked = excludeFromDailyAvg,
@@ -444,7 +444,7 @@ internal fun TxDetailDialog(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.tx_reimbursement_title), style = Body.copy(fontWeight = FontWeight.Medium))
-                            Text(stringResource(R.string.tx_reimbursement_desc), style = Eyebrow.copy(fontSize = 11.sp))
+                            Text(stringResource(R.string.tx_reimbursement_desc), style = Eyebrow.copy(fontSize = 12.sp))
                         }
                         Switch(
                             checked = isReimbursement,
@@ -464,7 +464,7 @@ internal fun TxDetailDialog(
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Text(stringResource(R.string.tx_bill_reminder_title), style = Body.copy(fontWeight = FontWeight.Medium))
-                                Text(stringResource(R.string.tx_bill_reminder_desc), style = Eyebrow.copy(fontSize = 11.sp))
+                                Text(stringResource(R.string.tx_bill_reminder_desc), style = Eyebrow.copy(fontSize = 12.sp))
                             }
                             Switch(
                                 checked = billReminder,
@@ -532,7 +532,7 @@ internal fun TxDetailDialog(
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 stringResource(R.string.tx_self_transfer_note),
-                                style = Eyebrow.copy(fontSize = 11.sp),
+                                style = Eyebrow.copy(fontSize = 12.sp),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -541,7 +541,7 @@ internal fun TxDetailDialog(
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 stringResource(R.string.tx_exclude_daily_note),
-                                style = Eyebrow.copy(fontSize = 11.sp),
+                                style = Eyebrow.copy(fontSize = 12.sp),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -550,7 +550,7 @@ internal fun TxDetailDialog(
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 stringResource(R.string.tx_reimbursement_note),
-                                style = Eyebrow.copy(fontSize = 11.sp),
+                                style = Eyebrow.copy(fontSize = 12.sp),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -614,7 +614,7 @@ internal fun AddDialog(categories: List<String>, onDismiss: () -> Unit, onSave: 
     var category by remember { mutableStateOf(categories.first()) }
     var type by remember { mutableStateOf(TxType.EXPENSE) }
 
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
         containerColor = White,
         shape = RoundedCornerShape(RadiusXl),

@@ -80,7 +80,7 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(stringResource(R.string.advisor_header_title), style = H2.copy(color = White, fontSize = 15.sp))
-                    Text(stringResource(R.string.advisor_header_subtitle), style = Eyebrow.copy(color = OnInkSoft, fontSize = 11.sp))
+                    Text(stringResource(R.string.advisor_header_subtitle), style = Eyebrow.copy(color = OnInkSoft, fontSize = 12.sp))
                 }
             }
         }
@@ -141,7 +141,7 @@ private fun AdviceRow(a: Advice) {
         Column(Modifier.weight(1f)) {
             Text(adviceText(a.titleRes, a.titleArgs), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
             Spacer(Modifier.height(4.dp))
-            Text(adviceText(a.bodyRes, a.bodyArgs), style = Eyebrow.copy(fontSize = 11.sp, color = InkSoft))
+            Text(adviceText(a.bodyRes, a.bodyArgs), style = Eyebrow.copy(fontSize = 12.sp, color = InkSoft))
         }
     }
 }

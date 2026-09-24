@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -82,7 +83,7 @@ val Body: TextStyle @Composable @ReadOnlyComposable get() =
 val BodyMuted: TextStyle @Composable @ReadOnlyComposable get() =
     TextStyle(fontFamily = Sans, fontSize = 13.sp, color = InkSoft)
 val Eyebrow: TextStyle @Composable @ReadOnlyComposable get() =
-    TextStyle(fontFamily = Sans, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = InkFaint)
+    TextStyle(fontFamily = Sans, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = InkFaint)
 val NumBold: TextStyle @Composable @ReadOnlyComposable get() =
     TextStyle(fontFamily = Sans, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)
 
@@ -152,6 +153,58 @@ fun TabSwitcher(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     }
 }
 
+// Bottom-sheet counterpart of AlertDialog with the same slots, so every form
+// (add/edit transaction, goals, debts, reminders) slides up within thumb reach
+// instead of floating mid-screen. Short confirmations stay AlertDialogs.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FormSheet(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissButton: (@Composable () -> Unit)? = null,
+    title: (@Composable () -> Unit)? = null,
+    text: (@Composable () -> Unit)? = null,
+    containerColor: Color = White,
+    @Suppress("UNUSED_PARAMETER") shape: Shape? = null, // kept for drop-in parity with AlertDialog
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = containerColor,
+        shape = RoundedCornerShape(topStart = RadiusXl, topEnd = RadiusXl),
+        modifier = modifier,
+    ) {
+        Column(
+            Modifier.fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 16.dp)
+                .imePadding()
+        ) {
+            if (title != null) {
+                title()
+                Spacer(Modifier.height(16.dp))
+            }
+            if (text != null) {
+                Box(Modifier.weight(1f, fill = false)) { text() }
+            }
+            Spacer(Modifier.height(20.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (dismissButton != null) {
+                    dismissButton()
+                    Spacer(Modifier.width(8.dp))
+                }
+                confirmButton()
+            }
+        }
+    }
+}
+
 @Composable
 fun EmptyState(text: String) {
     Column(
@@ -177,14 +230,14 @@ fun TransactionCard(tx: TransactionEntity, modifier: Modifier = Modifier, onClic
             Column(Modifier.weight(1f)) {
                 Text(tx.merchant ?: "غير معروف", style = H2.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(2.dp))
-                Text("${categoryDisplay(tx.category)} • ${Dates.dayLabel(tx.timestamp)}", style = Eyebrow.copy(fontSize = 11.sp))
+                Text("${categoryDisplay(tx.category)} • ${Dates.dayLabel(tx.timestamp)}", style = Eyebrow.copy(fontSize = 12.sp))
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     "$sign${FinancialAdvisor.fmt(tx.amount)}",
                     style = NumBold.copy(color = amtColor, fontSize = 16.sp)
                 )
-                Text(currencyLabel(tx.currency), style = Eyebrow.copy(fontSize = 10.sp))
+                Text(currencyLabel(tx.currency), style = Eyebrow.copy(fontSize = 12.sp))
             }
         }
     }

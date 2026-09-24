@@ -134,13 +134,13 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
                                     Spacer(Modifier.width(6.dp))
                                     Text(
                                         categoryDisplay(c.category),
-                                        style = Eyebrow.copy(fontSize = 10.sp),
+                                        style = Eyebrow.copy(fontSize = 12.sp),
                                         modifier = Modifier.weight(1f),
                                         maxLines = 1
                                     )
                                     Text(
                                         stringResource(R.string.reports_percent_fmt, (c.share * 100).toInt()),
-                                        style = Eyebrow.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        style = Eyebrow.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     )
                                 }
                             }
@@ -164,7 +164,7 @@ private fun ReportsSection(vm: MainViewModel, offset: Int) {
                     Text(
                         if (diff >= 0) stringResource(R.string.reports_diff_higher_fmt, diff.toInt())
                         else stringResource(R.string.reports_diff_lower_fmt, (-diff).toInt()),
-                        style = Eyebrow.copy(fontSize = 11.sp, color = if (diff > 0) Danger else Success, fontWeight = FontWeight.Bold)
+                        style = Eyebrow.copy(fontSize = 12.sp, color = if (diff > 0) Danger else Success, fontWeight = FontWeight.Bold)
                     )
                 }
             }
@@ -319,7 +319,7 @@ private fun TrendChart(points: List<Triple<String, Double, Double>>) {
         }
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            points.forEach { (label, _, _) -> Text(label, style = Eyebrow.copy(fontSize = 9.sp)) }
+            points.forEach { (label, _, _) -> Text(label, style = Eyebrow.copy(fontSize = 11.sp)) }
         }
     }
 }
@@ -375,7 +375,7 @@ private fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(8.dp).clip(RoundedCornerShape(Pill)).background(color))
         Spacer(Modifier.width(6.dp))
-        Text(label, style = Eyebrow.copy(fontSize = 10.sp))
+        Text(label, style = Eyebrow.copy(fontSize = 12.sp))
     }
 }
 

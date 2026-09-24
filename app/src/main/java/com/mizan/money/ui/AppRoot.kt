@@ -35,6 +35,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -230,6 +231,8 @@ private fun RootScaffold(
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var categoryFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var showAdd by rememberSaveable { mutableStateOf(false) }
+    val categories by vm.categories.collectAsState()
     val isScanning by vm.isScanning.collectAsState()
     val ctx = LocalContext.current
     var hasReceiveSms by remember { mutableStateOf(checkReceiveSms(ctx)) }
@@ -253,15 +256,19 @@ private fun RootScaffold(
                 exit = fadeOut(tween(200)) + shrinkVertically(tween(240, easing = FastOutSlowInEasing))
             ) {
                 Row(
-                    Modifier.fillMaxWidth().background(Amber.copy(alpha = 0.12f))
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    Modifier.fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(RadiusSm))
+                        .background(Amber.copy(alpha = 0.14f))
+                        .clickable { showSettings = true }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Info, null, Modifier.size(14.dp), tint = Amber)
-                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Default.Info, null, Modifier.size(18.dp), tint = Amber)
+                    Spacer(Modifier.width(10.dp))
                     Text(
                         stringResource(R.string.receive_sms_warning),
-                        style = Eyebrow.copy(fontSize = 10.sp, color = Amber)
+                        style = Body.copy(fontSize = 13.sp, color = Ink)
                     )
                 }
             }
@@ -295,14 +302,42 @@ private fun RootScaffold(
                 ) { t ->
                     when (t) {
                         0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
-                        1 -> TransactionsScreen(vm, initialQuery = categoryFilter)
+                        1 -> TransactionsScreen(vm, initialCategory = categoryFilter)
                         2 -> PlanningScreen(vm, monthOffset, onOpenCategory = { cat -> categoryFilter = cat; tab = 1 })
                         else -> InsightsScreen(vm, monthOffset)
                     }
                 }
             }
         }
-        BottomNav(tab, Modifier.align(Alignment.BottomCenter)) { tab = it }
+        // Adding a transaction is the most common manual action, so it is one
+        // tap away from the two screens where money is viewed.
+        AnimatedVisibility(
+            visible = tab <= 1,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = 104.dp),
+            enter = fadeIn(tween(200)) + scaleIn(tween(220)),
+            exit = fadeOut(tween(150)) + scaleOut(tween(150))
+        ) {
+            Box(
+                Modifier.size(58.dp)
+                    .shadow(14.dp, CircleShape, ambientColor = Ink900.copy(alpha = 0.3f))
+                    .clip(CircleShape)
+                    .background(Lime)
+                    .clickable { showAdd = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Add, stringResource(R.string.tx_add), Modifier.size(28.dp), tint = Color(0xFF121017))
+            }
+        }
+        // Picking a tab from the bar always shows that tab unfiltered; only the
+        // category shortcuts on Home/Planning pre-filter the transactions list.
+        BottomNav(tab, Modifier.align(Alignment.BottomCenter)) { categoryFilter = null; tab = it }
+    }
+    if (showAdd) {
+        AddDialog(
+            categories = categories,
+            onDismiss = { showAdd = false },
+            onSave = { a, m, c, t -> vm.addManual(a, m, c, t); showAdd = false }
+        )
     }
     if (showSettings) {
         SettingsDialog(

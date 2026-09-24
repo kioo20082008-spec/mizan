@@ -564,4 +564,10 @@
     <string name="debts_details_show">التفاصيل</string>
     <string name="debts_details_hide">إخفاء التفاصيل</string>
     <string name="cat_view_transactions_fmt">عمليات %1$s</string>
+    <string name="dash_label_remaining">المتبقي من ميزانيتك</string>
+    <string name="dash_label_remaining_income">المتبقي من دخلك</string>
+    <string name="dash_daily_allowance_fmt">تقدر تصرف %1$s %2$s يومياً لين نهاية الدورة</string>
+    <string name="dash_used_of_fmt">صرفت %1$s من %2$s %3$s</string>
+    <string name="planning_tab_commitments">الالتزامات</string>
+    <string name="settings_back">رجوع</string>
 </resources>

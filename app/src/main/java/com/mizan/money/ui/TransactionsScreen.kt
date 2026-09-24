@@ -77,16 +77,19 @@ data class TxFilter(
 // ============ TRANSACTIONS ============
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
+fun TransactionsScreen(vm: MainViewModel, initialCategory: String? = null) {
     val txs by vm.transactions.collectAsState()
     val categories by vm.categories.collectAsState()
     val recurringItems by vm.recurringItems.collectAsState()
-    var query by remember { mutableStateOf(initialQuery ?: "") }
-    LaunchedEffect(initialQuery) { query = initialQuery ?: "" }
-    var filter by remember { mutableStateOf(TxFilter()) }
+    var query by remember { mutableStateOf("") }
+    // A category shortcut (Home/Planning) opens the list pre-filtered through the
+    // regular filter, so it shows up as a removable "active filter" chip instead
+    // of a raw category key typed into the search box.
+    var filter by remember(initialCategory) {
+        mutableStateOf(TxFilter(categories = setOfNotNull(initialCategory)))
+    }
     var showFilterSheet by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<TransactionEntity?>(null) }
-    var showAdd by remember { mutableStateOf(false) }
 
     val filtered = remember(txs, query, filter) {
         txs.filter { tx ->
@@ -104,7 +107,7 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 110.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 180.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
@@ -113,11 +116,6 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
                     Text(stringResource(R.string.tx_title), style = H1)
                     Text(stringResource(R.string.tx_subtitle), style = Eyebrow)
                 }
-                Box(
-                    Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Ink900)
-                        .clickable { showAdd = true },
-                    contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.Add, stringResource(R.string.tx_add), tint = Lime, modifier = Modifier.size(22.dp)) }
             }
         }
         item {
@@ -165,13 +163,13 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
                     if (!filter.isEmpty) {
                         Box(
                             Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 4.dp)
-                                .size(16.dp).clip(RoundedCornerShape(Pill)).background(Danger),
+                                .size(18.dp).clip(RoundedCornerShape(Pill)).background(Danger),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 filter.activeCount.toString(),
-                                color = White,
-                                fontSize = 9.sp,
+                                color = androidx.compose.ui.graphics.Color.White,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -227,13 +225,6 @@ fun TransactionsScreen(vm: MainViewModel, initialQuery: String? = null) {
             onDismiss = { selected = null },
             onDelete = { vm.delete(current); selected = null },
             onSave = { updated, billReminder -> vm.update(updated); vm.setBillReminder(updated, billReminder); selected = null }
-        )
-    }
-    if (showAdd) {
-        AddDialog(
-            categories = categories,
-            onDismiss = { showAdd = false },
-            onSave = { a, m, c, t -> vm.addManual(a, m, c, t); showAdd = false }
         )
     }
     if (showFilterSheet) {

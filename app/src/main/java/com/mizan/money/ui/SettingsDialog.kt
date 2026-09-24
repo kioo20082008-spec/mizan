@@ -15,6 +15,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -323,13 +325,24 @@ internal fun SettingsDialog(
         )
     }
 
-    AlertDialog(
+    // Full screen rather than a floating dialog: settings has four tabs of
+    // content, which was cramped inside a 480dp-tall popup.
+    Dialog(
         onDismissRequest = onDismiss,
-        containerColor = White,
-        shape = RoundedCornerShape(RadiusXl),
-        title = { Text(stringResource(R.string.settings_title), style = H2) },
-        text = {
-            Column(Modifier.heightIn(max = 480.dp)) {
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Column(Modifier.fillMaxSize().background(Paper)) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.settings_back), tint = Ink)
+                }
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(R.string.settings_title), style = H1)
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 20.dp)) {
                 TabSwitcher(
                     listOf(
                         stringResource(R.string.stg_tab_data),
@@ -776,18 +789,23 @@ internal fun SettingsDialog(
                         else -> {
                             Text(stringResource(R.string.app_name), style = Body.copy(fontWeight = FontWeight.Bold))
                             Spacer(Modifier.height(4.dp))
-                            Text(stringResource(R.string.stg_privacy_body), style = Eyebrow)
+                            Row(
+                                Modifier.clip(RoundedCornerShape(Pill)).background(Success.copy(alpha = 0.12f))
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Shield, null, Modifier.size(14.dp), tint = Success)
+                                Spacer(Modifier.width(6.dp))
+                                Text(stringResource(R.string.dash_local_badge), style = Eyebrow.copy(color = Success, fontWeight = FontWeight.Bold))
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(stringResource(R.string.stg_privacy_body), style = BodyMuted)
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.settings_close), style = Body.copy(color = InkSoft))
-            }
         }
-    )
+    }
 }
 
 // ============ SETTINGS BUILDING BLOCKS ============
@@ -824,7 +842,7 @@ private fun SettingsSection(
                     Spacer(Modifier.height(2.dp))
                     Text(
                         summary,
-                        style = Eyebrow.copy(fontSize = 10.sp),
+                        style = Eyebrow.copy(fontSize = 12.sp),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -896,7 +914,7 @@ private fun SettingsActionRow(
         Column(Modifier.weight(1f)) {
             Text(title, style = Body.copy(fontWeight = FontWeight.Bold))
             Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = Eyebrow.copy(fontSize = 11.sp))
+            Text(subtitle, style = Eyebrow.copy(fontSize = 12.sp))
         }
     }
 }
