@@ -494,6 +494,11 @@
     <string name="widget_pace_behind">Behind pace</string>
     <string name="widget_pace_on">On pace</string>
     <string name="widget_goal_label">Savings goal</string>
+    <string name="widget_left_short_fmt">%1$d days left</string>
+    <string name="widget_over_label">Over budget</string>
+    <string name="widget_spent_month">Spent this month</string>
+    <string name="widget_set_budget_hint">Set a budget in the app</string>
+    <string name="widget_of_fmt">of %1$s</string>
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">Exchange rates</string>

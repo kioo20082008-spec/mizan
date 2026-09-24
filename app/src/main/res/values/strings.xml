@@ -494,6 +494,11 @@
     <string name="widget_pace_behind">أبطأ من الإيقاع</string>
     <string name="widget_pace_on">على الإيقاع</string>
     <string name="widget_goal_label">هدف التوفير</string>
+    <string name="widget_left_short_fmt">باقي %1$d يوم</string>
+    <string name="widget_over_label">تجاوزت الميزانية</string>
+    <string name="widget_spent_month">صرفت هذا الشهر</string>
+    <string name="widget_set_budget_hint">حدّد ميزانية من التطبيق</string>
+    <string name="widget_of_fmt">من أصل %1$s</string>
 
     <!-- Exchange rates (Settings) -->
     <string name="stg_rates_label">أسعار الصرف</string>
