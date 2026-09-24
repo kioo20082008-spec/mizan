@@ -102,7 +102,7 @@ fun DashboardScreen(
                             iconTint = catColor(bill.item.category),
                             title = bill.item.merchant,
                             subtitle = categoryDisplay(bill.item.category),
-                            trailing = "~" + FinancialAdvisor.fmt(bill.item.expectedAmount),
+                            trailing = "~" + fmt(bill.item.expectedAmount),
                             trailingSub = if (bill.daysUntil == 0) stringResource(R.string.dash_today)
                                 else stringResource(R.string.dash_in_days, bill.daysUntil),
                             trailingSubColor = if (urgent) Danger else InkSoft,
@@ -123,7 +123,7 @@ fun DashboardScreen(
                             icon = catIcon(cat.category),
                             iconTint = color,
                             title = categoryDisplay(cat.category),
-                            trailing = FinancialAdvisor.fmt(cat.amount),
+                            trailing = fmt(cat.amount),
                             trailingSub = "${(cat.share * 100).roundToInt()}%",
                             showDivider = i < top.lastIndex,
                             onClick = { onNavigateToTransactions(cat.category) },
@@ -275,7 +275,7 @@ private fun HeroCard(
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
-                (if (amount < 0) "-" else "") + FinancialAdvisor.fmt(abs(amount)),
+                (if (amount < 0) "-" else "") + fmt(abs(amount)),
                 style = Display.copy(color = if (danger) Danger else Ink),
                 maxLines = 1
             )
@@ -292,7 +292,7 @@ private fun HeroCard(
             Text(
                 stringResource(
                     R.string.dash_daily_allowance_fmt,
-                    FinancialAdvisor.fmt(remaining / daysLeftIn(range)),
+                    fmt(remaining / daysLeftIn(range)),
                     currency
                 ),
                 style = Body.copy(color = Ink)
@@ -315,7 +315,7 @@ private fun HeroCard(
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    stringResource(R.string.dash_used_of_fmt, FinancialAdvisor.fmt(s.spent), FinancialAdvisor.fmt(budget), currency),
+                    stringResource(R.string.dash_used_of_fmt, fmt(s.spent), fmt(budget), currency),
                     style = Body.copy(color = InkSoft, fontSize = 13.sp),
                     modifier = Modifier.weight(1f)
                 )
@@ -326,8 +326,8 @@ private fun HeroCard(
             }
         } else {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                HeroStat(Icons.Default.ArrowDownward, Success, stringResource(R.string.dash_total_income), FinancialAdvisor.fmt(s.income), Modifier.weight(1f))
-                HeroStat(Icons.Default.ArrowUpward, Danger, stringResource(R.string.dash_total_spend), FinancialAdvisor.fmt(s.spent), Modifier.weight(1f))
+                HeroStat(Icons.Default.ArrowDownward, Success, stringResource(R.string.dash_total_income), fmt(s.income), Modifier.weight(1f))
+                HeroStat(Icons.Default.ArrowUpward, Danger, stringResource(R.string.dash_total_spend), fmt(s.spent), Modifier.weight(1f))
             }
         }
     }

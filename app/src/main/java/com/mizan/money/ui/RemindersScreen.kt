@@ -157,7 +157,7 @@ private fun ReminderRow(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     stringResource(R.string.reminders_day_fmt, item.expectedDayOfMonth) + " • " +
-                        FinancialAdvisor.fmt(item.expectedAmount) + " " + currency,
+                        fmt(item.expectedAmount) + " " + currency,
                     style = Body.copy(fontSize = 13.sp, color = InkSoft),
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )

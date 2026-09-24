@@ -522,7 +522,7 @@ internal fun TxDetailDialog(
                         Text(categoryDisplay(tx.category), style = BodyMuted)
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "${if (tx.type == TxType.EXPENSE) "-" else "+"}${FinancialAdvisor.fmt(tx.amount)} ${currencyLabel(tx.currency)}",
+                            "${if (tx.type == TxType.EXPENSE) "-" else "+"}${fmt(tx.amount)} ${currencyLabel(tx.currency)}",
                             style = TextStyle(
                                 fontSize = 26.sp, fontWeight = FontWeight.Black,
                                 color = if (tx.isSelfTransfer) InkFaint else if (tx.type == TxType.EXPENSE) Danger else Success

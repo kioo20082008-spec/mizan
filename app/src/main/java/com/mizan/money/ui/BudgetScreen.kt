@@ -187,7 +187,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                     Text(stringResource(R.string.budget_total_label), style = Eyebrow.copy(color = OnInkSoft))
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text(FinancialAdvisor.fmt(totalInput.toDoubleOrNull() ?: 0.0), style = Display.copy(fontSize = 32.sp, color = Lime))
+                        Text(fmt(totalInput.toDoubleOrNull() ?: 0.0), style = Display.copy(fontSize = 32.sp, color = Lime))
                         Spacer(Modifier.width(6.dp))
                         Text(currencyLabel("SAR"), style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium))
                     }
@@ -331,15 +331,15 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(categoryDisplay(cat), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
-                                val rolloverSuffix = if (rollover > 0.0) stringResource(R.string.budget_rolled_fmt, FinancialAdvisor.fmt(rollover)) else ""
+                                val rolloverSuffix = if (rollover > 0.0) stringResource(R.string.budget_rolled_fmt, fmt(rollover)) else ""
                                 Text(
                                     if (effectiveLimit > 0) {
                                         stringResource(
                                             R.string.budget_amount_fmt,
-                                            FinancialAdvisor.fmt(spentInCat),
-                                            FinancialAdvisor.fmt(effectiveLimit)
+                                            fmt(spentInCat),
+                                            fmt(effectiveLimit)
                                         ) + rolloverSuffix
-                                    } else stringResource(R.string.budget_no_limit_fmt, FinancialAdvisor.fmt(spentInCat)),
+                                    } else stringResource(R.string.budget_no_limit_fmt, fmt(spentInCat)),
                                     style = Eyebrow.copy(
                                         fontSize = 12.sp,
                                         color = if (isOver) Danger else InkFaint,
@@ -532,19 +532,19 @@ private fun BudgetPlanCard(
         Row(Modifier.fillMaxWidth()) {
             PlanStat(
                 label = stringResource(R.string.budget_income_label),
-                value = if (income != null && income > 0) FinancialAdvisor.fmt(income) + " " + currency else "—",
+                value = if (income != null && income > 0) fmt(income) + " " + currency else "—",
                 color = Ink,
                 modifier = Modifier.weight(1f)
             )
             PlanStat(
                 label = stringResource(R.string.budget_committed_label),
-                value = FinancialAdvisor.fmt(plan.committedTotal) + " " + currency,
+                value = fmt(plan.committedTotal) + " " + currency,
                 color = Danger,
                 modifier = Modifier.weight(1f)
             )
             PlanStat(
                 label = stringResource(R.string.budget_free_label),
-                value = FinancialAdvisor.fmt(plan.free) + " " + currency,
+                value = fmt(plan.free) + " " + currency,
                 color = Success,
                 modifier = Modifier.weight(1f)
             )
@@ -581,7 +581,7 @@ private fun BudgetPlanCard(
         if (savingsThisMonth != 0.0) {
             Spacer(Modifier.height(6.dp))
             Text(
-                stringResource(R.string.budget_savings_month_fmt, FinancialAdvisor.fmt(savingsThisMonth)),
+                stringResource(R.string.budget_savings_month_fmt, fmt(savingsThisMonth)),
                 style = Body.copy(fontSize = 12.sp, color = Success, fontWeight = FontWeight.Bold)
             )
         }
@@ -612,12 +612,12 @@ private fun CommitmentGroup(
         Icon(icon, null, Modifier.size(15.dp), tint = tint)
         Spacer(Modifier.width(6.dp))
         Text(title, style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp), modifier = Modifier.weight(1f))
-        Text(FinancialAdvisor.fmt(total) + " " + currency, style = NumBold.copy(fontSize = 12.sp, color = tint))
+        Text(fmt(total) + " " + currency, style = NumBold.copy(fontSize = 12.sp, color = tint))
     }
     items.forEach { c ->
         Row(Modifier.fillMaxWidth().padding(start = 21.dp, top = 3.dp, bottom = 3.dp)) {
             Text(c.label, style = BodyMuted.copy(fontSize = 12.sp), modifier = Modifier.weight(1f), maxLines = 1)
-            Text(FinancialAdvisor.fmt(c.amount) + " " + currency, style = Eyebrow.copy(fontSize = 12.sp))
+            Text(fmt(c.amount) + " " + currency, style = Eyebrow.copy(fontSize = 12.sp))
         }
     }
 }
@@ -658,7 +658,7 @@ private fun BudgetSuggestionsCard(
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(categoryDisplay(s.category), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
-                            Text(FinancialAdvisor.fmt(s.amount) + " " + currency, style = Eyebrow.copy(fontSize = 12.sp))
+                            Text(fmt(s.amount) + " " + currency, style = Eyebrow.copy(fontSize = 12.sp))
                         }
                         Text(
                             stringResource(R.string.budget_apply_suggestion),

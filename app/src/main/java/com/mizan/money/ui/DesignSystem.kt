@@ -378,7 +378,7 @@ fun TransactionCard(
             Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    "$sign${FinancialAdvisor.fmt(tx.amount)}",
+                    "$sign${fmt(tx.amount)}",
                     style = NumBold.copy(color = amtColor, fontSize = 15.sp)
                 )
                 Text(currencyLabel(tx.currency), style = Eyebrow.copy(color = InkSoft, fontWeight = FontWeight.Normal))
@@ -490,6 +490,28 @@ fun sanitizeAmountInput(raw: String): String {
     return if (firstDot == -1) s else s.substring(0, firstDot + 1) + s.substring(firstDot + 1).replace(".", "")
 }
 
+
+private const val ARABIC_INDIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"
+
+/** Swaps ASCII 0-9 for Eastern Arabic-Indic digits; everything else (grouping
+ * commas, decimal point, minus sign, letters) is left untouched. */
+fun toArabicIndicDigits(s: String): String =
+    s.map { c -> if (c in '0'..'9') ARABIC_INDIC_DIGITS[c - '0'] else c }.joinToString("")
+
+@Composable
+fun isArabicUi(): Boolean =
+    androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language == "ar"
+
+// Locale-aware amount formatting for on-screen display: same grouping/decimal
+// style as FinancialAdvisor.fmt(), rendered in Arabic-Indic digits when the
+// app's display language is Arabic. Exports, search-matching and background
+// notifications keep calling FinancialAdvisor.fmt() directly so stored/shared
+// text (CSV, PDF, filters) stays plain ASCII.
+@Composable
+fun fmt(v: Double): String {
+    val base = FinancialAdvisor.fmt(v)
+    return if (isArabicUi()) toArabicIndicDigits(base) else base
+}
 
 // Locale-aware month name. Uses the same locale the rest of the UI is
 // rendering with (via LocalConfiguration), so switching between Arabic and

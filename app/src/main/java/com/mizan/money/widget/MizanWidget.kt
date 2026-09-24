@@ -54,6 +54,7 @@ import com.mizan.money.data.TOTAL_BUDGET
 import com.mizan.money.data.TxType
 import com.mizan.money.ui.Dates
 import com.mizan.money.ui.categoryDisplayName
+import com.mizan.money.ui.toArabicIndicDigits
 import com.mizan.money.ui.theme.localizedContext
 import kotlinx.coroutines.flow.first
 import java.util.Locale
@@ -125,7 +126,10 @@ class MizanWidget : GlanceAppWidget() {
 // Data
 // ---------------------------------------------------------------------------
 
-private fun wholeMoney(v: Double): String = String.format(Locale.US, "%,.0f", v)
+private fun wholeMoney(v: Double, arabic: Boolean = false): String {
+    val s = String.format(Locale.US, "%,.0f", v)
+    return if (arabic) toArabicIndicDigits(s) else s
+}
 
 private fun fallbackData(context: Context): WidgetData {
     val ctx = localizedContext(context)
@@ -159,6 +163,7 @@ private fun fallbackData(context: Context): WidgetData {
 private suspend fun loadWidgetData(context: Context): WidgetData {
     val app = context.applicationContext as MoneyApp
     val ctx = localizedContext(context)
+    val arabic = ctx.resources.configuration.locales[0].language == "ar"
     val txs = app.repository.allTransactions().first()
     val budgets = app.repository.budgets().first()
     val recurring = runCatching { app.repository.recurringItems().first() }.getOrDefault(emptyList())
@@ -208,18 +213,18 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
     when {
         !hasBudget -> {
             heroLabel = ctx.getString(R.string.widget_spent_month)
-            heroAmount = wholeMoney(spent)
+            heroAmount = wholeMoney(spent, arabic)
             subLine = ctx.getString(R.string.widget_set_budget_hint)
         }
         over -> {
             heroLabel = ctx.getString(R.string.widget_over_label)
-            heroAmount = "-" + wholeMoney(-remaining)
-            subLine = ctx.getString(R.string.widget_of_fmt, wholeMoney(budget))
+            heroAmount = "-" + wholeMoney(-remaining, arabic)
+            subLine = ctx.getString(R.string.widget_of_fmt, wholeMoney(budget, arabic))
         }
         else -> {
             heroLabel = ctx.getString(R.string.widget_remaining_label)
-            heroAmount = wholeMoney(remaining)
-            subLine = ctx.getString(R.string.widget_of_fmt, wholeMoney(budget))
+            heroAmount = wholeMoney(remaining, arabic)
+            subLine = ctx.getString(R.string.widget_of_fmt, wholeMoney(budget, arabic))
         }
     }
 
@@ -235,21 +240,24 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
         currency = currency,
         daysLeftText = daysLeftText,
         pct = pct,
-        pctLabel = if (hasBudget) "${(pct * 100).roundToInt()}%" else "",
+        pctLabel = if (hasBudget) (if (arabic) toArabicIndicDigits("${(pct * 100).roundToInt()}") else "${(pct * 100).roundToInt()}") + "%" else "",
         subLine = subLine,
         spentLabel = ctx.getString(R.string.widget_spent_label),
-        spentValue = "${wholeMoney(spent)} $currency",
+        spentValue = "${wholeMoney(spent, arabic)} $currency",
         dailyLabel = ctx.getString(R.string.widget_daily_label),
-        dailyValue = if (hasBudget && !over) "${wholeMoney(remaining / daysLeft)} $currency" else "—",
+        dailyValue = if (hasBudget && !over) "${wholeMoney(remaining / daysLeft, arabic)} $currency" else "—",
         lastTxLabel = ctx.getString(R.string.widget_last_tx_label),
         lastTxMerchant = last?.let {
             it.merchant?.takeIf { m -> m.isNotBlank() } ?: categoryDisplayName(ctx, it.category)
         } ?: ctx.getString(R.string.widget_no_tx),
-        lastTxAmount = last?.let { (if (lastIsExpense) "-" else "+") + FinancialAdvisor.fmt(it.amount) }.orEmpty(),
+        lastTxAmount = last?.let {
+            val amt = FinancialAdvisor.fmt(it.amount)
+            (if (lastIsExpense) "-" else "+") + (if (arabic) toArabicIndicDigits(amt) else amt)
+        }.orEmpty(),
         lastTxIsExpense = lastIsExpense,
         hasLastTx = last != null,
         billLabel = ctx.getString(R.string.dash_upcoming_bills),
-        billMerchant = bill?.let { it.first.merchant + "  ·  ~" + wholeMoney(it.first.expectedAmount) }.orEmpty(),
+        billMerchant = bill?.let { it.first.merchant + "  ·  ~" + wholeMoney(it.first.expectedAmount, arabic) }.orEmpty(),
         billWhen = bill?.let {
             if (it.second == 0) ctx.getString(R.string.dash_today)
             else ctx.getString(R.string.dash_in_days, it.second)

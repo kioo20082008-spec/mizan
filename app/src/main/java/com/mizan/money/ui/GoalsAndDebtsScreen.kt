@@ -279,8 +279,8 @@ private fun GoalCard(
                 Text(
                     stringResource(
                         R.string.goals_amount_fmt,
-                        FinancialAdvisor.fmt(goal.currentAmount),
-                        FinancialAdvisor.fmt(goal.targetAmount),
+                        fmt(goal.currentAmount),
+                        fmt(goal.targetAmount),
                         untilSuffix
                     ),
                     style = Eyebrow.copy(fontSize = 12.sp)
@@ -307,7 +307,7 @@ private fun GoalCard(
             Spacer(Modifier.weight(1f))
             if (!reached) {
                 Text(
-                    stringResource(R.string.goals_remaining_fmt, FinancialAdvisor.fmt(remaining), currency),
+                    stringResource(R.string.goals_remaining_fmt, fmt(remaining), currency),
                     style = Eyebrow.copy(fontSize = 12.sp, color = InkSoft, fontWeight = FontWeight.Bold)
                 )
             }
@@ -316,14 +316,14 @@ private fun GoalCard(
             Spacer(Modifier.height(6.dp))
             val overdue = deadline != null && (monthsLeft == null || monthsLeft <= 0)
             val plan = when {
-                goal.monthlyAmount > 0 -> stringResource(R.string.goals_from_budget_fmt, FinancialAdvisor.fmt(goal.monthlyAmount))
+                goal.monthlyAmount > 0 -> stringResource(R.string.goals_from_budget_fmt, fmt(goal.monthlyAmount))
                 deadline == null -> stringResource(R.string.goals_no_deadline_hint)
                 overdue -> stringResource(R.string.goals_overdue_hint)
                 else -> {
                     val m = monthsLeft ?: 1
                     stringResource(
                         R.string.goals_plan_fmt,
-                        FinancialAdvisor.fmt(remaining / m),
+                        fmt(remaining / m),
                         currency,
                         Dates.dayLabel(deadline)
                     )
@@ -521,7 +521,7 @@ private fun GoalAmountDialog(
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    stringResource(R.string.goals_current_balance_fmt, FinancialAdvisor.fmt(goal.currentAmount), currency),
+                    stringResource(R.string.goals_current_balance_fmt, fmt(goal.currentAmount), currency),
                     style = Eyebrow.copy(fontSize = 12.sp)
                 )
                 Spacer(Modifier.height(10.dp))
@@ -695,7 +695,7 @@ private fun DebtsSection(vm: MainViewModel) {
                             style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         )
                         Text(
-                            stringResource(R.string.debts_bnpl_track_hint_fmt, FinancialAdvisor.fmt(suggestion.second)),
+                            stringResource(R.string.debts_bnpl_track_hint_fmt, fmt(suggestion.second)),
                             style = Eyebrow.copy(fontSize = 12.sp)
                         )
                     }
@@ -775,12 +775,12 @@ private fun DebtSummaryCard(debts: List<DebtEntity>) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.debts_summary_remaining), style = Eyebrow.copy(fontSize = 12.sp))
                 Spacer(Modifier.height(3.dp))
-                Text(FinancialAdvisor.fmt(totalRemaining) + " " + currency, style = NumBold.copy(fontSize = 15.sp, color = Danger))
+                Text(fmt(totalRemaining) + " " + currency, style = NumBold.copy(fontSize = 15.sp, color = Danger))
             }
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.debts_summary_monthly), style = Eyebrow.copy(fontSize = 12.sp))
                 Spacer(Modifier.height(3.dp))
-                Text(FinancialAdvisor.fmt(monthly) + " " + currency, style = NumBold.copy(fontSize = 15.sp, color = Amber))
+                Text(fmt(monthly) + " " + currency, style = NumBold.copy(fontSize = 15.sp, color = Amber))
             }
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.debts_summary_count_fmt, active.size), style = Eyebrow.copy(fontSize = 12.sp))
@@ -792,7 +792,7 @@ private fun DebtSummaryCard(debts: List<DebtEntity>) {
                 Icon(Icons.Default.Autorenew, null, Modifier.size(13.dp), tint = Indigo)
                 Spacer(Modifier.width(5.dp))
                 Text(
-                    stringResource(R.string.debts_from_budget_fmt, FinancialAdvisor.fmt(monthly)),
+                    stringResource(R.string.debts_from_budget_fmt, fmt(monthly)),
                     style = Eyebrow.copy(fontSize = 12.sp, color = Indigo, fontWeight = FontWeight.Bold)
                 )
             }
@@ -828,7 +828,7 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, on
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     if (settled) stringResource(R.string.debts_settled)
-                    else FinancialAdvisor.fmt(debt.remainingAmount) + " " + currency,
+                    else fmt(debt.remainingAmount) + " " + currency,
                     style = NumBold.copy(fontSize = 13.sp, color = if (settled) Success else if (dueSoon) Danger else Ink)
                 )
             }
@@ -875,8 +875,8 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, on
                 if (settled) stringResource(R.string.debts_settled)
                 else stringResource(
                     R.string.debts_remaining_fmt,
-                    FinancialAdvisor.fmt(debt.remainingAmount),
-                    FinancialAdvisor.fmt(debt.totalAmount)
+                    fmt(debt.remainingAmount),
+                    fmt(debt.totalAmount)
                 ),
                 style = Eyebrow.copy(fontSize = 12.sp, color = InkFaint)
             )
@@ -996,12 +996,12 @@ private fun DebtEditorDialog(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(RadiusSm)).background(PaperOuter).padding(12.dp)
                     ) {
                         Text(
-                            stringResource(R.string.debts_installment_preview_fmt, FinancialAdvisor.fmt(installment)),
+                            stringResource(R.string.debts_installment_preview_fmt, fmt(installment)),
                             style = Eyebrow.copy(fontSize = 12.sp, color = Indigo, fontWeight = FontWeight.Bold)
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            stringResource(R.string.debts_remaining_preview_fmt, FinancialAdvisor.fmt(remaining)),
+                            stringResource(R.string.debts_remaining_preview_fmt, fmt(remaining)),
                             style = Eyebrow.copy(fontSize = 12.sp)
                         )
                     }

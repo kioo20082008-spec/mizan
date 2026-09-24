@@ -347,7 +347,7 @@ private fun ComparisonColumn(label: String, amount: Double, modifier: Modifier =
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, style = Eyebrow)
         Spacer(Modifier.height(6.dp))
-        Text("${FinancialAdvisor.fmt(amount)} ${currencyLabel("SAR")}", style = NumBold.copy(fontSize = 16.sp))
+        Text("${fmt(amount)} ${currencyLabel("SAR")}", style = NumBold.copy(fontSize = 16.sp))
     }
 }
 
