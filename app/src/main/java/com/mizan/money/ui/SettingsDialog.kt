@@ -826,7 +826,6 @@ private fun SettingsSection(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(RadiusLg))
             .background(White)
-            .border(1.dp, Line, RoundedCornerShape(RadiusLg))
     ) {
         Row(
             Modifier.fillMaxWidth()

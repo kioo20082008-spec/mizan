@@ -52,6 +52,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -247,90 +254,154 @@ private fun RootScaffold(
         rootLifecycleOwner.lifecycle.addObserver(observer)
         onDispose { rootLifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            AppHeader(onSettingsClick = { showSettings = true })
-            AnimatedVisibility(
-                visible = !hasReceiveSms,
-                enter = fadeIn(tween(300)) + expandVertically(tween(300, easing = FastOutSlowInEasing)),
-                exit = fadeOut(tween(200)) + shrinkVertically(tween(240, easing = FastOutSlowInEasing))
-            ) {
-                Row(
-                    Modifier.fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp)
-                        .clip(RoundedCornerShape(RadiusSm))
-                        .background(Amber.copy(alpha = 0.14f))
-                        .clickable { showSettings = true }
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+    // ---- One UI large title ------------------------------------------------
+    // The title starts big in the upper part of the screen (easy to read, keeps
+    // content within thumb reach) and collapses into a toolbar as the content
+    // scrolls — driven by nested scroll from whichever screen is showing.
+    val density = LocalDensity.current
+    val expandedH = 136.dp
+    val collapsedH = 60.dp
+    val rangePx = with(density) { (expandedH - collapsedH).toPx() }
+    var headerOffset by remember { mutableFloatStateOf(0f) } // 0 = expanded, -rangePx = collapsed
+    LaunchedEffect(tab) { headerOffset = 0f }
+    val headerScroll = remember(rangePx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y >= 0f) return Offset.Zero
+                val next = (headerOffset + available.y).coerceIn(-rangePx, 0f)
+                val used = next - headerOffset
+                headerOffset = next
+                return Offset(0f, used)
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (available.y <= 0f) return Offset.Zero
+                val next = (headerOffset + available.y).coerceIn(-rangePx, 0f)
+                val used = next - headerOffset
+                headerOffset = next
+                return Offset(0f, used)
+            }
+        }
+    }
+    val expandFraction = if (rangePx > 0f) 1f + headerOffset / rangePx else 1f
+    val title = when (tab) {
+        0 -> stringResource(R.string.app_name)
+        1 -> stringResource(R.string.tx_title)
+        2 -> stringResource(R.string.planning_title)
+        else -> stringResource(R.string.insights_title)
+    }
+
+    Column(Modifier.fillMaxSize().nestedScroll(headerScroll)) {
+        Column(Modifier.fillMaxWidth().height(collapsedH + with(density) { (rangePx + headerOffset).toDp() })) {
+            Box(Modifier.fillMaxWidth().weight(1f).clipToBounds()) {
+                Column(
+                    Modifier.align(Alignment.BottomStart)
+                        .padding(start = 24.dp, end = 24.dp, bottom = 2.dp)
+                        .graphicsLayer { alpha = expandFraction }
                 ) {
-                    Icon(Icons.Default.Info, null, Modifier.size(18.dp), tint = Amber)
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        stringResource(R.string.receive_sms_warning),
-                        style = Body.copy(fontSize = 13.sp, color = Ink)
-                    )
+                    if (tab == 0) {
+                        Text(stringResource(R.string.header_greeting), style = BodyMuted)
+                        Spacer(Modifier.height(2.dp))
+                    }
+                    Text(title, style = H1.copy(fontSize = 30.sp), maxLines = 1)
                 }
             }
-            AnimatedVisibility(
-                visible = isScanning,
-                enter = fadeIn(tween(250)) + expandVertically(tween(250)),
-                exit = fadeOut(tween(200)) + shrinkVertically(tween(220))
+            Row(
+                Modifier.fillMaxWidth().height(collapsedH).padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().height(2.dp),
-                    color = Lime, trackColor = Color.Transparent
+                Text(
+                    title,
+                    style = H2.copy(fontSize = 19.sp),
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+                        .graphicsLayer { alpha = 1f - expandFraction }
                 )
-            }
-            Box(Modifier.weight(1f)) {
-                val layoutDir = LocalLayoutDirection.current
-                AnimatedContent(
-                    targetState = tab,
-                    modifier = Modifier.fillMaxSize(),
-                    transitionSpec = {
-                        val forward = targetState > initialState
-                        val base = if (layoutDir == LayoutDirection.Rtl) -1 else 1
-                        val dir = if (forward) base else -base
-                        (slideInHorizontally(tween(340, easing = FastOutSlowInEasing)) { full -> dir * full / 10 } +
-                            fadeIn(tween(340, easing = FastOutSlowInEasing)))
-                            .togetherWith(
-                                slideOutHorizontally(tween(280, easing = FastOutSlowInEasing)) { full -> -dir * full / 10 } +
-                                    fadeOut(tween(220, easing = FastOutSlowInEasing))
-                            )
-                    },
-                    label = "tab"
-                ) { t ->
-                    when (t) {
-                        0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
-                        1 -> TransactionsScreen(vm, initialCategory = categoryFilter)
-                        2 -> PlanningScreen(vm, monthOffset, onOpenCategory = { cat -> categoryFilter = cat; tab = 1 })
-                        else -> InsightsScreen(vm, monthOffset)
-                    }
+                IconButton(onClick = { showSettings = true }, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Outlined.Settings, stringResource(R.string.header_settings), Modifier.size(24.dp), tint = Ink)
                 }
             }
         }
-        // Adding a transaction is the most common manual action, so it is one
-        // tap away from the two screens where money is viewed.
         AnimatedVisibility(
-            visible = tab <= 1,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = 104.dp),
-            enter = fadeIn(tween(200)) + scaleIn(tween(220)),
-            exit = fadeOut(tween(150)) + scaleOut(tween(150))
+            visible = !hasReceiveSms,
+            enter = fadeIn(tween(300)) + expandVertically(tween(300, easing = FastOutSlowInEasing)),
+            exit = fadeOut(tween(200)) + shrinkVertically(tween(240, easing = FastOutSlowInEasing))
         ) {
-            Box(
-                Modifier.size(58.dp)
-                    .shadow(14.dp, CircleShape, ambientColor = Ink900.copy(alpha = 0.3f))
-                    .clip(CircleShape)
-                    .background(Lime)
-                    .clickable { showAdd = true },
-                contentAlignment = Alignment.Center
+            Row(
+                Modifier.fillMaxWidth()
+                    .padding(start = 20.dp, end = 20.dp, bottom = 10.dp)
+                    .clip(RoundedCornerShape(RadiusMd))
+                    .background(White)
+                    .clickable { showSettings = true }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, stringResource(R.string.tx_add), Modifier.size(28.dp), tint = Color(0xFF121017))
+                Icon(Icons.Default.Info, null, Modifier.size(20.dp), tint = Amber)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    stringResource(R.string.receive_sms_warning),
+                    style = Body.copy(fontSize = 13.sp, color = Ink)
+                )
+            }
+        }
+        AnimatedVisibility(
+            visible = isScanning,
+            enter = fadeIn(tween(250)) + expandVertically(tween(250)),
+            exit = fadeOut(tween(200)) + shrinkVertically(tween(220))
+        ) {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(3.dp).clip(RoundedCornerShape(Pill)),
+                color = Indigo, trackColor = PaperOuter
+            )
+        }
+        Box(Modifier.weight(1f)) {
+            val layoutDir = LocalLayoutDirection.current
+            AnimatedContent(
+                targetState = tab,
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    val forward = targetState > initialState
+                    val base = if (layoutDir == LayoutDirection.Rtl) -1 else 1
+                    val dir = if (forward) base else -base
+                    (slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { full -> dir * full / 12 } +
+                        fadeIn(tween(300, easing = FastOutSlowInEasing)))
+                        .togetherWith(
+                            slideOutHorizontally(tween(240, easing = FastOutSlowInEasing)) { full -> -dir * full / 12 } +
+                                fadeOut(tween(200, easing = FastOutSlowInEasing))
+                        )
+                },
+                label = "tab"
+            ) { t ->
+                when (t) {
+                    0 -> DashboardScreen(vm, monthOffset, onOffsetChange = { monthOffset = it }, onNavigateToTransactions = { cat -> categoryFilter = cat; tab = 1 })
+                    1 -> TransactionsScreen(vm, initialCategory = categoryFilter)
+                    2 -> PlanningScreen(vm, monthOffset, onOpenCategory = { cat -> categoryFilter = cat; tab = 1 })
+                    else -> InsightsScreen(vm, monthOffset)
+                }
+            }
+            // Adding a transaction is the most common manual action, so it is
+            // one tap away on the two screens where money is viewed.
+            AnimatedVisibility(
+                visible = tab <= 1,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 20.dp),
+                enter = fadeIn(tween(200)) + scaleIn(tween(220)),
+                exit = fadeOut(tween(150)) + scaleOut(tween(150))
+            ) {
+                Box(
+                    Modifier.size(56.dp)
+                        .shadow(6.dp, CircleShape)
+                        .clip(CircleShape)
+                        .background(Ink900)
+                        .clickable { showAdd = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Add, stringResource(R.string.tx_add), Modifier.size(28.dp), tint = Lime)
+                }
             }
         }
         // Picking a tab from the bar always shows that tab unfiltered; only the
         // category shortcuts on Home/Planning pre-filter the transactions list.
-        BottomNav(tab, Modifier.align(Alignment.BottomCenter)) { categoryFilter = null; tab = it }
+        BottomNav(tab) { categoryFilter = null; tab = it }
     }
     if (showAdd) {
         AddDialog(
@@ -352,87 +423,46 @@ private fun RootScaffold(
     }
 }
 
-@Composable
-private fun AppHeader(onSettingsClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconBadge(Icons.Default.Savings, Lime, Ink900, size = 46.dp, radius = RadiusSm)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.header_greeting), style = Eyebrow)
-            Text(stringResource(R.string.app_name), style = H1)
-        }
-        Box(
-            Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(White)
-                .border(1.dp, Line, RoundedCornerShape(RadiusSm))
-                .clickable(onClick = onSettingsClick),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Outlined.Settings, stringResource(R.string.header_settings), Modifier.size(20.dp), tint = InkSoft)
-        }
-    }
-}
-
 // ============ BOTTOM NAV ============
+// One UI style: flat bar on the card colour, icon + label always visible, the
+// selected tab marked by a soft pill behind its icon.
 @Composable
-private fun BottomNav(selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
+private fun BottomNav(selected: Int, onSelect: (Int) -> Unit) {
     val items = listOf(
         Triple(stringResource(R.string.nav_home),         Icons.Filled.Home,                     0),
         Triple(stringResource(R.string.nav_transactions), Icons.AutoMirrored.Filled.ReceiptLong,  1),
         Triple(stringResource(R.string.nav_planning),     Icons.Filled.AccountBalanceWallet,     2),
         Triple(stringResource(R.string.nav_advisor),      Icons.Filled.PieChart,                 3)
     )
-    Box(modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)) {
-        BoxWithConstraints(
-            Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .shadow(20.dp, RoundedCornerShape(Pill), ambientColor = Ink900.copy(alpha = 0.3f))
-                .clip(RoundedCornerShape(Pill))
-                .background(Ink900)
-                .padding(6.dp)
-        ) {
-            val itemWidth = maxWidth / items.size
-            val indicatorX by animateDpAsState(
-                itemWidth * selected,
-                spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
-                label = "nav"
-            )
-            Box(
-                Modifier
-                    .offset(x = indicatorX)
-                    .width(itemWidth)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(Pill))
-                    .background(Lime)
-            )
-            Row(Modifier.fillMaxWidth().fillMaxHeight(), horizontalArrangement = Arrangement.SpaceBetween) {
-                items.forEach { (label, icon, idx) ->
-                    val isSel = selected == idx
-                    val tint by animateColorAsState(if (isSel) Ink900 else OnInkSoft, tween(240), label = "tint")
-                    Row(
-                        Modifier
-                            .width(itemWidth)
-                            .fillMaxHeight()
-                            .clickable { onSelect(idx) },
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(icon, label, Modifier.size(20.dp), tint = tint)
-                        AnimatedVisibility(
-                            visible = isSel,
-                            enter = fadeIn(tween(220)) + expandHorizontally(tween(260, easing = FastOutSlowInEasing)),
-                            exit = fadeOut(tween(120)) + shrinkHorizontally(tween(180, easing = FastOutSlowInEasing))
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Spacer(Modifier.width(6.dp))
-                                Text(label, fontSize = 12.sp, color = tint, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
+    Row(
+        Modifier.fillMaxWidth().background(White).height(72.dp).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        items.forEach { (label, icon, idx) ->
+            val isSel = selected == idx
+            val tint by animateColorAsState(if (isSel) Indigo else InkSoft, tween(200), label = "navTint")
+            val pill by animateColorAsState(if (isSel) IndigoSoft else Color.Transparent, tween(200), label = "navPill")
+            Column(
+                Modifier.weight(1f).fillMaxHeight()
+                    .clip(RoundedCornerShape(RadiusMd))
+                    .clickable { onSelect(idx) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    Modifier.size(width = 56.dp, height = 30.dp).clip(RoundedCornerShape(Pill)).background(pill),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, Modifier.size(22.dp), tint = tint)
                 }
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    label,
+                    fontSize = 12.sp,
+                    color = tint,
+                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1
+                )
             }
         }
     }

@@ -72,7 +72,7 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
             Row(
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(RadiusLg))
-                    .background(Brush.linearGradient(listOf(Ink800, Ink900)))
+                    .background(Ink900)
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -92,7 +92,6 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
                     Modifier.fillMaxWidth()
                         .clip(RoundedCornerShape(RadiusLg))
                         .background(White)
-                        .border(1.dp, Line, RoundedCornerShape(RadiusLg))
                 ) {
                     advice.forEachIndexed { index, a ->
                         AdviceRow(a)

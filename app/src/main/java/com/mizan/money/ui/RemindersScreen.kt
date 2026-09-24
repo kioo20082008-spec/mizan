@@ -54,7 +54,7 @@ fun RemindersSection(vm: MainViewModel) {
                     Text(stringResource(R.string.reminders_count_fmt, reminders.size), style = Eyebrow)
                 }
                 Box(
-                    Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Ink900)
+                    Modifier.size(44.dp).clip(RoundedCornerShape(Pill)).background(Ink900)
                         .clickable { showAdd = true },
                     contentAlignment = Alignment.Center
                 ) { Icon(Icons.Default.Add, stringResource(R.string.reminders_add_title), tint = Lime, modifier = Modifier.size(20.dp)) }

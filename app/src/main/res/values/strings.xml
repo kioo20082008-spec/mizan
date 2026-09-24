@@ -570,4 +570,5 @@
     <string name="dash_used_of_fmt">صرفت %1$s من %2$s %3$s</string>
     <string name="planning_tab_commitments">الالتزامات</string>
     <string name="settings_back">رجوع</string>
+    <string name="day_yesterday">أمس</string>
 </resources>

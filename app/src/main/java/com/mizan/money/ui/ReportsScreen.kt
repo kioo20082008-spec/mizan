@@ -42,8 +42,6 @@ fun InsightsScreen(vm: MainViewModel, offset: Int) {
     var subTab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(start = 20.dp, top = 4.dp, end = 20.dp, bottom = 10.dp)) {
-            Text(stringResource(R.string.insights_title), style = H1)
-            Spacer(Modifier.height(10.dp))
             TabSwitcher(
                 listOf(stringResource(R.string.insights_tab_advice), stringResource(R.string.insights_tab_reports)),
                 subTab

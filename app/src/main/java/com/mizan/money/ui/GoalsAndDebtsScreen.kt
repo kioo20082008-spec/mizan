@@ -51,8 +51,6 @@ fun PlanningScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> U
     var commitTab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(start = 20.dp, top = 4.dp, end = 20.dp, bottom = 10.dp)) {
-            Text(stringResource(R.string.planning_title), style = H1)
-            Spacer(Modifier.height(10.dp))
             TabSwitcher(
                 listOf(
                     stringResource(R.string.planning_tab_budget),
@@ -153,7 +151,7 @@ private fun GoalsSection(vm: MainViewModel) {
                     Text(stringResource(R.string.goals_subtitle), style = Eyebrow)
                 }
                 Box(
-                    Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Ink900)
+                    Modifier.size(44.dp).clip(RoundedCornerShape(Pill)).background(Ink900)
                         .clickable { suggestedName = ""; showAdd = true },
                     contentAlignment = Alignment.Center
                 ) { Icon(Icons.Default.Add, stringResource(R.string.goals_add), tint = Lime, modifier = Modifier.size(20.dp)) }
@@ -676,7 +674,7 @@ private fun DebtsSection(vm: MainViewModel) {
                     Text(stringResource(R.string.debts_subtitle), style = Eyebrow)
                 }
                 Box(
-                    Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Ink900)
+                    Modifier.size(44.dp).clip(RoundedCornerShape(Pill)).background(Ink900)
                         .clickable { showAdd = true },
                     contentAlignment = Alignment.Center
                 ) { Icon(Icons.Default.Add, stringResource(R.string.debts_add), tint = Lime, modifier = Modifier.size(20.dp)) }
@@ -831,7 +829,7 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, on
                 Text(
                     if (settled) stringResource(R.string.debts_settled)
                     else FinancialAdvisor.fmt(debt.remainingAmount) + " " + currency,
-                    style = NumBold.copy(fontSize = 13.sp, color = if (settled) Success else if (dueSoon) Danger else Ink900)
+                    style = NumBold.copy(fontSize = 13.sp, color = if (settled) Success else if (dueSoon) Danger else Ink)
                 )
             }
             Spacer(Modifier.width(6.dp))
@@ -1061,7 +1059,7 @@ private fun DebtDateField(label: String, value: Long?, onPick: (Long) -> Unit) {
         ) {
             Text(
                 value?.let { Dates.dayLabel(it) } ?: stringResource(R.string.debts_date_none),
-                style = Body.copy(color = if (value != null) Ink900 else InkFaint, fontSize = 13.sp)
+                style = Body.copy(color = if (value != null) Ink else InkFaint, fontSize = 13.sp)
             )
             Spacer(Modifier.weight(1f))
             Icon(Icons.Default.CalendarMonth, null, tint = InkFaint, modifier = Modifier.size(18.dp))

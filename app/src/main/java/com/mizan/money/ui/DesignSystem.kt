@@ -64,18 +64,19 @@ val Danger: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.dang
 val Amber: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.amber
 val Purple: Color @Composable @ReadOnlyComposable get() = MizanTheme.colors.purple
 
-val RadiusSm = 14.dp
-val RadiusMd = 20.dp
-val RadiusLg = 28.dp
-val RadiusXl = 36.dp
+// One UI rounds generously but consistently: cards ~24-28dp, controls smaller.
+val RadiusSm = 12.dp
+val RadiusMd = 18.dp
+val RadiusLg = 24.dp
+val RadiusXl = 28.dp
 val Pill     = 999.dp
 
 private val Sans = FontFamily.Default
 
 val Display: TextStyle @Composable @ReadOnlyComposable get() =
-    TextStyle(fontFamily = Sans, fontSize = 38.sp, fontWeight = FontWeight.Black, color = Lime)
+    TextStyle(fontFamily = Sans, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Ink)
 val H1: TextStyle @Composable @ReadOnlyComposable get() =
-    TextStyle(fontFamily = Sans, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ink)
+    TextStyle(fontFamily = Sans, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink)
 val H2: TextStyle @Composable @ReadOnlyComposable get() =
     TextStyle(fontFamily = Sans, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
 val Body: TextStyle @Composable @ReadOnlyComposable get() =
@@ -95,7 +96,7 @@ fun IconBadge(
     bg: Color,
     size: Dp = 44.dp,
     iconSize: Dp = 20.dp,
-    radius: Dp = RadiusSm
+    radius: Dp = Pill // One UI list icons are circular
 ) {
     Box(
         Modifier.size(size).clip(RoundedCornerShape(radius)).background(bg),
@@ -111,10 +112,8 @@ fun SoftCard(
     Column(
         modifier
             .fillMaxWidth()
-            .shadow(3.dp, RoundedCornerShape(RadiusLg), ambientColor = Ink.copy(alpha = 0.05f))
             .clip(RoundedCornerShape(RadiusLg))
             .background(White)
-            .border(1.dp, Line, RoundedCornerShape(RadiusLg))
             .padding(18.dp),
         content = content
     )
@@ -124,17 +123,17 @@ fun SoftCard(
 fun TabSwitcher(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     Row(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(RadiusMd))
+            .clip(RoundedCornerShape(Pill))
             .background(PaperOuter)
             .padding(4.dp)
     ) {
         items.forEachIndexed { i, label ->
             val isSel = i == selected
             val bg by animateColorAsState(if (isSel) White else Color.Transparent, tween(260), label = "tabBg")
-            val fg by animateColorAsState(if (isSel) Indigo else InkSoft, tween(260), label = "tabFg")
+            val fg by animateColorAsState(if (isSel) Ink else InkSoft, tween(260), label = "tabFg")
             Box(
                 Modifier.weight(1f)
-                    .clip(RoundedCornerShape(RadiusSm))
+                    .clip(RoundedCornerShape(Pill))
                     .background(bg)
                     .clickable { onSelect(i) }
                     .padding(vertical = 10.dp),
@@ -143,7 +142,7 @@ fun TabSwitcher(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
                 Text(
                     label,
                     style = Eyebrow.copy(
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = fg,
                         fontWeight = if (isSel) FontWeight.Bold else FontWeight.SemiBold
                     )
@@ -217,28 +216,76 @@ fun EmptyState(text: String) {
     }
 }
 
+// Position of a row inside a One UI list group: only the group's outer corners
+// are rounded and rows are separated by inset dividers, not gaps.
+enum class RowPos { Single, First, Middle, Last }
+
+fun rowPos(index: Int, size: Int): RowPos = when {
+    size <= 1 -> RowPos.Single
+    index == 0 -> RowPos.First
+    index == size - 1 -> RowPos.Last
+    else -> RowPos.Middle
+}
+
+fun RowPos.shape(r: Dp = RadiusLg): RoundedCornerShape = when (this) {
+    RowPos.Single -> RoundedCornerShape(r)
+    RowPos.First -> RoundedCornerShape(topStart = r, topEnd = r)
+    RowPos.Middle -> RoundedCornerShape(0.dp)
+    RowPos.Last -> RoundedCornerShape(bottomStart = r, bottomEnd = r)
+}
+
 @Composable
-fun TransactionCard(tx: TransactionEntity, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun TransactionCard(
+    tx: TransactionEntity,
+    modifier: Modifier = Modifier,
+    position: RowPos = RowPos.Single,
+    showDate: Boolean = true,
+    onClick: () -> Unit
+) {
     val isExpense = tx.type == TxType.EXPENSE
     val sign = if (isExpense) "-" else "+"
     val amtColor = if (tx.isSelfTransfer) InkFaint else if (isExpense) Ink else Success
 
-    SoftCard(modifier.clickable { onClick() }) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(catIcon(tx.category), catColor(tx.category), catColorSoft(tx.category), size = 46.dp)
+    Column(
+        modifier.fillMaxWidth()
+            .clip(position.shape())
+            .background(White)
+            .clickable { onClick() }
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconBadge(catIcon(tx.category), catColor(tx.category), catColorSoft(tx.category), size = 42.dp)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(tx.merchant ?: "غير معروف", style = H2.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    tx.merchant ?: stringResource(R.string.tx_unknown_merchant),
+                    style = Body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
                 Spacer(Modifier.height(2.dp))
-                Text("${categoryDisplay(tx.category)} • ${Dates.dayLabel(tx.timestamp)}", style = Eyebrow.copy(fontSize = 12.sp))
+                Text(
+                    if (showDate) "${categoryDisplay(tx.category)} • ${Dates.dayLabel(tx.timestamp)}"
+                    else categoryDisplay(tx.category),
+                    style = Eyebrow.copy(color = InkSoft, fontWeight = FontWeight.Normal, fontSize = 13.sp),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
             }
+            Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     "$sign${FinancialAdvisor.fmt(tx.amount)}",
-                    style = NumBold.copy(color = amtColor, fontSize = 16.sp)
+                    style = NumBold.copy(color = amtColor, fontSize = 15.sp)
                 )
-                Text(currencyLabel(tx.currency), style = Eyebrow.copy(fontSize = 12.sp))
+                Text(currencyLabel(tx.currency), style = Eyebrow.copy(color = InkSoft, fontWeight = FontWeight.Normal))
             }
+        }
+        if (position == RowPos.First || position == RowPos.Middle) {
+            Box(
+                Modifier.padding(start = 72.dp, end = 16.dp)
+                    .fillMaxWidth().height(1.dp).background(Line)
+            )
         }
     }
 }

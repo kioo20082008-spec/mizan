@@ -26,51 +26,53 @@ data class MizanColors(
     val isDark: Boolean,
 )
 
+// Samsung One UI–inspired palette. Neutral grey canvas, white rounded cards,
+// one blue accent. The legacy token names are kept so every screen picks the
+// new look up automatically:
+//   ink900/ink800 = accent surface (primary buttons, highlight cards)
+//   lime          = content drawn ON that accent surface (white)
+//   onInkSoft     = secondary content on the accent surface
 val LightMizanColors = MizanColors(
-    paper        = Color(0xFFFAF9F6),
-    paperOuter   = Color(0xFFF0EEE7),
+    paper        = Color(0xFFF6F6F8),
+    paperOuter   = Color(0xFFEBEBEF),
     white        = Color(0xFFFFFFFF),
-    line         = Color(0xFFE9E6DE),
-    ink          = Color(0xFF15141A),
-    inkSoft      = Color(0xFF6F6D76),
-    inkFaint     = Color(0xFF85838C),
-    ink900       = Color(0xFF121017),
-    ink800       = Color(0xFF1E1B26),
-    onInkSoft    = Color(0xFFACA9B8),
-    indigo       = Color(0xFF4F46E5),
-    indigoDeep   = Color(0xFF3730A3),
-    indigoSoft   = Color(0xFFEEEEFD),
-    lime         = Color(0xFFD7F26B),
-    success      = Color(0xFF22C55E),
-    danger       = Color(0xFFF43F5E),
-    amber        = Color(0xFFF59E0B),
-    purple       = Color(0xFF8B5CF6),
+    line         = Color(0xFFE3E3E8),
+    ink          = Color(0xFF111114),
+    inkSoft      = Color(0xFF6B6B72),
+    inkFaint     = Color(0xFF85858C),
+    ink900       = Color(0xFF2F6FED),
+    ink800       = Color(0xFF2F6FED),
+    onInkSoft    = Color(0xFFDCE7FD),
+    indigo       = Color(0xFF2F6FED),
+    indigoDeep   = Color(0xFF1F57C7),
+    indigoSoft   = Color(0xFFE7EFFE),
+    lime         = Color(0xFFFFFFFF),
+    success      = Color(0xFF168A4A),
+    danger       = Color(0xFFE5383B),
+    amber        = Color(0xFFE08600),
+    purple       = Color(0xFF7C4DDB),
     isDark       = false,
 )
 
 val DarkMizanColors = MizanColors(
-    // Background layers go from very dark (paper) to slightly lighter (paperOuter),
-    // then to "cards" (white). The original Ink900/Ink800 stay dark for hero
-    // surfaces — they just need to feel even deeper against the dark paper.
-    paper        = Color(0xFF0D0D12),
-    paperOuter   = Color(0xFF17171E),
-    white        = Color(0xFF1C1C25),
-    line         = Color(0xFF2A2A36),
-    ink          = Color(0xFFF0EFEA),
-    inkSoft      = Color(0xFFA8A6B0),
-    inkFaint     = Color(0xFF8A8894),
-    ink900       = Color(0xFF08080C),
-    ink800       = Color(0xFF141420),
-    onInkSoft    = Color(0xFF9A98A6),
-    // Signature colors are nudged brighter so they stay legible on a dark
-    // background without changing the app's visual identity.
-    indigo       = Color(0xFF7C72F0),
-    indigoDeep   = Color(0xFF5B51D1),
-    indigoSoft   = Color(0xFF1F1F38),
-    lime         = Color(0xFFD7F26B),
-    success      = Color(0xFF34D399),
-    danger       = Color(0xFFFF6B7D),
-    amber        = Color(0xFFFFB84D),
+    // One UI dark: true-black canvas, charcoal cards.
+    paper        = Color(0xFF000000),
+    paperOuter   = Color(0xFF232326),
+    white        = Color(0xFF17171A),
+    line         = Color(0xFF2B2B30),
+    ink          = Color(0xFFF2F2F5),
+    inkSoft      = Color(0xFFA2A2A8),
+    inkFaint     = Color(0xFF8A8A91),
+    ink900       = Color(0xFF3478F6),
+    ink800       = Color(0xFF3478F6),
+    onInkSoft    = Color(0xFFDCE7FD),
+    indigo       = Color(0xFF5B9BFF),
+    indigoDeep   = Color(0xFF3478F6),
+    indigoSoft   = Color(0xFF14243F),
+    lime         = Color(0xFFFFFFFF),
+    success      = Color(0xFF34C77B),
+    danger       = Color(0xFFFF5A5F),
+    amber        = Color(0xFFFFB340),
     purple       = Color(0xFFA78BFA),
     isDark       = true,
 )

@@ -52,7 +52,6 @@ fun PermissionScreen(showSettingsLink: Boolean, onGrant: () -> Unit, onOpenSetti
             Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(RadiusLg))
                 .background(White)
-                .border(1.dp, Line, RoundedCornerShape(RadiusLg))
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {

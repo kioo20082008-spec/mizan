@@ -180,7 +180,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
             Box(
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(RadiusXl))
-                    .background(Brush.linearGradient(listOf(Ink800, Ink900)))
+                    .background(Ink900)
                     .padding(22.dp)
             ) {
                 Column {
@@ -311,7 +311,6 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(RadiusLg))
                     .background(White)
-                    .border(1.dp, Line, RoundedCornerShape(RadiusLg))
             ) {
                 shownCats.forEachIndexed { index, cat ->
                     val spentInCat = spentByCat[cat] ?: 0.0
@@ -534,7 +533,7 @@ private fun BudgetPlanCard(
             PlanStat(
                 label = stringResource(R.string.budget_income_label),
                 value = if (income != null && income > 0) FinancialAdvisor.fmt(income) + " " + currency else "—",
-                color = Ink900,
+                color = Ink,
                 modifier = Modifier.weight(1f)
             )
             PlanStat(

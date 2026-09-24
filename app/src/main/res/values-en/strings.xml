@@ -570,4 +570,5 @@
     <string name="dash_used_of_fmt">Spent %1$s of %2$s %3$s</string>
     <string name="planning_tab_commitments">Commitments</string>
     <string name="settings_back">Back</string>
+    <string name="day_yesterday">Yesterday</string>
 </resources>

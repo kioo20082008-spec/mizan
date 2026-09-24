@@ -75,7 +75,7 @@ fun DashboardScreen(
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 180.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item { MonthHeader(offset, startDay, range, onPrev = goPrev, onNext = goNext) }
@@ -138,8 +138,13 @@ fun DashboardScreen(
                     )
                 }
             }
-            items(monthTxs.take(3), key = { it.id }) { tx ->
-                TransactionCard(tx, modifier = Modifier.animateItem(), onClick = { selectedTx = tx })
+            item {
+                val recent = monthTxs.take(3)
+                Column {
+                    recent.forEachIndexed { i, tx ->
+                        TransactionCard(tx, position = rowPos(i, recent.size), onClick = { selectedTx = tx })
+                    }
+                }
             }
         } else if (txs.isNotEmpty()) {
             item { EmptyState(stringResource(R.string.dash_empty_month)) }
@@ -197,8 +202,8 @@ private fun MonthHeader(offset: Int, startDay: Int, range: LongRange, onPrev: ()
     }
 }
 
-// The one number that matters: what's left to spend this cycle. Solid card,
-// no decoration — the number carries the design. Swipe sideways to change month.
+// The one number that matters: what's left to spend this cycle. A plain white
+// One UI card — the number carries the design. Swipe sideways to change month.
 @Composable
 private fun HeroCard(
     s: MonthSummary,
@@ -216,13 +221,12 @@ private fun HeroCard(
     val over = hasBudget && remaining < 0
     val pct = if (hasBudget) (s.spent / budget).toFloat() else 0f
     val anim by animateFloatAsState(pct.coerceIn(0f, 1f), tween(800), label = "hero")
-    val onHero = Color.White
     var drag by remember { mutableFloatStateOf(0f) }
 
     Column(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(RadiusXl))
-            .background(Ink900)
+            .background(White)
             .pointerInput(rtl, offset) {
                 detectHorizontalDragGestures(
                     onDragStart = { drag = 0f },
@@ -252,18 +256,18 @@ private fun HeroCard(
         val amount = if (hasBudget) remaining else s.net
         val danger = amount < 0
 
-        Text(stringResource(labelRes), style = Body.copy(color = OnInkSoft))
+        Text(stringResource(labelRes), style = Body.copy(color = InkSoft))
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 (if (amount < 0) "-" else "") + FinancialAdvisor.fmt(abs(amount)),
-                style = Display.copy(color = if (danger) Danger else Lime),
+                style = Display.copy(color = if (danger) Danger else Ink),
                 maxLines = 1
             )
             Spacer(Modifier.width(6.dp))
             Text(
                 currency,
-                style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium, fontSize = 16.sp),
+                style = Body.copy(color = InkSoft, fontWeight = FontWeight.Medium, fontSize = 16.sp),
                 modifier = Modifier.padding(bottom = 6.dp)
             )
         }
@@ -276,7 +280,7 @@ private fun HeroCard(
                     FinancialAdvisor.fmt(remaining / daysLeftIn(range)),
                     currency
                 ),
-                style = Body.copy(color = onHero)
+                style = Body.copy(color = Ink)
             )
         }
 
@@ -285,29 +289,29 @@ private fun HeroCard(
             Box(
                 Modifier.fillMaxWidth().height(8.dp)
                     .clip(RoundedCornerShape(Pill))
-                    .background(onHero.copy(alpha = 0.12f))
+                    .background(PaperOuter)
             ) {
                 Box(
                     Modifier.fillMaxWidth(anim).fillMaxHeight()
                         .clip(RoundedCornerShape(Pill))
-                        .background(if (over) Danger else Lime)
+                        .background(if (over) Danger else if (pct >= 0.85f) Amber else Indigo)
                 )
             }
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(R.string.dash_used_of_fmt, FinancialAdvisor.fmt(s.spent), FinancialAdvisor.fmt(budget), currency),
-                    style = Body.copy(color = OnInkSoft, fontSize = 13.sp),
+                    style = Body.copy(color = InkSoft, fontSize = 13.sp),
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     "${(pct * 100).roundToInt()}%",
-                    style = Body.copy(color = if (over) Danger else onHero, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    style = Body.copy(color = if (over) Danger else Ink, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 )
             }
         } else {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                HeroStat(Icons.Default.ArrowDownward, Lime, stringResource(R.string.dash_total_income), FinancialAdvisor.fmt(s.income), Modifier.weight(1f))
+                HeroStat(Icons.Default.ArrowDownward, Success, stringResource(R.string.dash_total_income), FinancialAdvisor.fmt(s.income), Modifier.weight(1f))
                 HeroStat(Icons.Default.ArrowUpward, Danger, stringResource(R.string.dash_total_spend), FinancialAdvisor.fmt(s.spent), Modifier.weight(1f))
             }
         }
@@ -317,11 +321,11 @@ private fun HeroCard(
 @Composable
 private fun HeroStat(icon: ImageVector, tint: Color, label: String, value: String, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        IconBadge(icon, tint, Color.White.copy(alpha = 0.08f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
+        IconBadge(icon, tint, tint.copy(alpha = 0.12f), size = 38.dp, iconSize = 18.dp)
         Spacer(Modifier.width(10.dp))
         Column {
-            Text(label, style = Eyebrow.copy(color = OnInkSoft))
-            Text(value, style = Body.copy(color = Color.White, fontWeight = FontWeight.Bold))
+            Text(label, style = Eyebrow.copy(color = InkSoft))
+            Text(value, style = Body.copy(color = Ink, fontWeight = FontWeight.Bold))
         }
     }
 }
@@ -332,7 +336,6 @@ private fun CategoryChip(cat: com.mizan.money.advisor.CategoryTotal, onClick: ()
         Modifier.width(136.dp)
             .clip(RoundedCornerShape(RadiusMd))
             .background(White)
-            .border(1.dp, Line, RoundedCornerShape(RadiusMd))
             .clickable(onClick = onClick)
             .padding(14.dp)
     ) {
@@ -376,7 +379,6 @@ private fun UpcomingBillChip(bill: UpcomingBill) {
         Modifier.width(136.dp)
             .clip(RoundedCornerShape(RadiusMd))
             .background(White)
-            .border(1.dp, Line, RoundedCornerShape(RadiusMd))
             .padding(14.dp)
     ) {
         IconBadge(catIcon(bill.item.category), Amber, Amber.copy(alpha = 0.12f), size = 40.dp, iconSize = 18.dp)

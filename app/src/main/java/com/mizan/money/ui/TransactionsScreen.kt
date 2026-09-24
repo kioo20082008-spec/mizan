@@ -1,5 +1,7 @@
 package com.mizan.money.ui
 
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -101,29 +103,27 @@ fun TransactionsScreen(vm: MainViewModel, initialCategory: String? = null) {
         }
     }
 
+    val grouped = remember(filtered) {
+        filtered.groupBy { tx ->
+            val c = Calendar.getInstance().apply { timeInMillis = tx.timestamp }
+            c.get(Calendar.YEAR) * 1000 + c.get(Calendar.DAY_OF_YEAR)
+        }.toList()
+    }
+
     val availableBanks = remember(txs) {
         txs.mapNotNull { it.bankName?.trim()?.takeIf { b -> b.isNotEmpty() } }.toSet().sorted()
     }
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 180.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 96.dp),
     ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.tx_title), style = H1)
-                    Text(stringResource(R.string.tx_subtitle), style = Eyebrow)
-                }
-            }
-        }
         item {
             Row(
                 Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(RadiusMd))
+                    .padding(bottom = 12.dp)
+                    .clip(RoundedCornerShape(Pill))
                     .background(White)
-                    .border(1.dp, Line, RoundedCornerShape(RadiusMd))
                     .padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -182,7 +182,8 @@ fun TransactionsScreen(vm: MainViewModel, initialCategory: String? = null) {
             item {
                 Row(
                     Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(RadiusSm))
+                        .padding(bottom = 12.dp)
+                        .clip(RoundedCornerShape(Pill))
                         .background(IndigoSoft)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -211,8 +212,24 @@ fun TransactionsScreen(vm: MainViewModel, initialCategory: String? = null) {
                 )
             }
         } else {
-            items(filtered, key = { it.id }) { tx ->
-                TransactionCard(tx, modifier = Modifier.animateItem(), onClick = { selected = tx })
+            // One UI list: rows grouped per day under a small date header.
+            grouped.forEach { (day, dayTxs) ->
+                item(key = "day-$day") {
+                    Text(
+                        dayHeader(dayTxs.first().timestamp),
+                        style = Body.copy(color = InkSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier.animateItem().padding(start = 8.dp, end = 8.dp, top = 14.dp, bottom = 8.dp)
+                    )
+                }
+                itemsIndexed(dayTxs, key = { _, tx -> tx.id }) { i, tx ->
+                    TransactionCard(
+                        tx,
+                        modifier = Modifier.animateItem(),
+                        position = rowPos(i, dayTxs.size),
+                        showDate = false,
+                        onClick = { selected = tx }
+                    )
+                }
             }
         }
     }
@@ -235,5 +252,26 @@ fun TransactionsScreen(vm: MainViewModel, initialCategory: String? = null) {
             onDismiss = { showFilterSheet = false },
             onApply = { newFilter -> filter = newFilter; showFilterSheet = false },
         )
+    }
+}
+
+// "Today" / "Yesterday" / "24 September" (month name localized, Latin digits
+// to match the rest of the app's numbers).
+@Composable
+private fun dayHeader(ts: Long): String {
+    val c = Calendar.getInstance().apply { timeInMillis = ts }
+    val today = Calendar.getInstance()
+    val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+    fun Calendar.sameDay(o: Calendar) =
+        get(Calendar.YEAR) == o.get(Calendar.YEAR) && get(Calendar.DAY_OF_YEAR) == o.get(Calendar.DAY_OF_YEAR)
+    val locale = LocalContext.current.resources.configuration.locales[0]
+    return when {
+        c.sameDay(today) -> stringResource(R.string.dash_today)
+        c.sameDay(yesterday) -> stringResource(R.string.day_yesterday)
+        else -> {
+            val month = SimpleDateFormat("MMMM", locale).format(c.time)
+            val base = "${c.get(Calendar.DAY_OF_MONTH)} $month"
+            if (c.get(Calendar.YEAR) == today.get(Calendar.YEAR)) base else "$base ${c.get(Calendar.YEAR)}"
+        }
     }
 }
