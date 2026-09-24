@@ -60,6 +60,8 @@ import com.mizan.money.R
 import com.mizan.money.cloud.CloudBackup
 import com.mizan.money.data.BackupData
 import com.mizan.money.data.BackupManager
+import com.mizan.money.widget.WidgetTheme
+import com.mizan.money.widget.WidgetThemePreference
 import com.mizan.money.widget.WidgetUpdater
 import com.mizan.money.ui.theme.LanguageMode
 import com.mizan.money.ui.theme.LanguagePreference
@@ -591,6 +593,12 @@ internal fun SettingsDialog(
                                 selected = themeMode,
                                 onSelect = onThemeModeChange
                             )
+                            SettingsDivider()
+                            SettingsFieldHeader(
+                                stringResource(R.string.stg_widget_color_label),
+                                stringResource(R.string.stg_widget_color_desc)
+                            )
+                            WidgetColorPicker()
                         }
 
                         // ==================== FINANCE ====================
@@ -982,4 +990,52 @@ private fun SettingsInputRow(
             contentAlignment = Alignment.Center
         ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = Lime, modifier = Modifier.size(20.dp)) }
     }
+}
+
+// Widget color swatches. AUTO is drawn half light / half dark; saving refreshes
+// the home-screen widget right away.
+@Composable
+private fun WidgetColorPicker() {
+    val ctx = LocalContext.current
+    var selected by remember { mutableStateOf(WidgetThemePreference.load(ctx)) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        WidgetTheme.values().forEach { t ->
+            val sel = t == selected
+            Box(
+                Modifier.size(40.dp)
+                    .border(if (sel) 2.5.dp else 1.dp, if (sel) Indigo else Line, RoundedCornerShape(Pill))
+                    .padding(if (sel) 4.dp else 1.dp)
+                    .clip(RoundedCornerShape(Pill))
+                    .clickable {
+                        selected = t
+                        WidgetThemePreference.save(ctx, t)
+                        WidgetUpdater.refresh(ctx)
+                    }
+            ) {
+                if (t == WidgetTheme.AUTO) {
+                    Row(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(1f).fillMaxHeight().background(Color(WidgetTheme.LIGHT.argb)))
+                        Box(Modifier.weight(1f).fillMaxHeight().background(Color(WidgetTheme.DARK.argb)))
+                    }
+                } else {
+                    Box(Modifier.fillMaxSize().background(Color(t.argb)))
+                }
+            }
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    Text(
+        stringResource(
+            when (selected) {
+                WidgetTheme.AUTO -> R.string.widget_theme_auto
+                WidgetTheme.LIGHT -> R.string.widget_theme_light
+                WidgetTheme.DARK -> R.string.widget_theme_dark
+                WidgetTheme.BLUE -> R.string.widget_theme_blue
+                WidgetTheme.GREEN -> R.string.widget_theme_green
+                WidgetTheme.PURPLE -> R.string.widget_theme_purple
+                WidgetTheme.ROSE -> R.string.widget_theme_rose
+            }
+        ),
+        style = Eyebrow
+    )
 }

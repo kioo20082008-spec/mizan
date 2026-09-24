@@ -571,4 +571,13 @@
     <string name="planning_tab_commitments">الالتزامات</string>
     <string name="settings_back">رجوع</string>
     <string name="day_yesterday">أمس</string>
+    <string name="stg_widget_color_label">لون الويدجت</string>
+    <string name="stg_widget_color_desc">اختر لون ويدجت الشاشة الرئيسية</string>
+    <string name="widget_theme_auto">تلقائي (حسب وضع الجوال)</string>
+    <string name="widget_theme_light">فاتح</string>
+    <string name="widget_theme_dark">داكن</string>
+    <string name="widget_theme_blue">أزرق</string>
+    <string name="widget_theme_green">أخضر</string>
+    <string name="widget_theme_purple">بنفسجي</string>
+    <string name="widget_theme_rose">وردي</string>
 </resources>

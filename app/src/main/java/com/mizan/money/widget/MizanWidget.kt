@@ -1,10 +1,13 @@
 package com.mizan.money.widget
 
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.text.TextUtils
+import android.view.View
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -42,6 +45,7 @@ import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider as FixedColor
 import com.mizan.money.MainActivity
@@ -51,11 +55,9 @@ import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.ExchangeRates
 import com.mizan.money.data.RecurringItemEntity
 import com.mizan.money.data.TOTAL_BUDGET
-import com.mizan.money.data.TxType
 import com.mizan.money.ui.Dates
-import com.mizan.money.ui.categoryDisplayName
-import com.mizan.money.ui.toArabicIndicDigits
 import com.mizan.money.ui.theme.localizedContext
+import com.mizan.money.ui.toArabicIndicDigits
 import kotlinx.coroutines.flow.first
 import java.util.Locale
 import kotlin.math.ceil
@@ -63,14 +65,16 @@ import kotlin.math.roundToInt
 
 // One UI–style home-screen widget.
 //
-// The one number that matters is what's LEFT to spend this cycle, so it is the
-// hero everywhere; the ring beside it shows how much of the budget is used and
-// turns amber/red as the user gets close to or past the limit. Colors follow
-// the system light/dark mode like Samsung's own widgets, and the layout adds
-// detail as the widget is resized (2x2 ring → 4x1 → 4x2 stats → 4x3+ activity).
+// The hero is what's LEFT to spend this cycle; the ring shows how much of the
+// budget is used and turns amber/red near or past the limit. The layout adds
+// detail as the widget grows (2x2 ring → 4x1 → 4x2 stats → 4x3+ next bill).
 //
-// All strings are resolved in loadWidgetData through the *localized* context so
-// the widget follows the in-app language choice rather than the system locale.
+// Direction: RemoteViews are laid out by the *launcher* using the system
+// locale, not the app's language. When the two disagree (Arabic app on an
+// English phone, or the reverse) every row is mirrored by hand so Arabic
+// always reads right-to-left.
+//
+// Colors come from the user's choice in Settings → Appearance (WidgetTheme).
 
 private enum class Status { NONE, OK, WARN, OVER }
 
@@ -87,17 +91,14 @@ private data class WidgetData(
     val spentValue: String,
     val dailyLabel: String,
     val dailyValue: String,
-    val lastTxLabel: String,
-    val lastTxMerchant: String,
-    val lastTxAmount: String,
-    val lastTxIsExpense: Boolean,
-    val hasLastTx: Boolean,
     val billLabel: String,
     val billMerchant: String,
+    val billAmount: String,
     val billWhen: String,
     val billUrgent: Boolean,
     val hasBill: Boolean,
     val status: Status,
+    val flip: Boolean,
 )
 
 class MizanWidget : GlanceAppWidget() {
@@ -108,10 +109,10 @@ class MizanWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // Never let a data hiccup blank the widget: fall back to an empty card.
         val data = runCatching { loadWidgetData(context) }.getOrElse { fallbackData(context) }
-        // One shared bitmap instance for every size class keeps the RemoteViews
-        // payload small (the bitmap cache de-duplicates identical instances).
-        val ring = ringBitmap(context, data.pct, data.status)
-        provideContent { WidgetContent(data, ring, LocalSize.current) }
+        val p = palette(WidgetThemePreference.load(context))
+        // One shared bitmap for every size class keeps the RemoteViews payload small.
+        val ring = ringBitmap(context, data.pct, data.status, p)
+        provideContent { WidgetContent(data, p, ring, LocalSize.current) }
     }
 
     companion object {
@@ -126,9 +127,18 @@ class MizanWidget : GlanceAppWidget() {
 // Data
 // ---------------------------------------------------------------------------
 
-private fun wholeMoney(v: Double, arabic: Boolean = false): String {
+private fun wholeMoney(v: Double, arabic: Boolean): String {
     val s = String.format(Locale.US, "%,.0f", v)
     return if (arabic) toArabicIndicDigits(s) else s
+}
+
+private fun isArabic(ctx: Context) = ctx.resources.configuration.locales[0].language == "ar"
+
+// True when the launcher's direction (system locale) differs from the app's.
+private fun needsFlip(appRtl: Boolean): Boolean {
+    val sys = Resources.getSystem().configuration.locales[0]
+    val sysRtl = TextUtils.getLayoutDirectionFromLocale(sys) == View.LAYOUT_DIRECTION_RTL
+    return appRtl != sysRtl
 }
 
 private fun fallbackData(context: Context): WidgetData {
@@ -146,24 +156,23 @@ private fun fallbackData(context: Context): WidgetData {
         spentValue = "—",
         dailyLabel = ctx.getString(R.string.widget_daily_label),
         dailyValue = "—",
-        lastTxLabel = ctx.getString(R.string.widget_last_tx_label),
-        lastTxMerchant = ctx.getString(R.string.widget_no_tx),
-        lastTxAmount = "",
-        lastTxIsExpense = true,
-        hasLastTx = false,
         billLabel = ctx.getString(R.string.dash_upcoming_bills),
         billMerchant = "",
+        billAmount = "",
         billWhen = "",
         billUrgent = false,
         hasBill = false,
         status = Status.NONE,
+        flip = needsFlip(isArabic(ctx)),
     )
 }
 
 private suspend fun loadWidgetData(context: Context): WidgetData {
     val app = context.applicationContext as MoneyApp
     val ctx = localizedContext(context)
-    val arabic = ctx.resources.configuration.locales[0].language == "ar"
+    val arabic = isArabic(ctx)
+    fun digits(s: String) = if (arabic) toArabicIndicDigits(s) else s
+
     val txs = app.repository.allTransactions().first()
     val budgets = app.repository.budgets().first()
     val recurring = runCatching { app.repository.recurringItems().first() }.getOrDefault(emptyList())
@@ -187,16 +196,14 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
     val remaining = budget - spent
     val over = hasBudget && remaining < 0
 
-    // Days left in the current cycle (the cycle may start mid-month, e.g. on
-    // payday, so this — not a month name — is what the user needs to see).
+    // Days left in the current cycle (the cycle may start mid-month on payday).
     val now = System.currentTimeMillis()
     val cycleEnd = range.last + 1
     val daysLeft = ceil((cycleEnd - now).toDouble() / 86_400_000.0).toInt().coerceAtLeast(1)
     val daysLeftText = if (daysLeft <= 1) ctx.getString(R.string.widget_days_last)
-    else ctx.getString(R.string.widget_left_short_fmt, daysLeft)
+    else digits(ctx.getString(R.string.widget_left_short_fmt, daysLeft))
 
-    // Pace: share of budget spent vs share of the cycle elapsed. Spending
-    // faster than time passes turns the ring amber before the limit is hit.
+    // Pace: spending faster than time passes turns the ring amber early.
     val elapsed = ((now - range.first).toDouble() / (cycleEnd - range.first).toDouble())
         .coerceIn(0.0, 1.0).toFloat()
     val status = when {
@@ -228,10 +235,8 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
         }
     }
 
-    // Skip self-transfers so "last transaction" reflects real spending/income.
-    val last = txs.filter { !it.isSelfTransfer }.maxByOrNull { it.timestamp }
-    val lastIsExpense = last?.type != TxType.INCOME
     val bill = nearestBill(recurring)
+    val pctInt = (pct * 100).roundToInt()
 
     return WidgetData(
         appName = ctx.getString(R.string.app_name),
@@ -240,31 +245,23 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
         currency = currency,
         daysLeftText = daysLeftText,
         pct = pct,
-        pctLabel = if (hasBudget) (if (arabic) toArabicIndicDigits("${(pct * 100).roundToInt()}") else "${(pct * 100).roundToInt()}") + "%" else "",
+        pctLabel = if (!hasBudget) "" else if (arabic) toArabicIndicDigits("$pctInt") + "٪" else "$pctInt%",
         subLine = subLine,
         spentLabel = ctx.getString(R.string.widget_spent_label),
         spentValue = "${wholeMoney(spent, arabic)} $currency",
         dailyLabel = ctx.getString(R.string.widget_daily_label),
         dailyValue = if (hasBudget && !over) "${wholeMoney(remaining / daysLeft, arabic)} $currency" else "—",
-        lastTxLabel = ctx.getString(R.string.widget_last_tx_label),
-        lastTxMerchant = last?.let {
-            it.merchant?.takeIf { m -> m.isNotBlank() } ?: categoryDisplayName(ctx, it.category)
-        } ?: ctx.getString(R.string.widget_no_tx),
-        lastTxAmount = last?.let {
-            val amt = FinancialAdvisor.fmt(it.amount)
-            (if (lastIsExpense) "-" else "+") + (if (arabic) toArabicIndicDigits(amt) else amt)
-        }.orEmpty(),
-        lastTxIsExpense = lastIsExpense,
-        hasLastTx = last != null,
         billLabel = ctx.getString(R.string.dash_upcoming_bills),
-        billMerchant = bill?.let { it.first.merchant + "  ·  ~" + wholeMoney(it.first.expectedAmount, arabic) }.orEmpty(),
+        billMerchant = bill?.first?.merchant.orEmpty(),
+        billAmount = bill?.let { "${wholeMoney(it.first.expectedAmount, arabic)} $currency" }.orEmpty(),
         billWhen = bill?.let {
             if (it.second == 0) ctx.getString(R.string.dash_today)
-            else ctx.getString(R.string.dash_in_days, it.second)
+            else digits(ctx.getString(R.string.dash_in_days, it.second))
         }.orEmpty(),
         billUrgent = (bill?.second ?: Int.MAX_VALUE) <= 1,
         hasBill = bill != null,
         status = status,
+        flip = needsFlip(arabic),
     )
 }
 
@@ -281,50 +278,73 @@ private fun nearestBill(items: List<RecurringItemEntity>): Pair<RecurringItemEnt
 }
 
 // ---------------------------------------------------------------------------
-// Colors — One UI palette, day/night aware
+// Colors
 // ---------------------------------------------------------------------------
 
-private object W {
-    val bg = ColorProvider(day = Color(0xFFFCFCFC), night = Color(0xFF121214))
-    val tile = ColorProvider(day = Color(0xFFF1F2F5), night = Color(0xFF1F1F23))
-    val text = ColorProvider(day = Color(0xFF111111), night = Color(0xFFF5F5F7))
-    val sub = ColorProvider(day = Color(0xFF6E6E73), night = Color(0xFF9A9AA0))
+private typealias CP = androidx.glance.unit.ColorProvider
 
-    // Samsung-style status colors (fixed; readable on both backgrounds).
-    val blue = Color(0xFF3E91FF)
-    val amber = Color(0xFFFF9F0A)
-    val red = Color(0xFFFF453A)
-    val green = Color(0xFF30C85E)
-    val track = Color(0x33888890)
+private class Palette(
+    val bg: CP,
+    val tile: CP,
+    val text: CP,
+    val sub: CP,
+    val ok: Color,
+    val warn: Color,
+    val over: Color,
+    val track: Color,
+)
+
+private fun fixed(bg: Long, tile: Long, text: Long, sub: Long, ok: Long, warn: Long, over: Long, track: Long) =
+    Palette(
+        FixedColor(Color(bg)), FixedColor(Color(tile)), FixedColor(Color(text)), FixedColor(Color(sub)),
+        Color(ok), Color(warn), Color(over), Color(track),
+    )
+
+// Solid-color themes: white text, translucent white tiles, white ring.
+private fun colored(bg: Long) =
+    fixed(bg, 0x29FFFFFF, 0xFFFFFFFF, 0xD9FFFFFF, 0xFFFFFFFF, 0xFFFFD60A, 0xFFFFC2BD, 0x40FFFFFF)
+
+private fun palette(theme: WidgetTheme): Palette = when (theme) {
+    WidgetTheme.AUTO -> Palette(
+        bg = ColorProvider(day = Color(0xFFF7F7F9), night = Color(0xFF17171A)),
+        tile = ColorProvider(day = Color(0xFFFFFFFF), night = Color(0xFF26262B)),
+        text = ColorProvider(day = Color(0xFF111111), night = Color(0xFFF5F5F7)),
+        sub = ColorProvider(day = Color(0xFF6E6E73), night = Color(0xFF9A9AA0)),
+        ok = Color(0xFF3E86FF), warn = Color(0xFFFF9F0A), over = Color(0xFFFF453A),
+        track = Color(0x33888890),
+    )
+    WidgetTheme.LIGHT -> fixed(0xFFF7F7F9, 0xFFFFFFFF, 0xFF111111, 0xFF6E6E73, 0xFF2F6FED, 0xFFE8870A, 0xFFE5383B, 0x1A000000)
+    WidgetTheme.DARK -> fixed(0xFF17171A, 0xFF26262B, 0xFFF5F5F7, 0xFF9A9AA0, 0xFF5B9BFF, 0xFFFF9F0A, 0xFFFF453A, 0x2EFFFFFF)
+    WidgetTheme.BLUE -> colored(WidgetTheme.BLUE.argb)
+    WidgetTheme.GREEN -> colored(WidgetTheme.GREEN.argb)
+    WidgetTheme.PURPLE -> colored(WidgetTheme.PURPLE.argb)
+    WidgetTheme.ROSE -> colored(WidgetTheme.ROSE.argb)
 }
 
-private fun statusColor(s: Status): Color = when (s) {
-    Status.OVER -> W.red
-    Status.WARN -> W.amber
-    Status.OK -> W.blue
-    Status.NONE -> W.blue
+private fun Palette.status(s: Status): Color = when (s) {
+    Status.OVER -> over
+    Status.WARN -> warn
+    Status.OK, Status.NONE -> ok
 }
 
-// Glance has no determinate circular progress, so the ring is drawn once into
-// a small bitmap. The track is a translucent grey so the same image works on
-// both the light and dark backgrounds.
-private fun ringBitmap(context: Context, pct: Float, status: Status): Bitmap {
+// Glance has no determinate circular progress, so the ring is a small bitmap.
+private fun ringBitmap(context: Context, pct: Float, status: Status, p: Palette): Bitmap {
     val px = (context.resources.displayMetrics.density * 96f).toInt().coerceIn(120, 288)
     val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bmp)
-    val stroke = px * 0.12f
+    val stroke = px * 0.11f
     val rect = RectF(stroke / 2, stroke / 2, px - stroke / 2, px - stroke / 2)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = stroke
         strokeCap = Paint.Cap.ROUND
     }
-    paint.color = W.track.toArgb()
+    paint.color = p.track.toArgb()
     canvas.drawArc(rect, 0f, 360f, false, paint)
     if (status != Status.NONE) {
         val sweep = (pct.coerceIn(0f, 1f) * 360f).coerceAtLeast(if (pct > 0f) 6f else 0f)
         if (sweep > 0f) {
-            paint.color = statusColor(status).toArgb()
+            paint.color = p.status(status).toArgb()
             canvas.drawArc(rect, -90f, sweep, false, paint)
         }
     }
@@ -332,156 +352,212 @@ private fun ringBitmap(context: Context, pct: Float, status: Status): Bitmap {
 }
 
 // ---------------------------------------------------------------------------
+// Layout helpers (direction-aware)
+// ---------------------------------------------------------------------------
+
+// A Row whose children are listed in reading order and mirrored when the
+// launcher's direction disagrees with the app's language.
+@Composable
+private fun DirRow(
+    flip: Boolean,
+    modifier: GlanceModifier,
+    verticalAlignment: Alignment.Vertical,
+    vararg items: @Composable RowScope.() -> Unit,
+) {
+    val ordered = if (flip) items.reversed() else items.toList()
+    Row(modifier, verticalAlignment = verticalAlignment) {
+        ordered.forEach { item -> item(this) }
+    }
+}
+
+private fun WidgetData.hAlign(): Alignment.Horizontal = if (flip) Alignment.End else Alignment.Start
+private fun WidgetData.tAlign(): TextAlign = if (flip) TextAlign.End else TextAlign.Start
+
+// ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun WidgetContent(data: WidgetData, ring: Bitmap, size: DpSize) {
+private fun WidgetContent(d: WidgetData, p: Palette, ring: Bitmap, size: DpSize) {
     val root = GlanceModifier
         .fillMaxSize()
         .appWidgetBackground()
-        .background(W.bg)
-        .cornerRadius(26.dp)
+        .background(p.bg)
+        .cornerRadius(28.dp)
         .clickable(actionStartActivity<MainActivity>())
 
     if (size.width < 200.dp) {
-        SmallLayout(data, ring, root)
+        SmallLayout(d, p, ring, root)
         return
     }
 
+    val tall = size.height >= 175.dp
+    val xl = size.height >= 290.dp
+
     Column(modifier = root.padding(horizontal = 20.dp, vertical = 18.dp)) {
-        Header(data)
-        Spacer(GlanceModifier.height(if (size.height >= 175.dp) 14.dp else 10.dp))
-        HeroRow(data, ring, ringSize = if (size.height >= 175.dp) 68.dp else 56.dp)
+        Header(d, p)
+        Spacer(GlanceModifier.height(if (tall) 16.dp else 8.dp))
+        HeroRow(d, p, ring, ringSize = if (xl) 88.dp else if (tall) 72.dp else 56.dp, big = xl)
 
-        if (size.height >= 175.dp) {
-            Spacer(GlanceModifier.height(14.dp))
-            Row(GlanceModifier.fillMaxWidth()) {
-                StatTile(data.spentLabel, data.spentValue)
-                Spacer(GlanceModifier.width(8.dp))
-                StatTile(data.dailyLabel, data.dailyValue)
-            }
-        }
-
-        if (size.height >= 290.dp) {
-            if (data.hasLastTx) {
-                Spacer(GlanceModifier.height(8.dp))
-                InfoTile(
-                    label = data.lastTxLabel,
-                    title = data.lastTxMerchant,
-                    trailing = data.lastTxAmount,
-                    trailingColor = FixedColor(if (data.lastTxIsExpense) W.red else W.green),
-                )
-            }
-            if (data.hasBill) {
-                Spacer(GlanceModifier.height(8.dp))
-                InfoTile(
-                    label = data.billLabel,
-                    title = data.billMerchant,
-                    trailing = data.billWhen,
-                    trailingColor = if (data.billUrgent) FixedColor(W.red) else W.sub,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun Header(data: WidgetData) {
-    Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            GlanceModifier.size(8.dp).cornerRadius(4.dp)
-                .background(FixedColor(statusColor(data.status)))
-        ) { }
-        Spacer(GlanceModifier.width(8.dp))
-        Text(
-            data.appName,
-            modifier = GlanceModifier.defaultWeight(),
-            style = TextStyle(color = W.text, fontSize = 14.sp, fontWeight = FontWeight.Bold),
-        )
-        if (data.daysLeftText.isNotBlank()) {
-            Text(data.daysLeftText, style = TextStyle(color = W.sub, fontSize = 12.sp))
-        }
-    }
-}
-
-@Composable
-private fun HeroRow(data: WidgetData, ring: Bitmap, ringSize: Dp) {
-    val heroColor = if (data.status == Status.OVER) FixedColor(W.red) else W.text
-    Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(GlanceModifier.size(ringSize), contentAlignment = Alignment.Center) {
-            Image(
-                provider = ImageProvider(ring),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = GlanceModifier.size(ringSize),
+        if (tall) {
+            Spacer(GlanceModifier.defaultWeight())
+            DirRow(
+                d.flip, GlanceModifier.fillMaxWidth(), Alignment.CenterVertically,
+                { StatTile(d.spentLabel, d.spentValue, d, p) },
+                { Spacer(GlanceModifier.width(8.dp)) },
+                { StatTile(d.dailyLabel, d.dailyValue, d, p) },
             )
-            if (data.pctLabel.isNotBlank()) {
-                Text(
-                    data.pctLabel,
-                    style = TextStyle(color = W.text, fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                )
+            if (xl && d.hasBill) {
+                Spacer(GlanceModifier.height(8.dp))
+                BillTile(d, p)
             }
         }
-        Spacer(GlanceModifier.width(16.dp))
-        Column(GlanceModifier.defaultWeight()) {
+    }
+}
+
+@Composable
+private fun Header(d: WidgetData, p: Palette) {
+    DirRow(
+        d.flip, GlanceModifier.fillMaxWidth(), Alignment.CenterVertically,
+        {
+            Box(
+                GlanceModifier.size(8.dp).cornerRadius(4.dp)
+                    .background(FixedColor(p.status(d.status)))
+            ) { }
+        },
+        { Spacer(GlanceModifier.width(8.dp)) },
+        {
             Text(
-                data.heroLabel,
-                maxLines = 1,
+                d.appName,
+                modifier = GlanceModifier.defaultWeight(),
+                style = TextStyle(color = p.text, fontSize = 15.sp, fontWeight = FontWeight.Bold, textAlign = d.tAlign()),
+            )
+        },
+        {
+            if (d.daysLeftText.isNotBlank()) {
+                Box(
+                    GlanceModifier.background(p.tile).cornerRadius(12.dp)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        d.daysLeftText,
+                        maxLines = 1,
+                        style = TextStyle(color = p.sub, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                    )
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun HeroRow(d: WidgetData, p: Palette, ring: Bitmap, ringSize: Dp, big: Boolean) {
+    val isOver = d.status == Status.OVER
+    val heroColor = if (isOver) FixedColor(p.over) else p.text
+    DirRow(
+        d.flip, GlanceModifier.fillMaxWidth(), Alignment.CenterVertically,
+        {
+            Column(GlanceModifier.defaultWeight(), horizontalAlignment = d.hAlign()) {
+                Text(
+                    d.heroLabel,
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = if (isOver) FixedColor(p.over) else p.sub,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = d.tAlign(),
+                    ),
+                )
+                DirRow(
+                    d.flip, GlanceModifier, Alignment.Bottom,
+                    {
+                        Text(
+                            d.heroAmount,
+                            maxLines = 1,
+                            style = TextStyle(
+                                color = heroColor,
+                                fontSize = heroFontSize(d.heroAmount, big),
+                                fontWeight = FontWeight.Bold,
+                            ),
+                        )
+                    },
+                    { Spacer(GlanceModifier.width(6.dp)) },
+                    {
+                        Text(
+                            d.currency,
+                            modifier = GlanceModifier.padding(bottom = if (big) 7.dp else 5.dp),
+                            style = TextStyle(color = p.sub, fontSize = 14.sp, fontWeight = FontWeight.Medium),
+                        )
+                    },
+                )
+                Text(
+                    d.subLine,
+                    maxLines = 1,
+                    style = TextStyle(color = p.sub, fontSize = 12.sp, textAlign = d.tAlign()),
+                )
+            }
+        },
+        { Spacer(GlanceModifier.width(12.dp)) },
+        { Ring(d, p, ring, ringSize) },
+    )
+}
+
+@Composable
+private fun Ring(d: WidgetData, p: Palette, ring: Bitmap, ringSize: Dp) {
+    Box(GlanceModifier.size(ringSize), contentAlignment = Alignment.Center) {
+        Image(
+            provider = ImageProvider(ring),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = GlanceModifier.size(ringSize),
+        )
+        if (d.pctLabel.isNotBlank()) {
+            Text(
+                d.pctLabel,
                 style = TextStyle(
-                    color = if (data.status == Status.OVER) FixedColor(W.red) else W.sub,
-                    fontSize = 13.sp,
+                    color = p.text,
+                    fontSize = if (ringSize >= 80.dp) 16.sp else 13.sp,
+                    fontWeight = FontWeight.Bold,
                 ),
             )
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    data.heroAmount,
-                    maxLines = 1,
-                    style = TextStyle(color = heroColor, fontSize = heroFontSize(data.heroAmount), fontWeight = FontWeight.Bold),
-                )
-                Spacer(GlanceModifier.width(4.dp))
-                Text(
-                    data.currency,
-                    modifier = GlanceModifier.padding(bottom = 4.dp),
-                    style = TextStyle(color = W.sub, fontSize = 14.sp, fontWeight = FontWeight.Medium),
-                )
-            }
-            Text(data.subLine, maxLines = 1, style = TextStyle(color = W.sub, fontSize = 12.sp))
         }
     }
 }
 
 // Long amounts step down so "123,456" still fits on one line beside the ring.
-private fun heroFontSize(amount: String): TextUnit = when {
-    amount.length <= 5 -> 34.sp
-    amount.length <= 7 -> 30.sp
-    else -> 26.sp
+private fun heroFontSize(amount: String, big: Boolean): TextUnit {
+    val base = if (big) 42 else 34
+    return when {
+        amount.length <= 5 -> base.sp
+        amount.length <= 7 -> (base - 4).sp
+        else -> (base - 8).sp
+    }
 }
 
 @Composable
-private fun SmallLayout(data: WidgetData, ring: Bitmap, root: GlanceModifier) {
+private fun SmallLayout(d: WidgetData, p: Palette, ring: Bitmap, root: GlanceModifier) {
     Box(root.padding(12.dp), contentAlignment = Alignment.Center) {
-        Box(GlanceModifier.size(104.dp), contentAlignment = Alignment.Center) {
+        Box(GlanceModifier.size(108.dp), contentAlignment = Alignment.Center) {
             Image(
                 provider = ImageProvider(ring),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                modifier = GlanceModifier.size(104.dp),
+                modifier = GlanceModifier.size(108.dp),
             )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    data.heroAmount,
+                    d.heroAmount,
                     maxLines = 1,
                     style = TextStyle(
-                        color = if (data.status == Status.OVER) FixedColor(W.red) else W.text,
-                        fontSize = if (data.heroAmount.length <= 5) 20.sp else 16.sp,
+                        color = if (d.status == Status.OVER) FixedColor(p.over) else p.text,
+                        fontSize = if (d.heroAmount.length <= 5) 22.sp else 17.sp,
                         fontWeight = FontWeight.Bold,
                     ),
                 )
                 Text(
-                    data.heroLabel,
+                    d.heroLabel,
                     maxLines = 1,
-                    style = TextStyle(color = W.sub, fontSize = 10.sp),
+                    style = TextStyle(color = p.sub, fontSize = 11.sp),
                 )
             }
         }
@@ -489,34 +565,56 @@ private fun SmallLayout(data: WidgetData, ring: Bitmap, root: GlanceModifier) {
 }
 
 @Composable
-private fun RowScope.StatTile(label: String, value: String) {
+private fun RowScope.StatTile(label: String, value: String, d: WidgetData, p: Palette) {
     Column(
         GlanceModifier.defaultWeight()
-            .background(W.tile)
-            .cornerRadius(16.dp)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .background(p.tile)
+            .cornerRadius(18.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalAlignment = d.hAlign(),
     ) {
-        Text(label, maxLines = 1, style = TextStyle(color = W.sub, fontSize = 11.sp))
-        Text(value, maxLines = 1, style = TextStyle(color = W.text, fontSize = 15.sp, fontWeight = FontWeight.Bold))
+        Text(label, maxLines = 1, style = TextStyle(color = p.sub, fontSize = 12.sp, textAlign = d.tAlign()))
+        Spacer(GlanceModifier.height(2.dp))
+        Text(value, maxLines = 1, style = TextStyle(color = p.text, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = d.tAlign()))
     }
 }
 
 @Composable
-private fun InfoTile(label: String, title: String, trailing: String, trailingColor: ColorProviderAlias) {
-    Row(
+private fun BillTile(d: WidgetData, p: Palette) {
+    val endAlign = if (d.flip) Alignment.Start else Alignment.End
+    DirRow(
+        d.flip,
         GlanceModifier.fillMaxWidth()
-            .background(W.tile)
-            .cornerRadius(16.dp)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(GlanceModifier.defaultWeight()) {
-            Text(label, maxLines = 1, style = TextStyle(color = W.sub, fontSize = 11.sp))
-            Text(title, maxLines = 1, style = TextStyle(color = W.text, fontSize = 14.sp, fontWeight = FontWeight.Bold))
-        }
-        Spacer(GlanceModifier.width(8.dp))
-        Text(trailing, maxLines = 1, style = TextStyle(color = trailingColor, fontSize = 14.sp, fontWeight = FontWeight.Bold))
-    }
+            .background(p.tile)
+            .cornerRadius(18.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        Alignment.CenterVertically,
+        {
+            Column(GlanceModifier.defaultWeight(), horizontalAlignment = d.hAlign()) {
+                Text(d.billLabel, maxLines = 1, style = TextStyle(color = p.sub, fontSize = 12.sp, textAlign = d.tAlign()))
+                Spacer(GlanceModifier.height(2.dp))
+                Text(
+                    d.billMerchant,
+                    maxLines = 1,
+                    style = TextStyle(color = p.text, fontSize = 15.sp, fontWeight = FontWeight.Bold, textAlign = d.tAlign()),
+                )
+            }
+        },
+        { Spacer(GlanceModifier.width(8.dp)) },
+        {
+            Column(horizontalAlignment = endAlign) {
+                Text(d.billAmount, maxLines = 1, style = TextStyle(color = p.text, fontSize = 15.sp, fontWeight = FontWeight.Bold))
+                Spacer(GlanceModifier.height(2.dp))
+                Text(
+                    d.billWhen,
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = if (d.billUrgent) FixedColor(p.over) else p.sub,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                    ),
+                )
+            }
+        },
+    )
 }
-
-private typealias ColorProviderAlias = androidx.glance.unit.ColorProvider
