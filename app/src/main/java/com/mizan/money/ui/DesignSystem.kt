@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,7 +72,12 @@ val RadiusLg = 24.dp
 val RadiusXl = 28.dp
 val Pill     = 999.dp
 
-private val Sans = FontFamily.Default
+private val Sans = FontFamily(
+    Font(R.font.ibm_plex_arabic_regular, FontWeight.Normal),
+    Font(R.font.ibm_plex_arabic_medium, FontWeight.Medium),
+    Font(R.font.ibm_plex_arabic_semibold, FontWeight.SemiBold),
+    Font(R.font.ibm_plex_arabic_bold, FontWeight.Bold)
+)
 
 val Display: TextStyle @Composable @ReadOnlyComposable get() =
     TextStyle(fontFamily = Sans, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Ink)
