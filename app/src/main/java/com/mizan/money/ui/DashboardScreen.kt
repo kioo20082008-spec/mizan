@@ -94,29 +94,51 @@ fun DashboardScreen(
 
         if (upcomingBills.isNotEmpty()) {
             item {
-                Text(stringResource(R.string.dash_upcoming_bills), style = H2, modifier = Modifier.padding(horizontal = 4.dp))
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    items(upcomingBills) { bill -> UpcomingBillChip(bill) }
+                SectionCard(stringResource(R.string.dash_upcoming_bills)) {
+                    upcomingBills.take(4).forEachIndexed { i, bill ->
+                        val urgent = bill.daysUntil <= 1
+                        ListRow(
+                            icon = catIcon(bill.item.category),
+                            iconTint = catColor(bill.item.category),
+                            title = bill.item.merchant,
+                            subtitle = categoryDisplay(bill.item.category),
+                            trailing = "~" + FinancialAdvisor.fmt(bill.item.expectedAmount),
+                            trailingSub = if (bill.daysUntil == 0) stringResource(R.string.dash_today)
+                                else stringResource(R.string.dash_in_days, bill.daysUntil),
+                            trailingSubColor = if (urgent) Danger else InkSoft,
+                            showDivider = i < minOf(upcomingBills.size, 4) - 1
+                        )
+                    }
                 }
             }
         }
 
         if (summary.categoryTotals.isNotEmpty()) {
             item {
-                Text(stringResource(R.string.dash_top_spending), style = H2, modifier = Modifier.padding(horizontal = 4.dp))
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    items(summary.categoryTotals.take(6)) { cat ->
-                        CategoryChip(cat, onClick = { onNavigateToTransactions(cat.category) })
+                val top = summary.categoryTotals.take(5)
+                SectionCard(stringResource(R.string.dash_top_spending)) {
+                    top.forEachIndexed { i, cat ->
+                        val color = catColor(cat.category)
+                        ListRow(
+                            icon = catIcon(cat.category),
+                            iconTint = color,
+                            title = categoryDisplay(cat.category),
+                            trailing = FinancialAdvisor.fmt(cat.amount),
+                            trailingSub = "${(cat.share * 100).roundToInt()}%",
+                            showDivider = i < top.lastIndex,
+                            onClick = { onNavigateToTransactions(cat.category) },
+                            below = {
+                                Box(
+                                    Modifier.fillMaxWidth().height(6.dp)
+                                        .clip(RoundedCornerShape(Pill)).background(PaperOuter)
+                                ) {
+                                    Box(
+                                        Modifier.fillMaxWidth(cat.share.toFloat().coerceIn(0f, 1f)).fillMaxHeight()
+                                            .clip(RoundedCornerShape(Pill)).background(color)
+                                    )
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -124,25 +146,18 @@ fun DashboardScreen(
 
         if (monthTxs.isNotEmpty()) {
             item {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                val recent = monthTxs.take(4)
+                SectionCard(
+                    stringResource(R.string.dash_recent),
+                    actionLabel = stringResource(R.string.dash_view_all),
+                    onAction = { onNavigateToTransactions(null) }
                 ) {
-                    Text(stringResource(R.string.dash_recent), style = H2, modifier = Modifier.weight(1f))
-                    Text(
-                        stringResource(R.string.dash_view_all),
-                        style = BodyMuted.copy(color = Indigo, fontWeight = FontWeight.Bold),
-                        modifier = Modifier.clip(RoundedCornerShape(RadiusSm))
-                            .clickable { onNavigateToTransactions(null) }
-                            .padding(horizontal = 10.dp, vertical = 12.dp)
-                    )
-                }
-            }
-            item {
-                val recent = monthTxs.take(3)
-                Column {
                     recent.forEachIndexed { i, tx ->
-                        TransactionCard(tx, position = rowPos(i, recent.size), onClick = { selectedTx = tx })
+                        TransactionCard(
+                            tx,
+                            position = if (i == recent.lastIndex) RowPos.Last else RowPos.Middle,
+                            onClick = { selectedTx = tx }
+                        )
                     }
                 }
             }
@@ -330,32 +345,6 @@ private fun HeroStat(icon: ImageVector, tint: Color, label: String, value: Strin
     }
 }
 
-@Composable
-private fun CategoryChip(cat: com.mizan.money.advisor.CategoryTotal, onClick: () -> Unit) {
-    Column(
-        Modifier.width(136.dp)
-            .clip(RoundedCornerShape(RadiusMd))
-            .background(White)
-            .clickable(onClick = onClick)
-            .padding(14.dp)
-    ) {
-        IconBadge(catIcon(cat.category), catColor(cat.category), catColorSoft(cat.category), size = 40.dp, iconSize = 18.dp)
-        Spacer(Modifier.height(10.dp))
-        Text(categoryDisplay(cat.category), style = H2.copy(fontSize = 13.sp), maxLines = 1)
-        Spacer(Modifier.height(2.dp))
-        Text(FinancialAdvisor.fmt(cat.amount) + " " + currencyLabel("SAR"), style = NumBold.copy(fontSize = 12.sp))
-        Spacer(Modifier.height(8.dp))
-        Box(
-            Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(Pill)).background(PaperOuter)
-        ) {
-            Box(
-                Modifier.fillMaxWidth(cat.share.toFloat()).fillMaxHeight()
-                    .clip(RoundedCornerShape(Pill)).background(catColor(cat.category))
-            )
-        }
-    }
-}
-
 // ============ UPCOMING BILLS ============
 private data class UpcomingBill(val item: RecurringItemEntity, val daysUntil: Int)
 
@@ -371,30 +360,4 @@ private fun upcomingBillsWithinDays(items: List<RecurringItemEntity>, window: In
         }
         if (daysUntil <= window) UpcomingBill(item, daysUntil) else null
     }.sortedBy { it.daysUntil }
-}
-
-@Composable
-private fun UpcomingBillChip(bill: UpcomingBill) {
-    Column(
-        Modifier.width(136.dp)
-            .clip(RoundedCornerShape(RadiusMd))
-            .background(White)
-            .padding(14.dp)
-    ) {
-        IconBadge(catIcon(bill.item.category), Amber, Amber.copy(alpha = 0.12f), size = 40.dp, iconSize = 18.dp)
-        Spacer(Modifier.height(10.dp))
-        Text(bill.item.merchant, style = H2.copy(fontSize = 13.sp), maxLines = 1)
-        Spacer(Modifier.height(2.dp))
-        Text("~${FinancialAdvisor.fmt(bill.item.expectedAmount)} ${currencyLabel("SAR")}", style = NumBold.copy(fontSize = 12.sp))
-        Spacer(Modifier.height(6.dp))
-        Text(
-            if (bill.daysUntil == 0) stringResource(R.string.dash_today)
-            else stringResource(R.string.dash_in_days, bill.daysUntil),
-            style = Eyebrow.copy(
-                fontSize = 12.sp,
-                color = if (bill.daysUntil <= 1) Danger else InkFaint,
-                fontWeight = FontWeight.Bold
-            )
-        )
-    }
 }

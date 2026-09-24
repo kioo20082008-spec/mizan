@@ -76,10 +76,10 @@ fun AdvisorScreen(vm: MainViewModel, offset: Int) {
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconBadge(Icons.Default.Lightbulb, Lime, White.copy(alpha = 0.08f), size = 40.dp, iconSize = 20.dp, radius = RadiusSm)
+                IconBadge(Icons.Default.Lightbulb, Lime, Lime.copy(alpha = 0.16f), size = 40.dp, iconSize = 20.dp)
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text(stringResource(R.string.advisor_header_title), style = H2.copy(color = White, fontSize = 15.sp))
+                    Text(stringResource(R.string.advisor_header_title), style = H2.copy(color = Lime, fontSize = 15.sp))
                     Text(stringResource(R.string.advisor_header_subtitle), style = Eyebrow.copy(color = OnInkSoft, fontSize = 12.sp))
                 }
             }

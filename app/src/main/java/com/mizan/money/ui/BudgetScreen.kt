@@ -187,7 +187,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                     Text(stringResource(R.string.budget_total_label), style = Eyebrow.copy(color = OnInkSoft))
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text(FinancialAdvisor.fmt(totalInput.toDoubleOrNull() ?: 0.0), style = Display.copy(fontSize = 32.sp))
+                        Text(FinancialAdvisor.fmt(totalInput.toDoubleOrNull() ?: 0.0), style = Display.copy(fontSize = 32.sp, color = Lime))
                         Spacer(Modifier.width(6.dp))
                         Text(currencyLabel("SAR"), style = Body.copy(color = OnInkSoft, fontWeight = FontWeight.Medium))
                     }
@@ -199,15 +199,15 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(RadiusSm),
-                        textStyle = Body.copy(color = White),
+                        textStyle = Body.copy(color = Lime),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Lime,
-                            unfocusedBorderColor = White.copy(alpha = 0.2f),
+                            unfocusedBorderColor = Lime.copy(alpha = 0.35f),
                             focusedLabelColor = Lime,
                             unfocusedLabelColor = OnInkSoft,
                             cursorColor = Lime,
-                            focusedTextColor = White,
-                            unfocusedTextColor = White
+                            focusedTextColor = Lime,
+                            unfocusedTextColor = Lime
                         )
                     )
                     Spacer(Modifier.height(10.dp))
@@ -280,7 +280,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                     )
                     Spacer(Modifier.width(8.dp))
                     Box(
-                        Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(PaperOuter)
+                        Modifier.size(44.dp).clip(RoundedCornerShape(Pill)).background(PaperOuter)
                             .clickable { showIconPicker = true },
                         contentAlignment = Alignment.Center
                     ) {
@@ -291,7 +291,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                     }
                     Spacer(Modifier.width(8.dp))
                     Box(
-                        Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
+                        Modifier.size(44.dp).clip(RoundedCornerShape(Pill)).background(Indigo)
                             .clickable {
                                 val name = newCategoryInput.trim()
                                 if (name.isNotEmpty()) {
@@ -301,7 +301,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                                 }
                             },
                         contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Default.Check, stringResource(R.string.budget_add_action), tint = White, modifier = Modifier.size(18.dp)) }
+                    ) { Icon(Icons.Default.Check, stringResource(R.string.budget_add_action), tint = Lime, modifier = Modifier.size(18.dp)) }
                 }
             }
         }
@@ -327,7 +327,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            IconBadge(catIcon(cat), catColor(cat), catColorSoft(cat), size = 32.dp, iconSize = 15.dp)
+                            IconBadge(catIcon(cat), catColor(cat), catColorSoft(cat), size = 40.dp, iconSize = 18.dp)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(categoryDisplay(cat), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp))
@@ -411,13 +411,13 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                                 Switch(
                                     checked = catRollover[cat] ?: false,
                                     onCheckedChange = { v -> catRollover = catRollover + (cat to v) },
-                                    colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                                    colors = oneUiSwitchColors()
                                 )
                             }
                             Spacer(Modifier.height(10.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
-                                    Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(PaperOuter)
+                                    Modifier.size(44.dp).clip(RoundedCornerShape(Pill)).background(PaperOuter)
                                         .clickable { iconPickerForEdit = cat },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -441,7 +441,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Box(
-                                    Modifier.size(44.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
+                                    Modifier.size(44.dp).clip(RoundedCornerShape(Pill)).background(Indigo)
                                         .clickable {
                                             val amt = catInputs[cat]?.toDoubleOrNull() ?: 0.0
                                             val roll = catRollover[cat] ?: false
@@ -449,7 +449,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                                             editingCategory = null
                                         },
                                     contentAlignment = Alignment.Center
-                                ) { Icon(Icons.Default.Check, stringResource(R.string.budget_save), tint = White, modifier = Modifier.size(18.dp)) }
+                                ) { Icon(Icons.Default.Check, stringResource(R.string.budget_save), tint = Lime, modifier = Modifier.size(18.dp)) }
                                 if (cat != "أخرى") {
                                     Spacer(Modifier.width(8.dp))
                                     Box(

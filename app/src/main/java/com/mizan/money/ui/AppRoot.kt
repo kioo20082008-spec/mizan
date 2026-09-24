@@ -295,15 +295,16 @@ private fun RootScaffold(
         Column(Modifier.fillMaxWidth().height(collapsedH + with(density) { (rangePx + headerOffset).toDp() })) {
             Box(Modifier.fillMaxWidth().weight(1f).clipToBounds()) {
                 Column(
-                    Modifier.align(Alignment.BottomStart)
-                        .padding(start = 24.dp, end = 24.dp, bottom = 2.dp)
-                        .graphicsLayer { alpha = expandFraction }
+                    Modifier.align(Alignment.Center)
+                        .padding(horizontal = 24.dp)
+                        .graphicsLayer { alpha = expandFraction },
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (tab == 0) {
-                        Text(stringResource(R.string.header_greeting), style = BodyMuted)
-                        Spacer(Modifier.height(2.dp))
-                    }
                     Text(title, style = H1.copy(fontSize = 30.sp), maxLines = 1)
+                    if (tab == 0) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(stringResource(R.string.header_greeting), style = BodyMuted)
+                    }
                 }
             }
             Row(

@@ -15,6 +15,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.border
@@ -668,7 +669,7 @@ internal fun SettingsDialog(
                                                 Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
                                                     .clickable { vm.setExchangeRate(code, rateInputs[code]?.toDoubleOrNull() ?: 0.0) },
                                                 contentAlignment = Alignment.Center
-                                            ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = White, modifier = Modifier.size(20.dp)) }
+                                            ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = Lime, modifier = Modifier.size(20.dp)) }
                                         }
                                     }
                                 }
@@ -830,18 +831,18 @@ private fun SettingsSection(
         Row(
             Modifier.fillMaxWidth()
                 .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconBadge(icon, tint, tint.copy(alpha = 0.12f), size = 38.dp, iconSize = 18.dp, radius = RadiusSm)
-            Spacer(Modifier.width(12.dp))
+            IconBadge(icon, tint, tint.copy(alpha = 0.12f), size = 40.dp, iconSize = 20.dp)
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = Body.copy(fontWeight = FontWeight.Bold))
+                Text(title, style = Body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
                 if (summary.isNotBlank()) {
                     Spacer(Modifier.height(2.dp))
                     Text(
                         summary,
-                        style = Eyebrow.copy(fontSize = 12.sp),
+                        style = Body.copy(fontSize = 13.sp, color = InkSoft),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -852,7 +853,7 @@ private fun SettingsSection(
                 Switch(
                     checked = switchState,
                     onCheckedChange = { onSwitchChange?.invoke(it) },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                    colors = oneUiSwitchColors()
                 )
             } else if (expandable) {
                 Spacer(Modifier.width(8.dp))
@@ -896,25 +897,27 @@ private fun SettingsActionRow(
     iconTint: Color,
     title: String,
     subtitle: String,
-    background: Color = PaperOuter,
+    background: Color = White,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(RadiusMd))
-            .background(background)
+            .clip(RoundedCornerShape(RadiusLg))
+            .background(if (background == IndigoSoft) White else background)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .graphicsLayer { alpha = if (enabled) 1f else 0.5f },
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconBadge(icon, iconTint, White, size = 40.dp, iconSize = 18.dp)
-        Spacer(Modifier.width(12.dp))
+        IconBadge(icon, iconTint, iconTint.copy(alpha = 0.12f), size = 40.dp, iconSize = 20.dp)
+        Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, style = Body.copy(fontWeight = FontWeight.Bold))
+            Text(title, style = Body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
             Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = Eyebrow.copy(fontSize = 12.sp))
+            Text(subtitle, style = Body.copy(fontSize = 13.sp, color = InkSoft))
         }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = InkFaint)
     }
 }
 
@@ -926,7 +929,7 @@ private fun <T> SettingsSegmented(
 ) {
     Row(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(RadiusMd))
+            .clip(RoundedCornerShape(Pill))
             .background(PaperOuter)
             .padding(4.dp)
     ) {
@@ -934,7 +937,7 @@ private fun <T> SettingsSegmented(
             val sel = selected == value
             Box(
                 Modifier.weight(1f)
-                    .clip(RoundedCornerShape(RadiusSm))
+                    .clip(RoundedCornerShape(Pill))
                     .background(if (sel) White else Color.Transparent)
                     .clickable { onSelect(value) }
                     .padding(vertical = 10.dp),
@@ -944,7 +947,7 @@ private fun <T> SettingsSegmented(
                     label,
                     style = Body.copy(
                         fontSize = 13.sp,
-                        color = if (sel) Indigo else InkSoft,
+                        color = if (sel) Ink else InkSoft,
                         fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium
                     )
                 )
@@ -977,6 +980,6 @@ private fun SettingsInputRow(
             Modifier.size(48.dp).clip(RoundedCornerShape(RadiusSm)).background(Indigo)
                 .clickable(onClick = onSave),
             contentAlignment = Alignment.Center
-        ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = White, modifier = Modifier.size(20.dp)) }
+        ) { Icon(Icons.Default.Check, stringResource(R.string.stg_save), tint = Lime, modifier = Modifier.size(20.dp)) }
     }
 }

@@ -84,7 +84,7 @@ val Body: TextStyle @Composable @ReadOnlyComposable get() =
 val BodyMuted: TextStyle @Composable @ReadOnlyComposable get() =
     TextStyle(fontFamily = Sans, fontSize = 13.sp, color = InkSoft)
 val Eyebrow: TextStyle @Composable @ReadOnlyComposable get() =
-    TextStyle(fontFamily = Sans, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = InkFaint)
+    TextStyle(fontFamily = Sans, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = InkSoft)
 val NumBold: TextStyle @Composable @ReadOnlyComposable get() =
     TextStyle(fontFamily = Sans, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)
 
@@ -117,6 +117,103 @@ fun SoftCard(
             .padding(18.dp),
         content = content
     )
+}
+
+@Composable
+fun oneUiSwitchColors(): SwitchColors = SwitchDefaults.colors(
+    checkedThumbColor = Color.White,
+    checkedTrackColor = Indigo,
+    checkedBorderColor = Indigo,
+    uncheckedThumbColor = Color.White,
+    uncheckedTrackColor = InkFaint.copy(alpha = 0.45f),
+    uncheckedBorderColor = Color.Transparent,
+)
+
+// One UI "focus block": a white rounded card with its title (and an optional
+// text action like "See all") inside the card, followed by its rows.
+@Composable
+fun SectionCard(
+    title: String,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(RadiusLg))
+            .background(White)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 12.dp, bottom = 2.dp).heightIn(min = 40.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(title, style = H2.copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
+            if (actionLabel != null && onAction != null) {
+                Text(
+                    actionLabel,
+                    style = Body.copy(color = Indigo, fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(Pill)).clickable(onClick = onAction)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+            }
+        }
+        content()
+        Spacer(Modifier.height(6.dp))
+    }
+}
+
+// A plain row for use inside a SectionCard: circular icon, title + subtitle,
+// trailing value, inset divider below unless it's the last row.
+@Composable
+fun ListRow(
+    icon: ImageVector,
+    iconTint: Color,
+    title: String,
+    subtitle: String? = null,
+    trailing: String? = null,
+    trailingColor: Color = Ink,
+    trailingSub: String? = null,
+    trailingSubColor: Color = InkSoft,
+    showDivider: Boolean = true,
+    onClick: (() -> Unit)? = null,
+    below: (@Composable () -> Unit)? = null,
+) {
+    Column(
+        Modifier.fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconBadge(icon, iconTint, iconTint.copy(alpha = 0.12f), size = 42.dp)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = Body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (subtitle != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(subtitle, style = Body.copy(fontSize = 13.sp, color = InkSoft), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (below != null) {
+                    Spacer(Modifier.height(8.dp))
+                    below()
+                }
+            }
+            if (trailing != null) {
+                Spacer(Modifier.width(10.dp))
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(trailing, style = NumBold.copy(fontSize = 15.sp, color = trailingColor))
+                    if (trailingSub != null) {
+                        Text(trailingSub, style = Body.copy(fontSize = 12.sp, color = trailingSubColor, fontWeight = FontWeight.Medium))
+                    }
+                }
+            }
+        }
+        if (showDivider) {
+            Box(Modifier.padding(start = 72.dp, end = 16.dp).fillMaxWidth().height(1.dp).background(Line))
+        }
+    }
 }
 
 @Composable

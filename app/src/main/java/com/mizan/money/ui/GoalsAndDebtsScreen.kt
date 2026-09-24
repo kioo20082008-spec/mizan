@@ -613,7 +613,7 @@ private fun ChoiceChip(label: String, selected: Boolean, modifier: Modifier = Mo
 @Composable
 private fun IconAction(icon: ImageVector, desc: String, tint: Color, bg: Color, onClick: () -> Unit) {
     Box(
-        Modifier.size(36.dp).clip(RoundedCornerShape(RadiusSm)).background(bg).clickable(onClick = onClick),
+        Modifier.size(40.dp).clip(RoundedCornerShape(Pill)).background(bg).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) { Icon(icon, desc, tint = tint, modifier = Modifier.size(16.dp)) }
 }
@@ -888,7 +888,7 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, on
                             .clickable(onClick = onPay).padding(vertical = 11.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(stringResource(R.string.debts_log_payment), style = Body.copy(color = White, fontWeight = FontWeight.Bold, fontSize = 13.sp))
+                        Text(stringResource(R.string.debts_log_payment), style = Body.copy(color = Lime, fontWeight = FontWeight.Bold, fontSize = 13.sp))
                     }
                 }
                 IconAction(Icons.Default.Edit, stringResource(R.string.debts_edit), Indigo, IndigoSoft, onEdit)

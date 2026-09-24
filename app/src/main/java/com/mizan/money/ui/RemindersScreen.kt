@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,10 +46,9 @@ fun RemindersSection(vm: MainViewModel) {
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 110.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.reminders_title), style = H2)
                     Text(stringResource(R.string.reminders_count_fmt, reminders.size), style = Eyebrow)
@@ -63,13 +63,12 @@ fun RemindersSection(vm: MainViewModel) {
         if (reminders.isEmpty()) {
             item { EmptyState(stringResource(R.string.reminders_empty_title)) }
         } else {
-            items(sorted, key = { it.id }) { item ->
-                ReminderCard(
+            itemsIndexed(sorted, key = { _, it -> it.id }) { i, item ->
+                ReminderRow(
                     item = item,
+                    position = rowPos(i, sorted.size),
                     onEdit = { editing = item },
-                    onDelete = { confirmingDelete = item },
-                    onToggle = { checked -> vm.updateRecurringItem(item.copy(reminderEnabled = checked)) },
-                    onToggleFixed = { checked -> vm.updateRecurringItem(item.copy(isFixed = checked)) }
+                    onToggle = { checked -> vm.updateRecurringItem(item.copy(reminderEnabled = checked)) }
                 )
             }
         }
@@ -90,6 +89,7 @@ fun RemindersSection(vm: MainViewModel) {
             initial = item,
             categories = categories,
             onDismiss = { editing = null },
+            onDelete = { editing = null; confirmingDelete = item },
             onSave = { merchant, amount, day, category, enabled, fixed ->
                 vm.updateRecurringItem(
                     item.copy(
@@ -126,64 +126,57 @@ fun RemindersSection(vm: MainViewModel) {
     }
 }
 
+// One UI grouped row: tap to edit (fixed-deduction toggle and delete live in
+// the edit sheet), the switch turns the reminder on/off in place.
 @Composable
-private fun ReminderCard(
+private fun ReminderRow(
     item: RecurringItemEntity,
+    position: RowPos,
     onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onToggle: (Boolean) -> Unit,
-    onToggleFixed: (Boolean) -> Unit
+    onToggle: (Boolean) -> Unit
 ) {
     val currency = currencyLabel("SAR")
-    SoftCard(Modifier.clickable { onEdit() }) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(catIcon(item.category), catColor(item.category), catColorSoft(item.category), size = 44.dp)
-            Spacer(Modifier.width(12.dp))
+    Column(
+        Modifier.fillMaxWidth()
+            .clip(position.shape())
+            .background(White)
+            .clickable { onEdit() }
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconBadge(catIcon(item.category), catColor(item.category), catColorSoft(item.category), size = 42.dp)
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(item.merchant, style = H2.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    stringResource(R.string.reminders_day_fmt, item.expectedDayOfMonth) + " • " + categoryDisplay(item.category),
-                    style = Eyebrow.copy(fontSize = 12.sp)
+                    item.merchant,
+                    style = Body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    stringResource(R.string.reminders_day_fmt, item.expectedDayOfMonth) + " • " +
+                        FinancialAdvisor.fmt(item.expectedAmount) + " " + currency,
+                    style = Body.copy(fontSize = 13.sp, color = InkSoft),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                if (item.isFixed) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        stringResource(R.string.reminders_fixed_label),
+                        style = Body.copy(fontSize = 12.sp, color = Indigo, fontWeight = FontWeight.Medium),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
-            IconAction(Icons.Default.Edit, stringResource(R.string.reminders_edit_title), Indigo, IndigoSoft, onEdit)
-            Spacer(Modifier.width(6.dp))
-            IconAction(Icons.Default.Delete, stringResource(R.string.reminders_delete), Danger, Danger.copy(alpha = 0.08f), onDelete)
+            Spacer(Modifier.width(10.dp))
+            Box(Modifier.width(1.dp).height(28.dp).background(Line))
+            Spacer(Modifier.width(10.dp))
+            Switch(checked = item.reminderEnabled, onCheckedChange = onToggle, colors = oneUiSwitchColors())
         }
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                FinancialAdvisor.fmt(item.expectedAmount) + " " + currency,
-                style = NumBold.copy(fontSize = 15.sp)
-            )
-            Spacer(Modifier.weight(1f))
-            Switch(
-                checked = item.reminderEnabled,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Default.Autorenew, null, Modifier.size(15.dp),
-                tint = if (item.isFixed) Indigo else InkFaint
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                stringResource(R.string.reminders_fixed_label),
-                style = Eyebrow.copy(
-                    fontSize = 12.sp,
-                    color = if (item.isFixed) Indigo else InkFaint,
-                    fontWeight = if (item.isFixed) FontWeight.Bold else FontWeight.Normal
-                ),
-                modifier = Modifier.weight(1f)
-            )
-            Switch(
-                checked = item.isFixed,
-                onCheckedChange = onToggleFixed,
-                colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
-            )
+        if (position == RowPos.First || position == RowPos.Middle) {
+            Box(Modifier.padding(start = 72.dp, end = 16.dp).fillMaxWidth().height(1.dp).background(Line))
         }
     }
 }
@@ -193,6 +186,7 @@ private fun ReminderEditorDialog(
     initial: RecurringItemEntity?,
     categories: List<String>,
     onDismiss: () -> Unit,
+    onDelete: (() -> Unit)? = null,
     onSave: (String, Double, Int, String, Boolean, Boolean) -> Unit
 ) {
     val currency = currencyLabel("SAR")
@@ -292,7 +286,7 @@ private fun ReminderEditorDialog(
                     Switch(
                         checked = enabled,
                         onCheckedChange = { enabled = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                        colors = oneUiSwitchColors()
                     )
                 }
                 Spacer(Modifier.height(8.dp))
@@ -310,7 +304,7 @@ private fun ReminderEditorDialog(
                     Switch(
                         checked = fixed,
                         onCheckedChange = { fixed = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                        colors = oneUiSwitchColors()
                     )
                 }
             }
@@ -327,8 +321,15 @@ private fun ReminderEditorDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.reminders_cancel), style = Body.copy(color = InkSoft))
+            Row {
+                if (onDelete != null) {
+                    TextButton(onClick = onDelete) {
+                        Text(stringResource(R.string.reminders_delete), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold))
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.reminders_cancel), style = Body.copy(color = InkSoft))
+                }
             }
         }
     )
@@ -340,7 +341,7 @@ private fun editableAmount(v: Double): String =
 @Composable
 private fun IconAction(icon: ImageVector, desc: String, tint: Color, bg: Color, onClick: () -> Unit) {
     Box(
-        Modifier.size(36.dp).clip(RoundedCornerShape(RadiusSm)).background(bg).clickable(onClick = onClick),
+        Modifier.size(40.dp).clip(RoundedCornerShape(Pill)).background(bg).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) { Icon(icon, desc, tint = tint, modifier = Modifier.size(16.dp)) }
 }

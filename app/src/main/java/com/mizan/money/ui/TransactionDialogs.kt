@@ -411,7 +411,7 @@ internal fun TxDetailDialog(
                                 isSelfTransfer = checked
                                 if (checked) category = com.mizan.money.data.SELF_TRANSFER_CATEGORY
                             },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                            colors = oneUiSwitchColors()
                         )
                     }
                     Spacer(Modifier.height(10.dp))
@@ -430,7 +430,7 @@ internal fun TxDetailDialog(
                         Switch(
                             checked = excludeFromDailyAvg,
                             onCheckedChange = { excludeFromDailyAvg = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                            colors = oneUiSwitchColors()
                         )
                     }
                     Spacer(Modifier.height(10.dp))
@@ -449,7 +449,7 @@ internal fun TxDetailDialog(
                         Switch(
                             checked = isReimbursement,
                             onCheckedChange = { isReimbursement = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                            colors = oneUiSwitchColors()
                         )
                     }
                     if (!isSelfTransfer && merchant.isNotBlank()) {
@@ -469,7 +469,7 @@ internal fun TxDetailDialog(
                             Switch(
                                 checked = billReminder,
                                 onCheckedChange = { billReminder = it },
-                                colors = SwitchDefaults.colors(checkedThumbColor = Indigo, checkedTrackColor = IndigoSoft)
+                                colors = oneUiSwitchColors()
                             )
                         }
                     }
