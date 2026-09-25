@@ -35,6 +35,7 @@ import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.data.RecurringItemEntity
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -94,8 +95,32 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
     var selected by remember { mutableStateOf<TransactionEntity?>(null) }
     val ctx = LocalContext.current
 
-    val filtered = remember(txs, query, filter, categories) {
-        val q = normalizeSearchDigits(query.trim())
+    // Multi-select (long-press a row to start; tap toggles once active).
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+    var confirmBulkDelete by remember { mutableStateOf(false) }
+    var showBulkRecategorize by remember { mutableStateOf(false) }
+    fun clearSelection() { selectionMode = false; selectedIds = emptySet() }
+    fun toggleSelected(id: Long) {
+        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+        if (selectedIds.isEmpty()) selectionMode = false
+    }
+
+    // The DB list (vm.transactions) has no paging — after a year or two of SMS
+    // history it can grow into the thousands, and re-filtering/re-grouping all
+    // of it on every keystroke would make the search box feel laggy. The list
+    // itself stays fully loaded (other screens rely on the complete history for
+    // their totals), but the query text is debounced here so a burst of typing
+    // triggers this heavier recomputation once, not once per character.
+    var debouncedQuery by remember { mutableStateOf(query) }
+    LaunchedEffect(query) {
+        if (query.isEmpty()) { debouncedQuery = query; return@LaunchedEffect }
+        delay(180)
+        debouncedQuery = query
+    }
+
+    val filtered = remember(txs, debouncedQuery, filter, categories) {
+        val q = normalizeSearchDigits(debouncedQuery.trim())
         val qNum = q.replace(",", "").replace("٬", "").replace("٫", ".")
         txs.filter { tx ->
             if (!filter.matches(tx)) return@filter false
@@ -128,8 +153,17 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        // Search bar is pinned above the list (outside the LazyColumn).
-        Row(
+        // Search bar is pinned above the list (outside the LazyColumn); it is
+        // replaced by a contextual selection bar while selectionMode is active.
+        if (selectionMode) {
+            SelectionBar(
+                count = selectedIds.size,
+                onCancel = { clearSelection() },
+                onRecategorize = { showBulkRecategorize = true },
+                onDelete = { confirmBulkDelete = true },
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp)
+            )
+        } else Row(
             Modifier.fillMaxWidth()
                 .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp)
                 .clip(RoundedCornerShape(Pill))
@@ -246,7 +280,10 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
                             modifier = Modifier.animateItem(),
                             position = rowPos(i, dayTxs.size),
                             showDate = false,
-                            onClick = { selected = tx }
+                            selectionMode = selectionMode,
+                            selected = tx.id in selectedIds,
+                            onClick = { if (selectionMode) toggleSelected(tx.id) else selected = tx },
+                            onLongClick = { if (!selectionMode) selectionMode = true; toggleSelected(tx.id) }
                         )
                     }
                 }
@@ -274,6 +311,108 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
             onApply = { newFilter -> vm.setTxFilter(newFilter); showFilterSheet = false },
         )
     }
+    if (confirmBulkDelete) {
+        val count = selectedIds.size
+        AlertDialog(
+            onDismissRequest = { confirmBulkDelete = false },
+            containerColor = White,
+            shape = RoundedCornerShape(RadiusXl),
+            title = { Text(stringResource(R.string.tx_bulk_delete_confirm_title_fmt, count), style = H2) },
+            text = { Text(stringResource(R.string.tx_detail_confirm_delete_desc), style = BodyMuted) },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.deleteMany(selectedIds)
+                    confirmBulkDelete = false
+                    clearSelection()
+                }) {
+                    Text(stringResource(R.string.tx_detail_confirm_delete_yes), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmBulkDelete = false }) {
+                    Text(stringResource(R.string.tx_detail_cancel), style = Body.copy(color = InkSoft))
+                }
+            }
+        )
+    }
+    if (showBulkRecategorize) {
+        BulkRecategorizeSheet(
+            count = selectedIds.size,
+            categories = categories,
+            onDismiss = { showBulkRecategorize = false },
+            onConfirm = { category ->
+                vm.recategorizeMany(selectedIds, category)
+                showBulkRecategorize = false
+                clearSelection()
+            }
+        )
+    }
+}
+
+// Contextual bar replacing the search box while rows are selected: cancel,
+// selected count, recategorize and delete — the same actions TxDetailDialog
+// offers per-row, applied to every selected transaction at once.
+@Composable
+private fun SelectionBar(
+    count: Int,
+    onCancel: () -> Unit,
+    onRecategorize: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(Pill))
+            .background(White)
+            .padding(start = 6.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onCancel, modifier = Modifier.size(40.dp)) {
+            Icon(Icons.Default.Close, stringResource(R.string.tx_selection_cancel_desc), Modifier.size(18.dp), tint = InkSoft)
+        }
+        Text(
+            stringResource(R.string.tx_selection_count_fmt, count),
+            style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp),
+            modifier = Modifier.weight(1f).padding(start = 4.dp)
+        )
+        IconButton(onClick = onRecategorize, modifier = Modifier.size(40.dp)) {
+            Icon(Icons.Default.Label, stringResource(R.string.tx_selection_recategorize_desc), Modifier.size(18.dp), tint = Indigo)
+        }
+        IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
+            Icon(Icons.Default.DeleteOutline, stringResource(R.string.tx_selection_delete_desc), Modifier.size(18.dp), tint = Danger)
+        }
+    }
+}
+
+// Bottom sheet with a chip grid of categories, reusing PlanningChip so it
+// matches the rest of the app's category pickers.
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BulkRecategorizeSheet(
+    count: Int,
+    categories: List<String>,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var category by remember { mutableStateOf(categories.firstOrNull() ?: "أخرى") }
+    FormSheet(
+        onDismissRequest = onDismiss,
+        containerColor = White,
+        title = { Text(stringResource(R.string.tx_bulk_recategorize_title_fmt, count), style = H2) },
+        text = {
+            FlowRow(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                categories.forEach { c ->
+                    PlanningChip(label = categoryDisplay(c), selected = category == c) { category = c }
+                }
+            }
+        },
+        confirmButton = { PlanningSheetConfirm(stringResource(R.string.reminders_save)) { onConfirm(category) } },
+        dismissButton = { PlanningSheetCancel(onDismiss) }
+    )
 }
 
 // Search accepts Arabic-Indic / Persian digits by mapping them to ASCII, the

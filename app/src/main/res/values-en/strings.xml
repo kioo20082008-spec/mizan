@@ -97,6 +97,13 @@
     <string name="tx_self_transfer_desc">Not counted as income or spending</string>
     <string name="tx_self_transfer_note">Transfer between your accounts — not counted as income or spending</string>
 
+    <string name="tx_selection_cancel_desc">Cancel selection</string>
+    <string name="tx_selection_count_fmt">%1$d selected</string>
+    <string name="tx_selection_delete_desc">Delete selected</string>
+    <string name="tx_selection_recategorize_desc">Recategorize selected</string>
+    <string name="tx_bulk_delete_confirm_title_fmt">Delete %1$d transactions?</string>
+    <string name="tx_bulk_recategorize_title_fmt">Recategorize %1$d transactions</string>
+
     <string name="tx_exclude_daily_title">Exclude from daily average</string>
     <string name="tx_exclude_daily_desc">For large one-off bills like rent</string>
     <string name="tx_exclude_daily_note">Excluded from daily average</string>
@@ -217,6 +224,10 @@
     <string name="reminders_field_day">Due day (1-28)</string>
     <string name="reminders_field_category">Category</string>
     <string name="reminders_enabled_label">Enable reminder</string>
+    <string name="reminders_suggestion_title_fmt">%1$s looks like it repeats every month</string>
+    <string name="reminders_suggestion_body_fmt">Averaging %1$s %2$s, seen %3$d times — add it as a reminder?</string>
+    <string name="reminders_suggestion_add">Add</string>
+    <string name="reminders_suggestion_dismiss_desc">Dismiss suggestion</string>
 
     <string name="budget_title_fmt">Budget &amp; categories — %1$s</string>
     <string name="budget_subtitle">Compare your spending with your limits</string>

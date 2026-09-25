@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -350,12 +352,19 @@ fun RowPos.shape(r: Dp = RadiusLg): RoundedCornerShape = when (this) {
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun TransactionCard(
     tx: TransactionEntity,
     modifier: Modifier = Modifier,
     position: RowPos = RowPos.Single,
     showDate: Boolean = true,
-    onClick: () -> Unit
+    // Multi-select (TransactionsScreen): selectionMode swaps the leading icon
+    // for a checkbox and long-press starts selecting instead of opening the
+    // detail sheet; a normal tap toggles the row's selection.
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     val isExpense = tx.type == TxType.EXPENSE
     val sign = if (isExpense) "-" else "+"
@@ -364,14 +373,26 @@ fun TransactionCard(
     Column(
         modifier.fillMaxWidth()
             .clip(position.shape())
-            .background(White)
-            .clickable { onClick() }
+            .background(if (selected) IndigoSoft else White)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconBadge(catIcon(tx.category), catColor(tx.category), catColorSoft(tx.category), size = 42.dp)
+            if (selectionMode) {
+                Box(
+                    Modifier.size(24.dp)
+                        .clip(RoundedCornerShape(Pill))
+                        .background(if (selected) Indigo else PaperOuter)
+                        .border(1.dp, if (selected) Indigo else Line, RoundedCornerShape(Pill)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selected) Icon(Icons.Default.Check, null, tint = Lime, modifier = Modifier.size(15.dp))
+                }
+            } else {
+                IconBadge(catIcon(tx.category), catColor(tx.category), catColorSoft(tx.category), size = 42.dp)
+            }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(

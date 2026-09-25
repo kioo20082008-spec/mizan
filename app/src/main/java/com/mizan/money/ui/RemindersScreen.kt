@@ -11,6 +11,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mizan.money.R
+import com.mizan.money.advisor.RecurringBillSuggestion
 import com.mizan.money.data.RecurringItemEntity
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
@@ -37,6 +40,10 @@ fun RemindersBlock(vm: MainViewModel) {
     val reminders by vm.recurringItems.collectAsState()
     val categories by vm.categories.collectAsState()
     val txs by vm.transactions.collectAsState()
+    val suggestions by vm.recurringSuggestions.collectAsState()
+    // Only the top candidate is shown at a time, matching the BNPL-suggestion
+    // banner in DebtsBlock — one dismissible nudge, not a list to triage.
+    val suggestion = suggestions.firstOrNull()
     var showAdd by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<RecurringItemEntity?>(null) }
     var confirmingDelete by remember { mutableStateOf<RecurringItemEntity?>(null) }
@@ -65,6 +72,14 @@ fun RemindersBlock(vm: MainViewModel) {
             actionIcon = Icons.Default.Add,
             onAction = { showAdd = true }
         )
+        if (suggestion != null) {
+            RecurringSuggestionBanner(
+                suggestion = suggestion,
+                currency = currency,
+                onAccept = { vm.acceptRecurringSuggestion(suggestion) },
+                onDismiss = { vm.dismissRecurringSuggestion(suggestion.key) }
+            )
+        }
         if (reminders.isEmpty()) {
             PlanningEmptyCard(
                 icon = Icons.AutoMirrored.Filled.ReceiptLong,
@@ -138,6 +153,54 @@ fun RemindersBlock(vm: MainViewModel) {
                 }
             }
         )
+    }
+}
+
+// Dismissible nudge for a merchant+amount pattern the advisor noticed
+// repeating across months but that isn't tracked as a reminder yet — mirrors
+// the BNPL-suggestion banner in DebtsBlock (GoalsAndDebtsScreen.kt).
+@Composable
+private fun RecurringSuggestionBanner(
+    suggestion: RecurringBillSuggestion,
+    currency: String,
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(RadiusLg)).background(IndigoSoft)
+            .padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconBadge(Icons.Default.Lightbulb, Indigo, White, size = 36.dp, iconSize = 16.dp)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.reminders_suggestion_title_fmt, suggestion.merchant),
+                style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp),
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                stringResource(
+                    R.string.reminders_suggestion_body_fmt,
+                    fmt(suggestion.averageAmount), currency, suggestion.occurrences
+                ),
+                style = Eyebrow.copy(fontSize = 13.sp)
+            )
+        }
+        TextButton(onClick = onAccept, shape = RoundedCornerShape(Pill)) {
+            Text(
+                stringResource(R.string.reminders_suggestion_add),
+                style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            )
+        }
+        IconButton(onClick = onDismiss) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = stringResource(R.string.reminders_suggestion_dismiss_desc),
+                tint = InkSoft,
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
 

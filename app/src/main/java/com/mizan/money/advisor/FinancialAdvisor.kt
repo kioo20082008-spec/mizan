@@ -71,6 +71,18 @@ data class BudgetPlan(
     val free: Double get() = (income - committedTotal).coerceAtLeast(0.0)
 }
 
+// A merchant+amount pattern the advisor noticed repeating across months that
+// is NOT already tracked as a RecurringItemEntity — a candidate to offer the
+// user as a one-tap "add as a bill reminder?" suggestion.
+data class RecurringBillSuggestion(
+    val key: String,
+    val merchant: String,
+    val category: String,
+    val averageAmount: Double,
+    val dayOfMonth: Int,
+    val occurrences: Int,
+)
+
 object FinancialAdvisor {
     fun fmt(v: Double): String = String.format(Locale.US, "%,.2f", v)
 
@@ -472,5 +484,56 @@ object FinancialAdvisor {
             val similar = amounts.count { abs(it - avg) / avg < 0.15 }
             if (similar >= 2) merchant.replaceFirstChar { it.uppercase() } to avg else null
         }.sortedByDescending { it.second }
+    }
+
+    // Generalizes detectSubscriptions() across every expense category (not
+    // just "اشتراكات") so it can catch any recurring bill — a phone plan,
+    // rent, a gym — the same way detectSalary() catches a recurring income.
+    // Requires activity in >=2 distinct calendar months (not just >=2
+    // transactions) so two same-month purchases don't look "recurring", and
+    // skips anything already tracked as a RecurringItemEntity.
+    fun suggestRecurringBills(
+        allTx: List<TransactionEntity>,
+        existing: List<RecurringItemEntity>,
+        rates: Map<String, Double> = ExchangeRates.DEFAULT,
+        now: Long = System.currentTimeMillis(),
+        monthsBack: Int = 4,
+    ): List<RecurringBillSuggestion> {
+        val cutoff = now - monthsBack.toLong() * 30L * 86_400_000L
+        val existingKeys = existing.map { normalizeMerchantName(it.merchant) }.toSet()
+        val recent = allTx.filter {
+            it.type == TxType.EXPENSE && it.merchant != null &&
+                !it.isSelfTransfer && !it.isReimbursement &&
+                it.category != CASH_WITHDRAWAL_CATEGORY && it.category != SELF_TRANSFER_CATEGORY &&
+                it.timestamp >= cutoff &&
+                ExchangeRates.toSar(it.amount, it.currency, rates) != null
+        }
+        fun monthKeyOf(ts: Long): Int {
+            val c = Calendar.getInstance().apply { timeInMillis = ts }
+            return c.get(Calendar.YEAR) * 100 + c.get(Calendar.MONTH)
+        }
+        fun dayOf(ts: Long): Int {
+            val c = Calendar.getInstance().apply { timeInMillis = ts }
+            return c.get(Calendar.DAY_OF_MONTH)
+        }
+        val grouped = recent.groupBy { normalizeMerchantName(it.merchant!!) }
+        return grouped.mapNotNull { (key, list) ->
+            if (key.isBlank() || key in existingKeys) return@mapNotNull null
+            val distinctMonths = list.map { monthKeyOf(it.timestamp) }.distinct()
+            if (distinctMonths.size < 2) return@mapNotNull null
+            val amounts = list.map { ExchangeRates.toSar(it.amount, it.currency, rates)!! }
+            val avg = amounts.average()
+            val consistent = amounts.count { abs(it - avg) / avg < 0.15 }
+            if (consistent < 2) return@mapNotNull null
+            val latest = list.maxByOrNull { it.timestamp }!!
+            RecurringBillSuggestion(
+                key = key,
+                merchant = latest.merchant!!.trim(),
+                category = latest.category,
+                averageAmount = avg,
+                dayOfMonth = dayOf(latest.timestamp).coerceIn(1, 31),
+                occurrences = list.size,
+            )
+        }.sortedByDescending { it.occurrences }
     }
 }

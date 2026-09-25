@@ -97,6 +97,13 @@
     <string name="tx_self_transfer_desc">لا يُحتسب ضمن دخلك أو مصاريفك</string>
     <string name="tx_self_transfer_note">تحويل بين حساباتك — لا يُحتسب ضمن دخلك أو مصاريفك</string>
 
+    <string name="tx_selection_cancel_desc">إلغاء التحديد</string>
+    <string name="tx_selection_count_fmt">%1$d محدد</string>
+    <string name="tx_selection_delete_desc">حذف المحدد</string>
+    <string name="tx_selection_recategorize_desc">تغيير تصنيف المحدد</string>
+    <string name="tx_bulk_delete_confirm_title_fmt">حذف %1$d عملية؟</string>
+    <string name="tx_bulk_recategorize_title_fmt">تصنيف %1$d عملية</string>
+
     <string name="tx_exclude_daily_title">استثنِ من معدل الصرف اليومي</string>
     <string name="tx_exclude_daily_desc">لمصروف كبير غير يومي مثل الإيجار</string>
     <string name="tx_exclude_daily_note">مستثناة من معدل الصرف اليومي</string>
@@ -217,6 +224,10 @@
     <string name="reminders_field_day">يوم الاستحقاق (1-28)</string>
     <string name="reminders_field_category">التصنيف</string>
     <string name="reminders_enabled_label">تفعيل التذكير</string>
+    <string name="reminders_suggestion_title_fmt">لاحظت %1$s يتكرر كل شهر</string>
+    <string name="reminders_suggestion_body_fmt">بمتوسط %1$s %2$s، تكرر %3$d مرات — تبي تضيفه كتذكير؟</string>
+    <string name="reminders_suggestion_add">إضافة</string>
+    <string name="reminders_suggestion_dismiss_desc">تجاهل الاقتراح</string>
 
     <string name="budget_title_fmt">الميزانية والتصنيفات — %1$s</string>
     <string name="budget_subtitle">قارن إنفاقك بحدودك</string>

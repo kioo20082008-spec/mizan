@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mizan.money.R
 import com.mizan.money.advisor.FinancialAdvisor
+import com.mizan.money.advisor.RecurringBillSuggestion
 import com.mizan.money.data.*
 import com.mizan.money.notify.NotificationHelper
 import com.mizan.money.sms.CategoryClassifier
@@ -17,6 +18,7 @@ import com.mizan.money.ui.theme.localizedContext
 import com.mizan.money.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -307,6 +309,21 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         WidgetUpdater.refresh(getApplication())
     }
     fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx); WidgetUpdater.refresh(getApplication()) }
+
+    // ---- Bulk transaction actions (multi-select in TransactionsScreen) ----
+    fun deleteMany(ids: Set<Long>) = viewModelScope.launch {
+        if (ids.isEmpty()) return@launch
+        val all = repo.allTransactionsOnce()
+        for (tx in all) if (tx.id in ids) repo.delete(tx)
+        WidgetUpdater.refresh(getApplication())
+    }
+    fun recategorizeMany(ids: Set<Long>, category: String) = viewModelScope.launch {
+        if (ids.isEmpty()) return@launch
+        val all = repo.allTransactionsOnce()
+        for (tx in all) if (tx.id in ids && tx.category != category) repo.update(tx.copy(category = category))
+        checkBudgetThreshold()
+        WidgetUpdater.refresh(getApplication())
+    }
     fun setBudget(
         monthKey: String,
         category: String,
@@ -441,6 +458,40 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         val updated = _dismissedBnpl.value + merchantLower.lowercase().trim()
         prefs.edit().putStringSet("dismissed_bnpl_suggestions", updated).apply()
         _dismissedBnpl.value = updated
+    }
+
+    // Recurring-bill suggestions: merchant+amount patterns repeating across
+    // >=2 months (see FinancialAdvisor.suggestRecurringBills) that aren't
+    // already tracked as a reminder, minus whatever the user dismissed —
+    // mirrors the BNPL-suggestion dismissal pattern above.
+    private val _dismissedRecurringSuggestions = MutableStateFlow(
+        prefs.getStringSet("dismissed_recurring_suggestions", emptySet()) ?: emptySet()
+    )
+    val recurringSuggestions: StateFlow<List<RecurringBillSuggestion>> = combine(
+        transactions, recurringItems, exchangeRates, _dismissedRecurringSuggestions
+    ) { txs, items, rates, dismissed ->
+        FinancialAdvisor.suggestRecurringBills(txs, items, rates)
+            .filter { it.key !in dismissed }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun dismissRecurringSuggestion(key: String) {
+        val updated = _dismissedRecurringSuggestions.value + key
+        prefs.edit().putStringSet("dismissed_recurring_suggestions", updated).apply()
+        _dismissedRecurringSuggestions.value = updated
+    }
+
+    // Accepting a suggestion adds it as a normal reminder (same path as the
+    // manual "add reminder" form) and clears the suggestion so it doesn't
+    // linger alongside the reminder it was just turned into.
+    fun acceptRecurringSuggestion(s: RecurringBillSuggestion) {
+        addRecurringItem(
+            merchant = s.merchant,
+            amount = s.averageAmount,
+            dayOfMonth = s.dayOfMonth,
+            category = s.category,
+            enabled = true,
+        )
+        dismissRecurringSuggestion(s.key)
     }
 
     // ---- Bill reminders (toggled from a transaction's own detail view) ----
