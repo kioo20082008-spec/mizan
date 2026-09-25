@@ -1,6 +1,7 @@
 package com.mizan.money.ui
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -270,7 +271,18 @@ fun FormSheet(
     containerColor: Color = White,
     @Suppress("UNUSED_PARAMETER") shape: Shape? = null, // kept for drop-in parity with AlertDialog
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // skipPartiallyExpanded sheets have a Material3 bug: hiding the IME
+    // shrinks the measured content height, the sheet recomputes its anchors
+    // mid-frame, and that can settle on Hidden — closing the whole sheet just
+    // from tapping the keyboard's own dismiss key, with no user swipe at all.
+    // Blocking the Hidden target stops that; Cancel/Save call onDismissRequest
+    // directly (not through sheetState), so they still work, and the explicit
+    // BackHandler below keeps the system back button working too.
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != SheetValue.Hidden }
+    )
+    BackHandler(onBack = onDismissRequest)
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,

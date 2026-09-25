@@ -1,5 +1,6 @@
 package com.mizan.money.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -104,7 +105,13 @@ internal fun AdvancedFilterSheet(
     onDismiss: () -> Unit,
     onApply: (TxFilter) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // See the comment on FormSheet in DesignSystem.kt: blocking the Hidden
+    // target keeps the keyboard's own dismiss key from closing this sheet.
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != SheetValue.Hidden }
+    )
+    BackHandler(onBack = onDismiss)
 
     var dateFrom by remember { mutableStateOf(initial.dateFrom) }
     var dateTo by remember { mutableStateOf(initial.dateTo) }
