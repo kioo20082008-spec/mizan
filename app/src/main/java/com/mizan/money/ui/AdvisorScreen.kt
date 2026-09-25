@@ -41,6 +41,7 @@ fun AdvisorScreen(
     val rates by vm.exchangeRates.collectAsState()
     val goals by vm.goals.collectAsState()
     val contributions by vm.goalContributions.collectAsState()
+    val debts by vm.debts.collectAsState()
     val range = remember(offset, startDay) { Dates.monthRange(offset, startDay) }
     val summary = remember(txs, offset, startDay, rates) { FinancialAdvisor.summarize(txs, range.first, range.last, rates) }
     val prevRange = remember(offset, startDay) { Dates.monthRange(offset - 1, startDay) }
@@ -63,11 +64,11 @@ fun AdvisorScreen(
         Level.GOOD -> 2
         Level.INFO -> 3
     }
-    val advice = remember(summary, budget, txs, manualSalary, rates, prevSummary, goals, savedThisMonth) {
+    val advice = remember(summary, budget, txs, manualSalary, rates, prevSummary, goals, savedThisMonth, debts) {
         FinancialAdvisor.advise(
             summary, budget, txs, range.first, range.last,
             manualSalary = manualSalary, rates = rates, prevSummary = prevSummary,
-            goals = goals, savedThisMonth = savedThisMonth
+            goals = goals, savedThisMonth = savedThisMonth, debts = debts
         ).sortedBy { severity(it.level) }
     }
     val alertCount = advice.count { it.level == Level.DANGER || it.level == Level.WARN }

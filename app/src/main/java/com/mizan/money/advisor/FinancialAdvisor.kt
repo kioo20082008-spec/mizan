@@ -137,6 +137,7 @@ object FinancialAdvisor {
         prevSummary: MonthSummary? = null,
         goals: List<GoalEntity> = emptyList(),
         savedThisMonth: Double = 0.0,
+        debts: List<DebtEntity> = emptyList(),
     ): List<Advice> {
         val list = mutableListOf<Advice>()
         val daysInMonth = max(1, ((monthEnd - monthStart) / 86_400_000L).toInt() + 1)
@@ -192,28 +193,43 @@ object FinancialAdvisor {
             }
         }
 
-        val prevTotals = prevSummary?.categoryTotals?.associate { it.category to it.amount }.orEmpty()
+        // Trend vs. the category's own trailing 3-month average (not just last
+        // month, which can itself be unusual) — catches a real habit shift in
+        // either direction: a warning when it's climbing, praise when it's
+        // genuinely down. More robust and more specific than a single-month
+        // comparison, and it can highlight improvement, not just problems.
         val pace = daysPassed.toDouble() / daysInMonth
-        val rising = if (prevTotals.isEmpty()) null else summary.categoryTotals
+        val trailingAvg = trailingCategoryAverages(allTx, rates, monthStart, monthsBack = 3)
+        val trend = summary.categoryTotals
             .asSequence()
             .filter { it.category != CASH_WITHDRAWAL_CATEGORY && it.category != SELF_TRANSFER_CATEGORY }
             .mapNotNull { cur ->
-                val prev = prevTotals[cur.category] ?: return@mapNotNull null
-                val expected = prev * pace
+                val base = trailingAvg[cur.category] ?: return@mapNotNull null
+                val expected = base * pace
                 if (expected < 50.0 || cur.amount < 100.0) return@mapNotNull null
-                val up = (cur.amount - expected) / expected
-                if (up < 0.3) return@mapNotNull null
-                Triple(cur.category, (up * 100).toInt(), cur.amount)
+                val change = (cur.amount - expected) / expected
+                if (abs(change) < 0.3) return@mapNotNull null
+                Triple(cur.category, (change * 100).toInt(), cur.amount)
             }
-            .maxByOrNull { it.second }
-        if (rising != null) {
+            .maxByOrNull { abs(it.second) }
+        if (trend != null && trend.second > 0) {
             list += Advice(
                 titleRes = R.string.adv_category_up_title_fmt,
-                titleArgs = listOf(rising.first),
+                titleArgs = listOf(trend.first),
                 bodyRes = R.string.adv_category_up_body_fmt,
-                bodyArgs = listOf(rising.first, fmt(rising.third), rising.second),
+                bodyArgs = listOf(trend.first, fmt(trend.third), trend.second),
                 level = Level.WARN,
-                category = rising.first,
+                category = trend.first,
+                target = AdviceTarget.CATEGORY,
+            )
+        } else if (trend != null) {
+            list += Advice(
+                titleRes = R.string.adv_category_down_title_fmt,
+                titleArgs = listOf(trend.first),
+                bodyRes = R.string.adv_category_down_body_fmt,
+                bodyArgs = listOf(trend.first, fmt(trend.third), abs(trend.second)),
+                level = Level.GOOD,
+                category = trend.first,
                 target = AdviceTarget.CATEGORY,
             )
         } else {
@@ -229,6 +245,35 @@ object FinancialAdvisor {
                         target = AdviceTarget.CATEGORY,
                     )
                 }
+            }
+        }
+
+        // A single outsized purchase (>=4x this month's median transaction, and
+        // meaningful in absolute terms) is a concrete, specific data point a
+        // generic percentage-based tip can't give — names the actual merchant.
+        val monthExpenses = allTx.filter {
+            it.timestamp in monthStart..monthEnd && it.type == TxType.EXPENSE &&
+                !it.isSelfTransfer && !it.isReimbursement && it.category != CASH_WITHDRAWAL_CATEGORY &&
+                ExchangeRates.toSar(it.amount, it.currency, rates) != null
+        }
+        if (monthExpenses.size >= 4) {
+            val amounts = monthExpenses.map { ExchangeRates.toSar(it.amount, it.currency, rates)!! }.sorted()
+            val median = amounts[amounts.size / 2]
+            val top = monthExpenses.maxByOrNull { ExchangeRates.toSar(it.amount, it.currency, rates)!! }
+            val topAmt = top?.let { ExchangeRates.toSar(it.amount, it.currency, rates) } ?: 0.0
+            if (top != null && median > 0.0 && topAmt >= median * 4 && topAmt >= 300.0 && summary.spent > 0) {
+                list += Advice(
+                    titleRes = R.string.adv_largest_tx_title,
+                    bodyRes = R.string.adv_largest_tx_body_fmt,
+                    // If there's no merchant name, fall back to the category itself
+                    // — passing the raw (Arabic) category key here, matching
+                    // `category` below, lets the UI's adviceText() swap it for the
+                    // localized display name the same way it does for other tips.
+                    bodyArgs = listOf(top.merchant?.trim().takeUnless { it.isNullOrBlank() } ?: top.category, fmt(topAmt), ((topAmt / summary.spent) * 100).toInt()),
+                    level = Level.INFO,
+                    category = top.category,
+                    target = AdviceTarget.CATEGORY,
+                )
             }
         }
 
@@ -248,6 +293,24 @@ object FinancialAdvisor {
         val salary = manualSalary.takeIf { it > 0 } ?: detectSalary(allTx, rates)
         val planningIncome = resolveIncome(summary, salary)
         val income = planningIncome ?: 0.0
+
+        // Debt load: a real advisor weighs fixed monthly commitments against
+        // income, not just spending in isolation — flag it once it crosses the
+        // rule-of-thumb danger zone (35% of income; 50%+ is a harder warning).
+        val activeDebts = debts.filter { !it.isArchived && it.remainingAmount > 0.0 && it.installmentAmount > 0.0 }
+        if (activeDebts.isNotEmpty() && income > 0.0) {
+            val debtMonthly = activeDebts.sumOf { it.installmentAmount }
+            val dti = debtMonthly / income
+            if (dti >= 0.35) {
+                list += Advice(
+                    titleRes = R.string.adv_debt_load_title,
+                    bodyRes = R.string.adv_debt_load_body_fmt,
+                    bodyArgs = listOf((dti * 100).toInt(), fmt(debtMonthly)),
+                    level = if (dti >= 0.5) Level.DANGER else Level.WARN,
+                    target = AdviceTarget.BUDGET,
+                )
+            }
+        }
 
         // Savings goals: the advisor reads them so a user putting money aside for
         // a car or an emergency fund hears what it costs per month and whether
@@ -440,6 +503,29 @@ object FinancialAdvisor {
             .filter {
                 it.type == TxType.EXPENSE && !it.isSelfTransfer && !it.isReimbursement &&
                     it.timestamp >= cutoff && ExchangeRates.toSar(it.amount, it.currency, rates) != null
+            }
+            .groupBy { it.category }
+            .mapValues { (_, list) -> list.sumOf { ExchangeRates.toSar(it.amount, it.currency, rates) ?: 0.0 } / months }
+    }
+
+    // Per-category monthly average over the `monthsBack` calendar months
+    // strictly BEFORE `beforeMonthStart` — unlike averageMonthlyByCategory
+    // (anchored on "now", which can include the in-progress current month and
+    // so would pollute a trend baseline), this is meant specifically as the
+    // "normal" baseline to compare the currently analyzed month against.
+    private fun trailingCategoryAverages(
+        allTx: List<TransactionEntity>,
+        rates: Map<String, Double>,
+        beforeMonthStart: Long,
+        monthsBack: Int,
+    ): Map<String, Double> {
+        val months = monthsBack.coerceAtLeast(1)
+        val cutoff = beforeMonthStart - months.toLong() * 30L * 86_400_000L
+        return allTx
+            .filter {
+                it.type == TxType.EXPENSE && !it.isSelfTransfer && !it.isReimbursement &&
+                    it.timestamp in cutoff until beforeMonthStart &&
+                    ExchangeRates.toSar(it.amount, it.currency, rates) != null
             }
             .groupBy { it.category }
             .mapValues { (_, list) -> list.sumOf { ExchangeRates.toSar(it.amount, it.currency, rates) ?: 0.0 } / months }

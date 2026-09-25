@@ -336,7 +336,13 @@
     <string name="adv_projected_title">Your pace exceeds your budget ⏳</string>
     <string name="adv_projected_body_fmt">At this pace you\'ll spend ~%1$s SAR by month end — %2$s SAR over budget.</string>
     <string name="adv_category_up_title_fmt">%1$s is rising 📈</string>
-    <string name="adv_category_up_body_fmt">%1$s: %2$s SAR so far, tracking %3$d٪ above last month.</string>
+    <string name="adv_category_up_body_fmt">%1$s: %2$s SAR so far, tracking %3$d٪ above your usual 3-month average.</string>
+    <string name="adv_category_down_title_fmt">Doing better on %1$s 👍</string>
+    <string name="adv_category_down_body_fmt">%1$s: you spent %2$s SAR, %3$d٪ below your usual 3-month average — keep it up.</string>
+    <string name="adv_largest_tx_title">Biggest transaction this month</string>
+    <string name="adv_largest_tx_body_fmt">%1$s for %2$s SAR — %3$d٪ of your total spending this month.</string>
+    <string name="adv_debt_load_title">High debt load ⚠️</string>
+    <string name="adv_debt_load_body_fmt">Your monthly installments of %2$s SAR are %1$d٪ of your income. Fixed commitments (debt + bills) are usually best kept under 35-40٪ of income.</string>
     <string name="adv_cash_title">Notable cash withdrawals 💵</string>
     <string name="adv_cash_body_fmt">You withdrew %1$s SAR in cash (%2$d٪). Cash is hard to track automatically.</string>
     <string name="adv_daily_avg_title">Your daily spending 📊</string>
