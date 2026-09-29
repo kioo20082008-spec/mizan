@@ -135,9 +135,6 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
                     ))
         }
     }
-    val totals = remember(filtered, rates) {
-        FinancialAdvisor.summarize(filtered, 0L, Long.MAX_VALUE, rates)
-    }
 
     val grouped = remember(filtered, rates) {
         filtered.groupBy { tx ->
@@ -250,9 +247,6 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
                     )
                 }
             } else {
-                item(key = "summary") {
-                    TxSummaryCard(totals.spent, totals.income, filtered.size, Modifier.animateItem())
-                }
                 // One UI list: rows grouped per day under a small date header.
                 grouped.forEach { (day, dayTxs, daySpent) ->
                     item(key = "day-$day") {
