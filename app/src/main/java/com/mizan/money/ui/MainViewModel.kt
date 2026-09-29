@@ -324,6 +324,15 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         checkBudgetThreshold()
         WidgetUpdater.refresh(getApplication())
     }
+    // Months whose leftover-budget card the user already answered (saved to a
+    // goal / carried over / dismissed), so it shows only once per month.
+    private val _leftoverHandled = MutableStateFlow(prefs.getStringSet("leftover_handled", emptySet()) ?: emptySet())
+    val leftoverHandled: StateFlow<Set<String>> = _leftoverHandled
+    fun markLeftoverHandled(monthKey: String) {
+        val next = _leftoverHandled.value + monthKey
+        _leftoverHandled.value = next
+        prefs.edit().putStringSet("leftover_handled", next).apply()
+    }
     fun setBudget(
         monthKey: String,
         category: String,

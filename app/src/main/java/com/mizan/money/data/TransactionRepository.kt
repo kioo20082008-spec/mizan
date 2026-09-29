@@ -19,7 +19,9 @@ class TransactionRepository(
     // can't stop it being stored twice. Same body + timestamps within a few
     // minutes is the same message.
     private fun sameSms(a: TransactionEntity, b: TransactionEntity) =
-        !a.isManual && !b.isManual && a.rawSms.isNotEmpty() && a.rawSms == b.rawSms &&
+        !a.isManual && !b.isManual && a.rawSms.isNotEmpty() && b.rawSms.isNotEmpty() &&
+            (a.rawSms == b.rawSms || a.rawSms.startsWith(b.rawSms) || b.rawSms.startsWith(a.rawSms)) &&
+            kotlin.math.abs(a.amount - b.amount) < 0.005 &&
             kotlin.math.abs(a.timestamp - b.timestamp) <= 10 * 60_000L
 
     suspend fun add(tx: TransactionEntity): Long {
@@ -27,23 +29,27 @@ class TransactionRepository(
         return txDao.insert(tx)
     }
 
-    // One-off cleanup of SMS rows stored twice by the timestamp/hash mismatch
-    // above. Keeps a user-edited copy if there is one, otherwise the oldest.
+    // One-off cleanup of SMS rows stored twice (hash mismatch between live and
+    // inbox capture, or a live copy built from only the first SMS part). Keeps a
+    // user-edited copy if there is one, else the one with the fuller SMS text.
     suspend fun removeDuplicateSmsRows() {
         val sms = txDao.getAllOnce().filter { !it.isManual && it.rawSms.isNotEmpty() }
-        for ((_, rows) in sms.groupBy { it.rawSms }) {
-            if (rows.size < 2) continue
-            val sorted = rows.sortedBy { it.timestamp }
-            var cluster = mutableListOf(sorted.first())
-            val clusters = mutableListOf(cluster)
-            for (r in sorted.drop(1)) {
-                if (r.timestamp - cluster.last().timestamp <= 10 * 60_000L) cluster.add(r)
-                else { cluster = mutableListOf(r); clusters.add(cluster) }
-            }
-            for (c in clusters) {
-                if (c.size < 2) continue
-                val keep = c.firstOrNull { it.isEdited } ?: c.minByOrNull { it.id }!!
-                c.filter { it.id != keep.id }.forEach { txDao.delete(it) }
+            .sortedBy { it.timestamp }
+        val gone = HashSet<Long>()
+        for (i in sms.indices) {
+            val x = sms[i]
+            if (x.id in gone) continue
+            for (j in i + 1 until sms.size) {
+                val y = sms[j]
+                if (y.timestamp - x.timestamp > 10 * 60_000L) break
+                if (y.id in gone || x.id in gone || !sameSms(x, y)) continue
+                val keepX = when {
+                    x.isEdited != y.isEdited -> x.isEdited
+                    x.rawSms.length != y.rawSms.length -> x.rawSms.length > y.rawSms.length
+                    else -> x.id <= y.id
+                }
+                val drop = if (keepX) y else x
+                txDao.delete(drop); gone.add(drop.id)
             }
         }
     }

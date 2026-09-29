@@ -176,8 +176,13 @@ object SmsParser {
         "الإنماء" to "مصرف الإنماء","alinma" to "مصرف الإنماء",
         "برق" to "Barq","barq" to "Barq"
     )
+    // Invisible bidi/format marks (RLM, LRM, embeddings, isolates, BOM, ZWSP) that
+    // Arabic SMS often carry at line starts. They sit before "من"/"لـ" and make
+    // the ^-anchored merchant line regex fail, dropping the merchant so the row
+    // falls back to the bank name. Removed up-front so every pattern sees clean text.
+    private val invisibleMarks = Regex("[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]")
     private fun normalizeDigits(input: String): String {
-        var s = input
+        var s = invisibleMarks.replace(input, "")
         val ar = "٠١٢٣٤٥٦٧٨٩"
         val fa = "۰۱۲۳۴۵۶۷۸۹"
         ar.forEachIndexed { i, c -> s = s.replace(c, ('0' + i)) }

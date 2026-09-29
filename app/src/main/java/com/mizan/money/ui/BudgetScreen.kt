@@ -29,6 +29,7 @@ import com.mizan.money.R
 import com.mizan.money.advisor.BudgetPlan
 import com.mizan.money.advisor.Commitment
 import com.mizan.money.advisor.FinancialAdvisor
+import com.mizan.money.data.GoalEntity
 import com.mizan.money.data.TOTAL_BUDGET
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -102,6 +103,18 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
     val hasPrevBudget = budgets.any { it.monthKey == prevMonthKey }
     val hasCurrentBudget = monthBudgets.isNotEmpty()
 
+    // Leftover of the previous month's overall budget (manual total, else the
+    // income the planner used), offered once at the start of a new month.
+    val leftoverHandled by vm.leftoverHandled.collectAsState()
+    val prevLeftover = remember(txs, budgets, manualSalary, rates, offset, startDay) {
+        val prevSummary = FinancialAdvisor.summarize(txs, prevRange.first, prevRange.last, rates)
+        val basis = budgets.firstOrNull { it.monthKey == prevMonthKey && it.category == TOTAL_BUDGET }
+            ?.limitAmount?.takeIf { it > 0 }
+            ?: (FinancialAdvisor.planningIncome(prevSummary, txs, manualSalary, rates) ?: 0.0)
+        if (basis <= 0.0 || prevSummary.spent <= 0.0) 0.0 else basis - prevSummary.spent
+    }
+    val showLeftover = offset == 0 && prevLeftover >= 1.0 && monthKey !in leftoverHandled
+
     val idleCats = categories.filter { c ->
         (limitByCat[c] ?: 0.0) <= 0.0 &&
             (rolloverByCat[c] ?: 0.0) <= 0.0 &&
@@ -158,6 +171,26 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                     Spacer(Modifier.width(10.dp))
                     Text(stringResource(R.string.pl_budget_copied), style = Body.copy(color = Success, fontWeight = FontWeight.Bold))
                 }
+            }
+        }
+
+        if (showLeftover) {
+            item {
+                LeftoverCard(
+                    leftover = prevLeftover,
+                    currency = currency,
+                    goals = goals,
+                    onToGoal = { g ->
+                        vm.contributeToGoal(g, prevLeftover)
+                        vm.markLeftoverHandled(monthKey)
+                    },
+                    onCarry = {
+                        val base = if (totalBudget > 0.0) totalBudget else (expectedIncome ?: 0.0)
+                        vm.setBudget(monthKey, TOTAL_BUDGET, base + prevLeftover)
+                        vm.markLeftoverHandled(monthKey)
+                    },
+                    onDismiss = { vm.markLeftoverHandled(monthKey) }
+                )
             }
         }
 
@@ -860,4 +893,76 @@ private fun CategoryIconPickerDialog(
             }
         }
     )
+}
+
+// One-time card at the start of a month: what to do with last month's unspent budget.
+@Composable
+private fun LeftoverCard(
+    leftover: Double,
+    currency: String,
+    goals: List<GoalEntity>,
+    onToGoal: (GoalEntity) -> Unit,
+    onCarry: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var picking by remember { mutableStateOf(false) }
+    Column(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(IndigoSoft)
+            .padding(18.dp)
+    ) {
+        Text(
+            stringResource(R.string.budget_leftover_title, fmt(leftover), currency),
+            style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold)
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(stringResource(R.string.budget_leftover_sub), style = BodyMuted)
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (goals.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.budget_leftover_to_goal),
+                    style = Body.copy(color = Color.White, fontWeight = FontWeight.Bold),
+                    modifier = Modifier.clip(RoundedCornerShape(Pill)).background(Indigo)
+                        .clickable { if (goals.size == 1) onToGoal(goals[0]) else picking = true }
+                        .padding(horizontal = 14.dp, vertical = 9.dp)
+                )
+            }
+            Text(
+                stringResource(R.string.budget_leftover_carry),
+                style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold),
+                modifier = Modifier.clip(RoundedCornerShape(Pill)).background(Color.White.copy(alpha = 0.7f))
+                    .clickable { onCarry() }
+                    .padding(horizontal = 14.dp, vertical = 9.dp)
+            )
+            Text(
+                stringResource(R.string.budget_leftover_dismiss),
+                style = Body.copy(color = InkSoft, fontWeight = FontWeight.Medium),
+                modifier = Modifier.clip(RoundedCornerShape(Pill))
+                    .clickable { onDismiss() }
+                    .padding(horizontal = 10.dp, vertical = 9.dp)
+            )
+        }
+    }
+    if (picking) {
+        AlertDialog(
+            onDismissRequest = { picking = false },
+            title = { Text(stringResource(R.string.budget_leftover_pick_goal)) },
+            text = {
+                Column {
+                    goals.forEach { g ->
+                        Text(
+                            g.name,
+                            style = Body,
+                            modifier = Modifier.fillMaxWidth()
+                                .clickable { picking = false; onToGoal(g) }
+                                .padding(vertical = 12.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {}
+        )
+    }
 }

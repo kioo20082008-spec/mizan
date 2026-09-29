@@ -68,4 +68,10 @@
         <item quantity="one">In %1$s day</item>
         <item quantity="other">In %1$s days</item>
     </plurals>
+    <string name="budget_leftover_title">Left over from last month\'s budget: %1$s %2$s</string>
+    <string name="budget_leftover_sub">What would you like to do with it?</string>
+    <string name="budget_leftover_to_goal">Save to a goal</string>
+    <string name="budget_leftover_carry">Carry to this month</string>
+    <string name="budget_leftover_dismiss">Dismiss</string>
+    <string name="budget_leftover_pick_goal">Choose a goal</string>
 </resources>

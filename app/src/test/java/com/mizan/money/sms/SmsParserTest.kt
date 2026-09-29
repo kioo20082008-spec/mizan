@@ -282,4 +282,21 @@ class SmsParserTest {
         assertTrue(h1 != h3)
         assertEquals(64, h1.length) // SHA-256 as hex
     }
+
+    // Real Alinma SMS samples: merchant must never fall back to the bank name.
+    @Test
+    fun `alinma real samples keep their merchant`() {
+        val cases = listOf(
+            "شراء إنترنت\nبطاقة مدى 6513*\nمن حساب *3000\nمبلغ 5.11 SAR\nمن Google Snapchat\nفي الولايات المتحدة\nفي 26-09-28 07:04" to "Google Snapchat",
+            "شراء عبر Samsung Wallet\nمبلغ: ريال سعودى 12\nبطاقة مدى: 6513*\nحساب: *3000\nمن: BAITY PIES AND GRILLS\nفي: 2026-09-28 07:56" to "BAITY PIES AND GRILLS",
+            "حوالة صادرة محلية\nمبلغ 850 SAR\nرسوم: 0.58 SAR\nلـ خالد صنيتان عبدالرحمن المطيري\nلحساب *9940\nفي 26-09-28 20:51" to "خالد صنيتان عبدالرحمن المطيري",
+            "شراء إنترنت 38.99 SAR\nبطاقة 6513* مدى\nحساب *3000\nمن AMAZON SA\nفي 18:21 26-09-28" to "AMAZON SA"
+        )
+        for ((sms, merchant) in cases) {
+            assertEquals(merchant, SmsParser.parse("Alinma", sms, 30_000L)!!.merchant)
+            // Same text with invisible RLM marks at line starts.
+            val marked = sms.lines().joinToString("\n") { "\u200F" + it }
+            assertEquals(merchant, SmsParser.parse("Alinma", marked, 30_000L)!!.merchant)
+        }
+    }
 }

@@ -82,4 +82,10 @@
         <item quantity="many">بعد %1$s يوماً</item>
         <item quantity="other">بعد %1$s يوم</item>
     </plurals>
+    <string name="budget_leftover_title">باقي من ميزانية الشهر الماضي: %1$s %2$s</string>
+    <string name="budget_leftover_sub">وش تبي تسوي فيه؟</string>
+    <string name="budget_leftover_to_goal">ادخره في هدف</string>
+    <string name="budget_leftover_carry">رحّله لهذا الشهر</string>
+    <string name="budget_leftover_dismiss">تجاهل</string>
+    <string name="budget_leftover_pick_goal">اختر الهدف</string>
 </resources>
