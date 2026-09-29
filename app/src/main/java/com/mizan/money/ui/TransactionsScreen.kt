@@ -36,6 +36,7 @@ import com.mizan.money.data.RecurringItemEntity
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -94,6 +95,13 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
     var showFilterSheet by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<TransactionEntity?>(null) }
     val ctx = LocalContext.current
+    // Swipe actions: one direction opens a quick category picker, the other
+    // deletes with an Undo snackbar.
+    var swipeRecatTx by remember { mutableStateOf<TransactionEntity?>(null) }
+    val snackbarHost = remember { SnackbarHostState() }
+    val swipeScope = rememberCoroutineScope()
+    val deletedMsg = stringResource(R.string.tx_deleted_msg)
+    val undoLabel = stringResource(R.string.tx_undo)
 
     // Multi-select (long-press a row to start; tap toggles once active).
     var selectionMode by remember { mutableStateOf(false) }
@@ -269,20 +277,87 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
                         }
                     }
                     itemsIndexed(dayTxs, key = { _, tx -> tx.id }) { i, tx ->
-                        TransactionCard(
-                            tx,
-                            modifier = Modifier.animateItem(),
-                            position = rowPos(i, dayTxs.size),
-                            showDate = false,
-                            selectionMode = selectionMode,
-                            selected = tx.id in selectedIds,
-                            onClick = { if (selectionMode) toggleSelected(tx.id) else selected = tx },
-                            onLongClick = { if (!selectionMode) selectionMode = true; toggleSelected(tx.id) }
+                        val currentTx by rememberUpdatedState(tx)
+                        val swipeState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { value ->
+                                when (value) {
+                                    SwipeToDismissBoxValue.StartToEnd -> {
+                                        swipeRecatTx = currentTx
+                                        false // snap back; the picker changes the category
+                                    }
+                                    SwipeToDismissBoxValue.EndToStart -> {
+                                        val gone = currentTx
+                                        vm.delete(gone)
+                                        swipeScope.launch {
+                                            snackbarHost.currentSnackbarData?.dismiss()
+                                            val r = snackbarHost.showSnackbar(
+                                                message = deletedMsg,
+                                                actionLabel = undoLabel,
+                                                duration = SnackbarDuration.Short
+                                            )
+                                            if (r == SnackbarResult.ActionPerformed) vm.restore(gone)
+                                        }
+                                        true
+                                    }
+                                    else -> false
+                                }
+                            }
                         )
+                        SwipeToDismissBox(
+                            state = swipeState,
+                            modifier = Modifier.animateItem(),
+                            enableDismissFromStartToEnd = !selectionMode,
+                            enableDismissFromEndToStart = !selectionMode,
+                            backgroundContent = {
+                                val dir = swipeState.dismissDirection
+                                val isDelete = dir == SwipeToDismissBoxValue.EndToStart
+                                val active = dir != SwipeToDismissBoxValue.Settled
+                                Box(
+                                    Modifier.fillMaxSize()
+                                        .background(
+                                            when {
+                                                !active -> Color.Transparent
+                                                isDelete -> Danger
+                                                else -> Indigo
+                                            }
+                                        )
+                                        .padding(horizontal = 22.dp),
+                                    contentAlignment = if (isDelete) Alignment.CenterEnd else Alignment.CenterStart
+                                ) {
+                                    if (active) Icon(
+                                        if (isDelete) Icons.Default.Delete else Icons.Default.Category,
+                                        null, tint = Color.White
+                                    )
+                                }
+                            }
+                        ) {
+                            TransactionCard(
+                                tx,
+                                position = rowPos(i, dayTxs.size),
+                                showDate = false,
+                                selectionMode = selectionMode,
+                                selected = tx.id in selectedIds,
+                                onClick = { if (selectionMode) toggleSelected(tx.id) else selected = tx },
+                                onLongClick = { if (!selectionMode) selectionMode = true; toggleSelected(tx.id) }
+                            )
+                        }
                     }
                 }
             }
         }
+        SnackbarHost(snackbarHost, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+    }
+
+    swipeRecatTx?.let { target ->
+        BulkRecategorizeSheet(
+            count = 1,
+            categories = categories,
+            onDismiss = { swipeRecatTx = null },
+            onConfirm = { category ->
+                vm.update(target.copy(category = category))
+                swipeRecatTx = null
+            }
+        )
     }
 
     selected?.let { current ->

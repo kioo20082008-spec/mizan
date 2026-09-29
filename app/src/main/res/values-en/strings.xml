@@ -597,4 +597,6 @@
     <string name="widget_theme_green">Green</string>
     <string name="widget_theme_purple">Purple</string>
     <string name="widget_theme_rose">Rose</string>
+    <string name="tx_deleted_msg">Transaction deleted</string>
+    <string name="tx_undo">Undo</string>
 </resources>

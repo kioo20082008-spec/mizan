@@ -309,6 +309,8 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         WidgetUpdater.refresh(getApplication())
     }
     fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx); WidgetUpdater.refresh(getApplication()) }
+    // Undo for a swipe-delete: puts the exact row back (same id and edited flag).
+    fun restore(tx: TransactionEntity) = viewModelScope.launch { repo.add(tx); WidgetUpdater.refresh(getApplication()) }
 
     // ---- Bulk transaction actions (multi-select in TransactionsScreen) ----
     fun deleteMany(ids: Set<Long>) = viewModelScope.launch {

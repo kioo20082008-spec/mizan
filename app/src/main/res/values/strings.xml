@@ -597,4 +597,6 @@
     <string name="widget_theme_green">أخضر</string>
     <string name="widget_theme_purple">بنفسجي</string>
     <string name="widget_theme_rose">وردي</string>
+    <string name="tx_deleted_msg">تم حذف العملية</string>
+    <string name="tx_undo">تراجع</string>
 </resources>
