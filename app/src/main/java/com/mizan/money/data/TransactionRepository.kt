@@ -14,7 +14,39 @@ class TransactionRepository(
     suspend fun allTransactionsOnce(): List<TransactionEntity> = txDao.getAllOnce()
     fun budgets(): Flow<List<BudgetEntity>> = budgetDao.observeAll()
     suspend fun budgetsOnce(): List<BudgetEntity> = budgetDao.getAllOnce()
-    suspend fun add(tx: TransactionEntity): Long = txDao.insert(tx)
+    // The same SMS gets a different smsHash when captured live (SMSC timestamp)
+    // than when read back from the inbox (device-received date), so hash alone
+    // can't stop it being stored twice. Same body + timestamps within a few
+    // minutes is the same message.
+    private fun sameSms(a: TransactionEntity, b: TransactionEntity) =
+        !a.isManual && !b.isManual && a.rawSms.isNotEmpty() && a.rawSms == b.rawSms &&
+            kotlin.math.abs(a.timestamp - b.timestamp) <= 10 * 60_000L
+
+    suspend fun add(tx: TransactionEntity): Long {
+        if (!tx.isManual && tx.rawSms.isNotEmpty() && txDao.getAllOnce().any { sameSms(it, tx) }) return -1L
+        return txDao.insert(tx)
+    }
+
+    // One-off cleanup of SMS rows stored twice by the timestamp/hash mismatch
+    // above. Keeps a user-edited copy if there is one, otherwise the oldest.
+    suspend fun removeDuplicateSmsRows() {
+        val sms = txDao.getAllOnce().filter { !it.isManual && it.rawSms.isNotEmpty() }
+        for ((_, rows) in sms.groupBy { it.rawSms }) {
+            if (rows.size < 2) continue
+            val sorted = rows.sortedBy { it.timestamp }
+            var cluster = mutableListOf(sorted.first())
+            val clusters = mutableListOf(cluster)
+            for (r in sorted.drop(1)) {
+                if (r.timestamp - cluster.last().timestamp <= 10 * 60_000L) cluster.add(r)
+                else { cluster = mutableListOf(r); clusters.add(cluster) }
+            }
+            for (c in clusters) {
+                if (c.size < 2) continue
+                val keep = c.firstOrNull { it.isEdited } ?: c.minByOrNull { it.id }!!
+                c.filter { it.id != keep.id }.forEach { txDao.delete(it) }
+            }
+        }
+    }
 
     // A plain insert-and-ignore-conflicts would mean a parser/category bug fix
     // never reaches SMS already imported before the fix shipped — the stale,
@@ -25,8 +57,10 @@ class TransactionRepository(
     // does — e.g. an OTP the parser now correctly rejects — gets its stale row
     // removed too, not just left orphaned because it's absent from `list`.
     suspend fun reconcile(list: List<TransactionEntity>, scannedHashes: Set<String>) {
+        removeDuplicateSmsRows()
+        val stored = txDao.getAllOnce()
         for (tx in list) {
-            val existing = txDao.findByHash(tx.smsHash)
+            val existing = txDao.findByHash(tx.smsHash) ?: stored.firstOrNull { sameSms(it, tx) }
             if (existing == null) txDao.insert(tx)
             else if (!existing.isEdited) txDao.update(tx.copy(id = existing.id))
         }
