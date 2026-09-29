@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import com.mizan.money.cloud.CloudBackup
 import com.mizan.money.data.AppDatabase
+import com.mizan.money.data.AutoBackupWorker
 import com.mizan.money.data.TransactionRepository
 import com.mizan.money.notify.BillReminderWorker
 import com.mizan.money.notify.NotificationHelper
@@ -47,6 +48,7 @@ class MoneyApp : Application() {
         // enqueueUniquePeriodicWork(..., KEEP, ...) makes this a no-op if the
         // daily check is already scheduled from a previous launch.
         BillReminderWorker.schedule(this)
+        AutoBackupWorker.schedule(this)
         WidgetUpdater.refresh(this)
     }
 }
