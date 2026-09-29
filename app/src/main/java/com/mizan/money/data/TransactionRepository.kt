@@ -25,8 +25,24 @@ class TransactionRepository(
             kotlin.math.abs(a.timestamp - b.timestamp) <= 10 * 60_000L
 
     suspend fun add(tx: TransactionEntity): Long {
-        if (!tx.isManual && tx.rawSms.isNotEmpty() && txDao.getAllOnce().any { sameSms(it, tx) }) return -1L
-        return txDao.insert(tx)
+        val history = txDao.getAllOnce()
+        if (!tx.isManual && tx.rawSms.isNotEmpty() && history.any { sameSms(it, tx) }) return -1L
+        val id = txDao.insert(SmartCategorization.applyLearned(tx, history))
+        if (id > 0 && !tx.isManual) pairInternalTransfers()
+        return id
+    }
+
+    // Flags matching Alinma<->Barq legs as self transfers (see InternalTransferPairing).
+    // Deliberately doesn't set isEdited, so a rescan can re-derive it.
+    suspend fun pairInternalTransfers() {
+        val all = txDao.getAllOnce()
+        val byId = all.associateBy { it.id }
+        for ((a, b) in InternalTransferPairing.findPairs(all)) {
+            for (id in listOf(a, b)) {
+                val t = byId[id] ?: continue
+                txDao.update(t.copy(isSelfTransfer = true, category = SELF_TRANSFER_CATEGORY))
+            }
+        }
     }
 
     // One-off cleanup of SMS rows stored twice (hash mismatch between live and
@@ -65,11 +81,13 @@ class TransactionRepository(
     suspend fun reconcile(list: List<TransactionEntity>, scannedHashes: Set<String>) {
         removeDuplicateSmsRows()
         val stored = txDao.getAllOnce()
-        for (tx in list) {
+        for (parsedTx in list) {
+            val tx = SmartCategorization.applyLearned(parsedTx, stored)
             val existing = txDao.findByHash(tx.smsHash) ?: stored.firstOrNull { sameSms(it, tx) }
             if (existing == null) txDao.insert(tx)
             else if (!existing.isEdited) txDao.update(tx.copy(id = existing.id))
         }
+        pairInternalTransfers()
         val parsedHashes = list.mapTo(HashSet()) { it.smsHash }
         for (hash in scannedHashes) {
             if (hash !in parsedHashes) txDao.deleteStaleByHash(hash)
