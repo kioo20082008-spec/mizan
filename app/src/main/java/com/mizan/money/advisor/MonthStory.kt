@@ -17,7 +17,17 @@ data class MonthStory(
     val improvedCategory: String?,
     val improvedAmount: Double,
     val longestStreakDays: Int,
-)
+    // First day (epoch ms) of the longest streak, or null when there is none.
+    val streakStartMs: Long? = null,
+    // Zero-based day index of the streak's first day within the cycle.
+    val streakStartIndex: Int = -1,
+    val totalSpend: Double = 0.0,
+    val dayCount: Int = 0,
+    val improvedPrev: Double = 0.0,
+    val improvedCur: Double = 0.0,
+) {
+    val averageDay: Double get() = if (dayCount > 0) totalSpend / dayCount else 0.0
+}
 
 object MonthStoryCalculator {
     private const val DAY_MS = 86_400_000L
@@ -62,11 +72,15 @@ object MonthStoryCalculator {
             .filter { it.second > 0.005 }
             .maxByOrNull { it.second }
 
-        val lastDay = ((minOf(now, range.last) - range.first) / DAY_MS)
+        val lastDay = ((minOf(now, range.last) - range.first) / DAY_MS).coerceAtLeast(0L)
         var best = 0
+        var bestStart = -1L
         var run = 0
-        for (d in 0..lastDay) {
-            if (d in byDay) run = 0 else { run++; if (run > best) best = run }
+        for (d in 0L..lastDay) {
+            if (d in byDay) run = 0 else {
+                run++
+                if (run > best) { best = run; bestStart = d - run + 1 }
+            }
         }
 
         return MonthStory(
@@ -78,6 +92,12 @@ object MonthStoryCalculator {
             improvedCategory = improved?.first,
             improvedAmount = improved?.second ?: 0.0,
             longestStreakDays = best,
+            streakStartIndex = if (best > 0) bestStart.toInt() else -1,
+            streakStartMs = if (best > 0) range.first + bestStart * DAY_MS else null,
+            totalSpend = cur.sumOf { it.second },
+            dayCount = (lastDay + 1).toInt(),
+            improvedPrev = improved?.let { prevCat[it.first] } ?: 0.0,
+            improvedCur = improved?.let { curCat[it.first] ?: 0.0 } ?: 0.0,
         )
     }
 }

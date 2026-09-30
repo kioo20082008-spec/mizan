@@ -31,6 +31,9 @@ class MonthStoryTest {
         assertEquals(150.0, s.priciestDayAmount, 0.001)
         // days 3..7 are empty -> 5-day streak
         assertEquals(5, s.longestStreakDays)
+        assertEquals(3, s.streakStartIndex)
+        assertEquals(10, s.dayCount)
+        assertEquals(200.0, s.totalSpend, 0.001)
     }
 
     @Test fun oneOffCategoriesAreIgnored() {

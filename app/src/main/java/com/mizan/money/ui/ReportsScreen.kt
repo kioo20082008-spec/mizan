@@ -246,7 +246,9 @@ private fun ReportsSection(vm: MainViewModel, offset: Int, onOpenCategory: (Stri
         val prevEnd = if (inProgress) (r.first + (now - range.first)).coerceAtMost(r.last) else r.last
         com.mizan.money.advisor.MonthStoryCalculator.compute(txs, range, r.first..prevEnd, rates, now)
     }
-    val storyTitle = stringResource(R.string.story_share_title_fmt, monthName(offset, startDay))
+    val storyMonth = monthName(offset, startDay)
+    val storyMonthNum = remember(range) { java.util.Calendar.getInstance().apply { timeInMillis = range.first }.get(java.util.Calendar.MONTH) + 1 }
+    val storyTitle = stringResource(R.string.story_share_title_fmt, storyMonth)
     val storyChooser = stringResource(R.string.reports_share_chooser)
 
     LazyColumn(
@@ -255,7 +257,7 @@ private fun ReportsSection(vm: MainViewModel, offset: Int, onOpenCategory: (Stri
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            MonthStoryCard(story, locale, currency, storyTitle) { text ->
+            MonthStoryCard(story, locale, currency, storyMonth, storyMonthNum, storyTitle) { text ->
                 val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(android.content.Intent.EXTRA_TEXT, text)
@@ -587,52 +589,175 @@ private fun monthShortLabel(offset: Int, startDay: Int, locale: java.util.Locale
 }
 
 
-// A shareable recap of the cycle: the few numbers that describe how it went.
+// A shareable recap of the cycle, laid out like a page in a magazine: one
+// sentence tells the headline, then ruled rows each carry a tiny chart.
 @Composable
 private fun MonthStoryCard(
     story: MonthStory,
     locale: java.util.Locale,
     currency: String,
+    monthLabel: String,
+    monthNumber: Int,
     shareTitle: String,
     onShare: (String) -> Unit,
 ) {
-    val lines = mutableListOf<Pair<ImageVector, String>>()
-    if (story.topMerchant != null) {
-        lines += Icons.Default.Storefront to stringResource(
-            R.string.story_top_merchant_fmt, story.topMerchant,
-            fmt(story.topMerchantAmount) + " " + currency, insNum(story.topMerchantCount)
+    if (story.topMerchant == null && story.priciestDayStart == null &&
+        story.improvedCategory == null && story.longestStreakDays <= 0) return
+
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val dayFmt = remember(locale) { java.text.SimpleDateFormat("d MMMM", locale) }
+    fun dayText(ms: Long) = dayFmt.format(java.util.Date(ms))
+    val soft = InkSoft.copy(alpha = 0.35f)
+
+    val topLine = story.topMerchant?.let {
+        stringResource(R.string.story_top_merchant_fmt, it, fmt(story.topMerchantAmount) + " " + currency, insNum(story.topMerchantCount))
+    }
+    val dayLine = story.priciestDayStart?.let {
+        stringResource(R.string.story_priciest_day_fmt, dayText(it), fmt(story.priciestDayAmount) + " " + currency)
+    }
+    val improvedName = story.improvedCategory?.let { categoryDisplay(it) }
+    val improvedLine = improvedName?.let { stringResource(R.string.story_improved_fmt, it, fmt(story.improvedAmount) + " " + currency) }
+    val streakLine = if (story.longestStreakDays > 0) stringResource(R.string.story_streak_fmt, insNum(story.longestStreakDays)) else null
+    val shareText = shareTitle + "\n" + listOfNotNull(topLine, dayLine, improvedLine, streakLine).joinToString("\n") { "• $it" }
+
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(White)) {
+        Text(
+            insNum(monthNumber),
+            style = Body.copy(fontSize = 150.sp, lineHeight = 150.sp, fontWeight = FontWeight.Bold, color = IndigoSoft),
+            modifier = Modifier.align(Alignment.TopStart).offset(y = (-26).dp)
         )
-    }
-    if (story.priciestDayStart != null) {
-        val day = java.text.SimpleDateFormat("d MMMM", locale).format(java.util.Date(story.priciestDayStart))
-        lines += Icons.Default.Whatshot to stringResource(
-            R.string.story_priciest_day_fmt, day, fmt(story.priciestDayAmount) + " " + currency
-        )
-    }
-    if (story.improvedCategory != null) {
-        lines += Icons.Default.TrendingDown to stringResource(
-            R.string.story_improved_fmt, categoryDisplay(story.improvedCategory),
-            fmt(story.improvedAmount) + " " + currency
-        )
-    }
-    if (story.longestStreakDays > 0) {
-        lines += Icons.Default.Spa to stringResource(R.string.story_streak_fmt, insNum(story.longestStreakDays))
-    }
-    if (lines.isEmpty()) return
-    SoftCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.story_title), style = H2, modifier = Modifier.weight(1f))
-            IconButton(onClick = { onShare(shareTitle + "\n" + lines.joinToString("\n") { "• " + it.second }) }) {
-                Icon(Icons.Default.Share, stringResource(R.string.reports_share_chooser), tint = Indigo)
+        Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 4.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stringResource(R.string.story_eyebrow_fmt, monthLabel), style = Eyebrow.copy(fontSize = 13.sp))
+                if (story.dayCount > 0) Text(stringResource(R.string.story_days_count_fmt, insNum(story.dayCount)), style = Eyebrow.copy(fontSize = 13.sp))
+            }
+
+            if (story.topMerchant != null) {
+                val amt = fmt(story.topMerchantAmount) + " " + currency
+                val sentence = stringResource(R.string.story_sentence_fmt, story.topMerchant, amt, insNum(story.topMerchantCount))
+                val styled = remember(sentence, story.topMerchant, amt) {
+                    androidx.compose.ui.text.buildAnnotatedString {
+                        append(sentence)
+                        for (part in listOf(story.topMerchant, amt)) {
+                            val at = sentence.indexOf(part)
+                            if (at >= 0) addStyle(
+                                androidx.compose.ui.text.SpanStyle(color = Indigo, background = IndigoSoft),
+                                at, at + part.length
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                Text(styled, style = H2.copy(fontSize = 25.sp, lineHeight = 39.sp, fontWeight = FontWeight.SemiBold))
+                if (story.totalSpend > 0) {
+                    val share = (story.topMerchantAmount / story.totalSpend).coerceIn(0.0, 1.0)
+                    Spacer(Modifier.height(14.dp))
+                    PlanningProgressBar(share.toFloat(), Indigo, height = 8)
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(R.string.story_share_pct_fmt, insNum((share * 100).roundToInt())), style = Eyebrow.copy(fontSize = 12.sp))
+                        Text(stringResource(R.string.story_total_fmt, fmt(story.totalSpend) + " " + currency), style = Eyebrow.copy(fontSize = 12.sp))
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            } else Spacer(Modifier.height(14.dp))
+
+            if (story.priciestDayStart != null) {
+                StoryRow(
+                    label = stringResource(R.string.story_lbl_priciest),
+                    value = stringResource(R.string.story_priciest_val_fmt, dayText(story.priciestDayStart), fmt(story.priciestDayAmount) + " " + currency),
+                    sub = if (story.averageDay > 0) stringResource(R.string.story_ratio_fmt, insNum((story.priciestDayAmount / story.averageDay).roundToInt().coerceAtLeast(1))) else "",
+                ) {
+                    if (story.priciestDayAmount > 0) PlanningProgressBar(
+                        (story.averageDay / story.priciestDayAmount).toFloat().coerceIn(0f, 1f), InkSoft.copy(alpha = 0.5f),
+                        Modifier.width(110.dp), height = 8
+                    )
+                }
+            }
+            if (improvedName != null) {
+                StoryRow(
+                    label = stringResource(R.string.story_lbl_improved),
+                    value = improvedName,
+                    pill = "−" + fmt(story.improvedAmount) + " " + currency,
+                    sub = stringResource(R.string.story_prev_cur_fmt, fmt(story.improvedPrev), fmt(story.improvedCur) + " " + currency),
+                ) {
+                    Column(Modifier.width(110.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        PlanningProgressBar(1f, soft, height = 8)
+                        PlanningProgressBar(
+                            if (story.improvedPrev > 0) (story.improvedCur / story.improvedPrev).toFloat().coerceIn(0f, 1f) else 0f,
+                            Success, height = 8
+                        )
+                    }
+                }
+            }
+            if (story.longestStreakDays > 0 && story.streakStartMs != null) {
+                val endMs = story.streakStartMs + (story.longestStreakDays - 1) * 86_400_000L
+                StoryRow(
+                    label = stringResource(R.string.story_lbl_streak),
+                    value = stringResource(R.string.story_streak_val_fmt, insNum(story.longestStreakDays)),
+                    sub = stringResource(R.string.story_streak_range_fmt, dayText(story.streakStartMs), dayText(endMs)),
+                ) {
+                    StreakTicks(story.dayCount, story.streakStartIndex, story.longestStreakDays, rtl, Success, soft)
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth().clickable { onShare(shareText) }.padding(vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(stringResource(R.string.story_share_action), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold, fontSize = 14.sp))
+                Icon(Icons.Default.Share, null, Modifier.size(18.dp), tint = Indigo)
             }
         }
-        Spacer(Modifier.height(8.dp))
-        lines.forEach { (icon, text) ->
-            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconBadge(icon, Indigo, IndigoSoft, size = 36.dp, iconSize = 18.dp)
-                Spacer(Modifier.width(12.dp))
-                Text(text, style = Body.copy(fontSize = 14.sp), modifier = Modifier.weight(1f))
+    }
+}
+
+// One ruled row: label + bold value on the first line, a note and a tiny chart
+// on the second.
+@Composable
+private fun StoryRow(
+    label: String,
+    value: String,
+    sub: String,
+    pill: String? = null,
+    chart: @Composable () -> Unit,
+) {
+    HorizontalDivider(color = InkSoft.copy(alpha = 0.12f))
+    Column(Modifier.fillMaxWidth().padding(vertical = 14.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = Eyebrow.copy(fontSize = 13.sp), modifier = Modifier.weight(1f))
+            Text(value, style = Body.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
+            if (pill != null) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    pill,
+                    style = Body.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Success),
+                    modifier = Modifier.clip(RoundedCornerShape(Pill)).background(Success.copy(alpha = 0.12f)).padding(horizontal = 9.dp, vertical = 2.dp)
+                )
             }
+        }
+        Spacer(Modifier.height(9.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(sub, style = Eyebrow.copy(fontSize = 12.5.sp), modifier = Modifier.weight(1f))
+            chart()
+        }
+    }
+}
+
+@Composable
+private fun StreakTicks(days: Int, first: Int, length: Int, rtl: Boolean, on: Color, off: Color) {
+    if (days <= 0) return
+    Canvas(Modifier.width(150.dp).height(14.dp)) {
+        val gap = 3.dp.toPx()
+        val w = ((size.width - gap * (days - 1)) / days).coerceAtLeast(1f)
+        for (i in 0 until days) {
+            val slot = if (rtl) days - 1 - i else i
+            drawRoundRect(
+                color = if (i in first until first + length) on else off,
+                topLeft = Offset(slot * (w + gap), 0f),
+                size = Size(w, size.height),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(w / 2f)
+            )
         }
     }
 }

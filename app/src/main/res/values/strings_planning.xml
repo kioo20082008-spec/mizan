@@ -111,4 +111,18 @@
     <string name="story_priciest_day_fmt">أغلى يوم: %1$s — %2$s</string>
     <string name="story_improved_fmt">الفئة التي تحسّنت: %1$s (وفّرت %2$s عن الشهر السابق)</string>
     <string name="story_streak_fmt">أطول فترة بدون صرف عشوائي: %1$s يوم</string>
+    <string name="story_lbl_priciest">أغلى يوم</string>
+    <string name="story_lbl_improved">الفئة التي تحسّنت</string>
+    <string name="story_lbl_streak">أطول فترة بدون صرف عشوائي</string>
+    <string name="story_eyebrow_fmt">قصة %1$s</string>
+    <string name="story_days_count_fmt">%1$s يوماً</string>
+    <string name="story_sentence_fmt">أكثر مكان صرفت فيه هذا الشهر %1$s، %2$s على %3$s زيارة.</string>
+    <string name="story_share_pct_fmt">%1$s٪ من صرفك اليومي</string>
+    <string name="story_total_fmt">%1$s المجموع</string>
+    <string name="story_priciest_val_fmt">%1$s · %2$s</string>
+    <string name="story_ratio_fmt">%1$s أضعاف متوسط يومك</string>
+    <string name="story_prev_cur_fmt">%1$s ← %2$s</string>
+    <string name="story_streak_val_fmt">%1$s أيام متتالية</string>
+    <string name="story_streak_range_fmt">من %1$s إلى %2$s</string>
+    <string name="story_share_action">مشاركة القصة</string>
 </resources>
