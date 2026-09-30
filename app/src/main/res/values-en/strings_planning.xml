@@ -111,7 +111,7 @@
     <string name="story_streak_val_fmt">%1$s days in a row</string>
     <string name="story_streak_range_fmt">%1$s to %2$s</string>
     <string name="story_share_action">Share story</string>
-    <string name="budget_pace_ahead_fmt">Ahead of this month's pace — expected today: %1$s%%</string>
+    <string name="budget_pace_ahead_fmt">Ahead of the monthly pace — expected today: %1$s%%</string>
     <string name="pl_commit_title">Your commitments this month</string>
     <string name="pl_commit_pct_fmt">%1$s%% of income</string>
     <string name="pl_commit_bills">Bills</string>
