@@ -39,6 +39,7 @@ object CloudBackup {
     private const val COL_DEBTS = "debts"
     private const val COL_RECURRING = "recurringItems"
     private const val COL_CONTRIBUTIONS = "goalContributions"
+    private const val COL_FUNDS = "sinkingFunds"
     private const val META = "meta"
 
     // Firestore allows at most 500 writes per batch; stay comfortably under it.
@@ -193,6 +194,10 @@ object CloudBackup {
                 base.collection(COL_CONTRIBUTIONS),
                 data.goalContributions.associate { it.id.toString() to CloudBackupMapper.contribution(it) },
             )
+            syncCollection(
+                base.collection(COL_FUNDS),
+                data.sinkingFunds.associate { it.id.toString() to CloudBackupMapper.sinkingFund(it) },
+            )
 
             base.collection(META).document("backup").set(
                 mapOf(
@@ -224,6 +229,8 @@ object CloudBackup {
                     .mapNotNull { it.data }.map { CloudBackupMapper.recurringItemFrom(it) },
                 goalContributions = base.collection(COL_CONTRIBUTIONS).get().await().documents
                     .mapNotNull { it.data }.map { CloudBackupMapper.contributionFrom(it) },
+                sinkingFunds = base.collection(COL_FUNDS).get().await().documents
+                    .mapNotNull { it.data }.map { CloudBackupMapper.sinkingFundFrom(it) },
             )
         }
     }

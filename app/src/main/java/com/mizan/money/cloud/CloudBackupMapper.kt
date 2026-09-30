@@ -6,6 +6,7 @@ import com.mizan.money.data.DebtType
 import com.mizan.money.data.GoalContributionEntity
 import com.mizan.money.data.GoalEntity
 import com.mizan.money.data.RecurringItemEntity
+import com.mizan.money.data.SinkingFundEntity
 import com.mizan.money.data.TransactionEntity
 import com.mizan.money.data.TxType
 
@@ -39,6 +40,7 @@ object CloudBackupMapper {
         "isEdited" to t.isEdited,
         "excludeFromDailyAvg" to t.excludeFromDailyAvg,
         "isReimbursement" to t.isReimbursement,
+        "note" to t.note,
     )
 
     fun transactionFrom(m: Map<String, Any?>): TransactionEntity = TransactionEntity(
@@ -58,6 +60,7 @@ object CloudBackupMapper {
         isEdited = m.bool("isEdited") ?: false,
         excludeFromDailyAvg = m.bool("excludeFromDailyAvg") ?: false,
         isReimbursement = m.bool("isReimbursement") ?: false,
+        note = m.string("note"),
     )
 
     fun budget(b: BudgetEntity): Map<String, Any?> = mapOf(
@@ -162,6 +165,24 @@ object CloudBackupMapper {
         isFixed = m.bool("isFixed") ?: false,
         lastNotifiedMonthKey = m.string("lastNotifiedMonthKey"),
         createdAt = m.long("createdAt") ?: System.currentTimeMillis(),
+    )
+
+    fun sinkingFund(s: SinkingFundEntity): Map<String, Any?> = mapOf(
+        "id" to s.id,
+        "name" to s.name,
+        "yearlyAmount" to s.yearlyAmount,
+        "dueMonth" to s.dueMonth,
+        "createdAt" to s.createdAt,
+        "isArchived" to s.isArchived,
+    )
+
+    fun sinkingFundFrom(m: Map<String, Any?>): SinkingFundEntity = SinkingFundEntity(
+        id = m.long("id") ?: 0L,
+        name = m.string("name") ?: "",
+        yearlyAmount = m.double("yearlyAmount") ?: 0.0,
+        dueMonth = m.int("dueMonth") ?: 0,
+        createdAt = m.long("createdAt") ?: System.currentTimeMillis(),
+        isArchived = m.bool("isArchived") ?: false,
     )
 
     private fun Map<String, Any?>.string(key: String): String? = this[key] as? String

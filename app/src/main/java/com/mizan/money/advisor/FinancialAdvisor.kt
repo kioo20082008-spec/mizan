@@ -467,6 +467,7 @@ object FinancialAdvisor {
         rates: Map<String, Double> = ExchangeRates.DEFAULT,
         now: Long = System.currentTimeMillis(),
         monthsBack: Int = 3,
+        funds: List<com.mizan.money.data.SinkingFundEntity> = emptyList(),
     ): BudgetPlan {
         val fixed = fixedItems.filter { it.isFixed }.map {
             Commitment(it.merchant, it.expectedAmount, CommitmentKind.FIXED, it.category)
@@ -475,7 +476,7 @@ object FinancialAdvisor {
             .map { Commitment(it.name, it.installmentAmount, CommitmentKind.DEBT) }
         val savings = goals.filter { !it.isArchived }.mapNotNull { g ->
             goalMonthlySaving(g, now).takeIf { it > 0.0 }?.let { Commitment(g.name, it, CommitmentKind.SAVINGS) }
-        }
+        } + SinkingFunds.commitments(funds)
         val committed = fixed.sumOf { it.amount } + debtList.sumOf { it.amount } + savings.sumOf { it.amount }
 
         val avg = averageMonthlyByCategory(allTx, rates, now, monthsBack)

@@ -602,4 +602,6 @@
     <string name="tx_self_from_fmt">From %1$s</string>
     <string name="tx_self_to_fmt">To %1$s</string>
     <string name="header_greeting_name_fmt">Hi %1$s</string>
+    <string name="tx_note_add">+ Add a note</string>
+    <string name="tx_note_hint">Why you spent it (e.g. gift for my brother)</string>
 </resources>

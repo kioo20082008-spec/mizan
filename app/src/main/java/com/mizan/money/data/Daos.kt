@@ -104,3 +104,15 @@ interface RecurringItemDao {
     @Delete
     suspend fun delete(r: RecurringItemEntity)
 }
+
+@Dao
+interface SinkingFundDao {
+    @Query("SELECT * FROM sinking_funds WHERE isArchived = 0 ORDER BY createdAt ASC")
+    fun observeAll(): Flow<List<SinkingFundEntity>>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(f: SinkingFundEntity): Long
+    @Update
+    suspend fun update(f: SinkingFundEntity)
+    @Delete
+    suspend fun delete(f: SinkingFundEntity)
+}

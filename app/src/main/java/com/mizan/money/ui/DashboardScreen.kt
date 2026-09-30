@@ -207,7 +207,8 @@ fun DashboardScreen(
             onDelete = { vm.delete(current); selectedTx = null },
             onSave = { updated, billReminder ->
                 vm.update(updated); vm.setBillReminder(updated, billReminder); selectedTx = null
-            }
+            },
+            onNoteSave = { vm.setNote(current, it); selectedTx = current.copy(note = it?.trim()?.ifBlank { null }) }
         )
     }
 }

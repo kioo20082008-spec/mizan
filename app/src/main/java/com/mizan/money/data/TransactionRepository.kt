@@ -8,7 +8,8 @@ class TransactionRepository(
     private val goalDao: GoalDao,
     private val goalContributionDao: GoalContributionDao,
     private val debtDao: DebtDao,
-    private val recurringDao: RecurringItemDao
+    private val recurringDao: RecurringItemDao,
+    private val fundDao: SinkingFundDao? = null
 ) {
     fun allTransactions(): Flow<List<TransactionEntity>> = txDao.observeAll()
     suspend fun allTransactionsOnce(): List<TransactionEntity> = txDao.getAllOnce()
@@ -85,7 +86,7 @@ class TransactionRepository(
             val tx = SmartCategorization.applyLearned(parsedTx, stored)
             val existing = txDao.findByHash(tx.smsHash) ?: stored.firstOrNull { sameSms(it, tx) }
             if (existing == null) txDao.insert(tx)
-            else if (!existing.isEdited) txDao.update(tx.copy(id = existing.id))
+            else if (!existing.isEdited) txDao.update(tx.copy(id = existing.id, note = existing.note))
         }
         pairInternalTransfers()
         val parsedHashes = list.mapTo(HashSet()) { it.smsHash }
@@ -95,6 +96,9 @@ class TransactionRepository(
     }
 
     suspend fun update(tx: TransactionEntity) = txDao.update(tx.copy(isEdited = true))
+    // A note is the user's own text, not a correction of the parsed data, so it
+    // must not flip isEdited (which would freeze the row against parser fixes).
+    suspend fun setNote(tx: TransactionEntity, note: String?) = txDao.update(tx.copy(note = note?.trim()?.ifBlank { null }))
     // Auto-recategorization only changes the category — crucially it must NOT
     // set isEdited, or a later rescan would stop refreshing this row from the
     // (possibly improved) parser output as if the user had hand-edited it.
@@ -120,6 +124,10 @@ class TransactionRepository(
     }
 
     // ---- Goals ----
+    fun sinkingFunds(): Flow<List<SinkingFundEntity>> = fundDao?.observeAll() ?: kotlinx.coroutines.flow.flowOf(emptyList())
+    suspend fun addSinkingFund(f: SinkingFundEntity): Long = fundDao?.insert(f) ?: -1L
+    suspend fun updateSinkingFund(f: SinkingFundEntity) { fundDao?.update(f) }
+    suspend fun deleteSinkingFund(f: SinkingFundEntity) { fundDao?.delete(f) }
     fun goals(): Flow<List<GoalEntity>> = goalDao.observeAll()
     suspend fun addGoal(g: GoalEntity): Long = goalDao.insert(g)
     suspend fun updateGoal(g: GoalEntity) = goalDao.update(g)

@@ -138,6 +138,7 @@ internal fun SettingsDialog(
                         debts = dao.debts(),
                         recurringItems = dao.recurringItems(),
                         goalContributions = dao.goalContributions(),
+                        sinkingFunds = dao.sinkingFunds(),
                     )
                 }
                 CloudBackup.upload(data).isSuccess
@@ -382,6 +383,7 @@ internal fun SettingsDialog(
                                     debts = dao.debts(),
                                     recurringItems = dao.recurringItems(),
                                     goalContributions = dao.goalContributions(),
+                                    sinkingFunds = dao.sinkingFunds(),
                                 )
                                 val file = writeBackupFile(ctx, BackupManager.toJson(data))
                                 withContext(Dispatchers.Main) {

@@ -19,6 +19,11 @@ abstract class BackupDao {
     @Query("SELECT * FROM recurring_items") abstract suspend fun recurringItems(): List<RecurringItemEntity>
     @Query("SELECT * FROM goal_contributions") abstract suspend fun goalContributions(): List<GoalContributionEntity>
 
+    @Query("SELECT * FROM sinking_funds") abstract suspend fun sinkingFunds(): List<SinkingFundEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun insertSinkingFunds(items: List<SinkingFundEntity>)
+    @Query("DELETE FROM sinking_funds") abstract suspend fun clearSinkingFunds()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun insertTransactions(items: List<TransactionEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun insertBudgets(items: List<BudgetEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun insertGoals(items: List<GoalEntity>)
@@ -41,5 +46,6 @@ abstract class BackupDao {
         clearGoalContributions(); insertGoalContributions(data.goalContributions)
         clearDebts(); insertDebts(data.debts)
         clearRecurringItems(); insertRecurringItems(data.recurringItems)
+        clearSinkingFunds(); insertSinkingFunds(data.sinkingFunds)
     }
 }

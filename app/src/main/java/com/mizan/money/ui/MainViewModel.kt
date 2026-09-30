@@ -34,6 +34,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     val budgets = repo.budgets().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val goals = repo.goals().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val debts = repo.debts().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val sinkingFunds = repo.sinkingFunds().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val recurringItems = repo.recurringItems().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     // Per-month savings ledger, used by BudgetScreen to show money moved into
     // goals this cycle and exclude it from "spent" (it's savings, not spending).
@@ -308,6 +309,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         checkBudgetThreshold()
         WidgetUpdater.refresh(getApplication())
     }
+    fun setNote(tx: TransactionEntity, note: String?) = viewModelScope.launch { repo.setNote(tx, note) }
     fun delete(tx: TransactionEntity) = viewModelScope.launch { repo.delete(tx); WidgetUpdater.refresh(getApplication()) }
     // Undo for a swipe-delete: puts the exact row back (same id and edited flag).
     fun restore(tx: TransactionEntity) = viewModelScope.launch { repo.add(tx); WidgetUpdater.refresh(getApplication()) }
@@ -457,6 +459,11 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         if (debt.id == 0L) repo.addDebt(debt) else repo.updateDebt(debt)
     }
     fun deleteDebt(debt: DebtEntity) = viewModelScope.launch { repo.deleteDebt(debt) }
+
+    fun saveFund(fund: com.mizan.money.data.SinkingFundEntity) = viewModelScope.launch {
+        if (fund.id == 0L) repo.addSinkingFund(fund) else repo.updateSinkingFund(fund)
+    }
+    fun deleteFund(fund: com.mizan.money.data.SinkingFundEntity) = viewModelScope.launch { repo.deleteSinkingFund(fund) }
 
     // Merchant names (lowercased) the user dismissed from the "track this as a
     // debt?" suggestion banner — persisted so a dismissal survives app restarts

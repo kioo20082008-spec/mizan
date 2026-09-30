@@ -14,6 +14,7 @@ data class BackupData(
     val debts: List<DebtEntity> = emptyList(),
     val recurringItems: List<RecurringItemEntity> = emptyList(),
     val goalContributions: List<GoalContributionEntity> = emptyList(),
+    val sinkingFunds: List<SinkingFundEntity> = emptyList(),
 )
 
 // Uses org.json (bundled with Android) instead of pulling in a serialization
@@ -48,6 +49,7 @@ object BackupManager {
                     put("isEdited", t.isEdited)
                     put("excludeFromDailyAvg", t.excludeFromDailyAvg)
                     put("isReimbursement", t.isReimbursement)
+                    put("note", t.note ?: JSONObject.NULL)
                 })
             }
         })
@@ -118,6 +120,18 @@ object BackupManager {
                 })
             }
         })
+        root.put("sinkingFunds", JSONArray().apply {
+            data.sinkingFunds.forEach { s ->
+                put(JSONObject().apply {
+                    put("id", s.id)
+                    put("name", s.name)
+                    put("yearlyAmount", s.yearlyAmount)
+                    put("dueMonth", s.dueMonth)
+                    put("createdAt", s.createdAt)
+                    put("isArchived", s.isArchived)
+                })
+            }
+        })
         return root.toString()
     }
 
@@ -147,6 +161,7 @@ object BackupManager {
                 isEdited = o.optBoolean("isEdited", false),
                 excludeFromDailyAvg = o.optBoolean("excludeFromDailyAvg", false),
                 isReimbursement = o.optBoolean("isReimbursement", false),
+                note = o.stringOrNull("note"),
             )
         }
         val budgets = root.optJSONArray("budgets").mapObjects { o ->
@@ -206,7 +221,17 @@ object BackupManager {
                 timestamp = o.optLong("timestamp", 0L),
             )
         }
-        return BackupData(transactions, budgets, goals, debts, recurring, contributions)
+        val sinkingFunds = root.optJSONArray("sinkingFunds").mapObjects { o ->
+            SinkingFundEntity(
+                id = o.optLong("id", 0L),
+                name = o.optString("name"),
+                yearlyAmount = o.optDouble("yearlyAmount", 0.0),
+                dueMonth = o.optInt("dueMonth", 0),
+                createdAt = o.optLong("createdAt", System.currentTimeMillis()),
+                isArchived = o.optBoolean("isArchived", false),
+            )
+        }
+        return BackupData(transactions, budgets, goals, debts, recurring, contributions, sinkingFunds)
     }
 }
 

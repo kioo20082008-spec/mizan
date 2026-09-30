@@ -36,7 +36,9 @@ import androidx.compose.ui.unit.sp
 import com.mizan.money.R
 import com.mizan.money.data.DebtEntity
 import com.mizan.money.data.DebtType
+import com.mizan.money.advisor.SinkingFunds
 import com.mizan.money.data.GoalEntity
+import com.mizan.money.data.SinkingFundEntity
 import com.mizan.money.data.TxType
 import kotlin.math.roundToInt
 
@@ -93,6 +95,7 @@ private fun CommitmentsSection(vm: MainViewModel) {
     ) {
         RemindersBlock(vm)
         DebtsBlock(vm)
+        FundsBlock(vm)
     }
 }
 
@@ -1043,4 +1046,166 @@ private fun detectUntrackedBnpl(
         if (name in trackedNames || name in dismissed || list.size < 2) return@mapNotNull null
         name.replaceFirstChar { it.uppercase() } to list.map { it.amount }.average()
     }
+}
+
+
+// ============ YEARLY FUNDS (sinking funds) ============
+@Composable
+private fun FundsBlock(vm: MainViewModel) {
+    val funds by vm.sinkingFunds.collectAsState()
+    var showAdd by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<SinkingFundEntity?>(null) }
+    val currency = currencyLabel("SAR")
+
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        PlanningSectionHeader(
+            title = stringResource(R.string.fund_section),
+            actionLabel = if (funds.isEmpty()) null else stringResource(R.string.pl_add),
+            actionIcon = Icons.Default.Add,
+            onAction = { showAdd = true }
+        )
+        if (funds.isEmpty()) {
+            PlanningEmptyCard(
+                icon = Icons.Default.Savings,
+                text = stringResource(R.string.fund_empty_desc),
+                actionLabel = stringResource(R.string.fund_add),
+                actionIcon = Icons.Default.Add,
+                onAction = { showAdd = true }
+            )
+        } else {
+            SoftCard(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Autorenew, null, Modifier.size(14.dp), tint = Indigo)
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        stringResource(R.string.fund_total_monthly_fmt, fmt(SinkingFunds.totalMonthly(funds)) + " " + currency),
+                        style = Eyebrow.copy(fontSize = 13.sp, color = Indigo, fontWeight = FontWeight.Bold)
+                    )
+                }
+            }
+            funds.forEach { f ->
+                key(f.id) {
+                    val reserved = SinkingFunds.reservedSoFar(f)
+                    val pct = if (f.yearlyAmount > 0) (reserved / f.yearlyAmount).coerceIn(0.0, 1.0).toFloat() else 0f
+                    SoftCard(Modifier.fillMaxWidth().clickable { editing = f }) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconBadge(Icons.Default.Savings, Indigo, Indigo.copy(alpha = 0.12f), size = 44.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(f.name, style = H2.copy(fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    stringResource(R.string.fund_monthly_fmt, fmt(SinkingFunds.monthlyShare(f)) + " " + currency),
+                                    style = Eyebrow.copy(fontSize = 13.sp)
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(fmt(reserved) + " " + currency, style = NumBold.copy(fontSize = 15.sp), maxLines = 1)
+                                Text(
+                                    stringResource(R.string.fund_of_fmt, fmt(f.yearlyAmount)),
+                                    style = Eyebrow.copy(fontSize = 12.sp), maxLines = 1
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        PlanningProgressBar(pct, Indigo)
+                        if (f.dueMonth in 1..12) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                stringResource(R.string.fund_due_fmt, fundMonthName(f.dueMonth)),
+                                style = Eyebrow.copy(fontSize = 12.sp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAdd) {
+        FundEditorDialog(initial = null, onDismiss = { showAdd = false }, onSave = { vm.saveFund(it); showAdd = false }, onDelete = {})
+    }
+    editing?.let { f ->
+        FundEditorDialog(
+            initial = f, onDismiss = { editing = null },
+            onSave = { vm.saveFund(it); editing = null },
+            onDelete = { vm.deleteFund(f); editing = null }
+        )
+    }
+}
+
+private fun fundMonthName(month: Int): String =
+    java.text.DateFormatSymbols.getInstance(java.util.Locale.getDefault()).months.getOrNull(month - 1) ?: month.toString()
+
+@Composable
+private fun FundEditorDialog(
+    initial: SinkingFundEntity?,
+    onDismiss: () -> Unit,
+    onSave: (SinkingFundEntity) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var name by remember { mutableStateOf(initial?.name ?: "") }
+    var yearly by remember { mutableStateOf(initial?.yearlyAmount?.let { planningEditableAmount(it) } ?: "") }
+    var dueMonth by remember { mutableStateOf(initial?.dueMonth?.takeIf { it > 0 }?.toString() ?: "") }
+    val yearlyVal = yearly.toDoubleOrNull()
+    val monthVal = dueMonth.toIntOrNull()
+    val monthError = dueMonth.isNotEmpty() && (monthVal == null || monthVal !in 1..12)
+    val yearlyError = yearly.isNotEmpty() && (yearlyVal == null || yearlyVal <= 0)
+    val valid = name.isNotBlank() && yearlyVal != null && yearlyVal > 0 && !monthError
+
+    FormSheet(
+        onDismissRequest = onDismiss,
+        containerColor = White,
+        title = { Text(stringResource(if (initial == null) R.string.fund_add else R.string.fund_edit), style = H2) },
+        text = {
+            Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.fund_name_hint)) },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    shape = RoundedCornerShape(RadiusMd), textStyle = Body
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = yearly, onValueChange = { yearly = sanitizeAmountInput(it) },
+                    label = { Text(stringResource(R.string.fund_yearly_hint_fmt, currencyLabel("SAR"))) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = yearlyError,
+                    supportingText = {
+                        if (yearlyError) Text(stringResource(R.string.goals_amount_error), style = Eyebrow.copy(color = Danger))
+                    },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    shape = RoundedCornerShape(RadiusMd), textStyle = Body
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = dueMonth, onValueChange = { dueMonth = it.filter { c -> c.isDigit() }.take(2) },
+                    label = { Text(stringResource(R.string.fund_due_month_hint)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = monthError,
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    shape = RoundedCornerShape(RadiusMd), textStyle = Body
+                )
+                if (yearlyVal != null && yearlyVal > 0) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        stringResource(R.string.fund_preview_fmt, fmt(yearlyVal / 12.0)),
+                        style = Body.copy(fontSize = 14.sp, color = Indigo, fontWeight = FontWeight.Bold)
+                    )
+                }
+                if (initial != null) {
+                    Spacer(Modifier.height(14.dp))
+                    PlanningDeleteButton(stringResource(R.string.fund_delete), onDelete)
+                }
+            }
+        },
+        confirmButton = {
+            PlanningSheetConfirm(stringResource(if (initial == null) R.string.fund_add else R.string.debts_save_action), enabled = valid) {
+                val y = yearlyVal ?: return@PlanningSheetConfirm
+                if (!valid) return@PlanningSheetConfirm
+                val base = initial ?: SinkingFundEntity(name = "", yearlyAmount = 0.0)
+                onSave(base.copy(name = name.trim(), yearlyAmount = y, dueMonth = monthVal ?: 0))
+            }
+        },
+        dismissButton = { PlanningSheetCancel(onDismiss) }
+    )
 }

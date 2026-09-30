@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.mizan.money.R
 import com.mizan.money.advisor.CategoryTotal
 import com.mizan.money.advisor.FinancialAdvisor
+import com.mizan.money.advisor.MonthStory
 import com.mizan.money.data.ExchangeRates
 import com.mizan.money.data.TOTAL_BUDGET
 import kotlinx.coroutines.Dispatchers
@@ -240,11 +241,28 @@ private fun ReportsSection(vm: MainViewModel, offset: Int, onOpenCategory: (Stri
         )
     }
 
+    val story = remember(txs, offset, startDay, rates, now) {
+        val r = Dates.monthRange(offset - 1, startDay)
+        val prevEnd = if (inProgress) (r.first + (now - range.first)).coerceAtMost(r.last) else r.last
+        com.mizan.money.advisor.MonthStoryCalculator.compute(txs, range, r.first..prevEnd, rates, now)
+    }
+    val storyTitle = stringResource(R.string.story_share_title_fmt, monthName(offset, startDay))
+    val storyChooser = stringResource(R.string.reports_share_chooser)
+
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item {
+            MonthStoryCard(story, locale, currency, storyTitle) { text ->
+                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, text)
+                }
+                ctx.startActivity(android.content.Intent.createChooser(intent, storyChooser))
+            }
+        }
         item {
             SoftCard {
                 Text(stringResource(R.string.reports_trend_title), style = H2)
@@ -566,4 +584,55 @@ private fun LegendDot(color: Color, label: String) {
 private fun monthShortLabel(offset: Int, startDay: Int, locale: java.util.Locale): String {
     val c = java.util.Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
     return java.text.DateFormatSymbols(locale).shortMonths[c.get(java.util.Calendar.MONTH)]
+}
+
+
+// A shareable recap of the cycle: the few numbers that describe how it went.
+@Composable
+private fun MonthStoryCard(
+    story: MonthStory,
+    locale: java.util.Locale,
+    currency: String,
+    shareTitle: String,
+    onShare: (String) -> Unit,
+) {
+    val lines = mutableListOf<Pair<ImageVector, String>>()
+    if (story.topMerchant != null) {
+        lines += Icons.Default.Storefront to stringResource(
+            R.string.story_top_merchant_fmt, story.topMerchant,
+            fmt(story.topMerchantAmount) + " " + currency, insNum(story.topMerchantCount)
+        )
+    }
+    if (story.priciestDayStart != null) {
+        val day = java.text.SimpleDateFormat("d MMMM", locale).format(java.util.Date(story.priciestDayStart))
+        lines += Icons.Default.Whatshot to stringResource(
+            R.string.story_priciest_day_fmt, day, fmt(story.priciestDayAmount) + " " + currency
+        )
+    }
+    if (story.improvedCategory != null) {
+        lines += Icons.Default.TrendingDown to stringResource(
+            R.string.story_improved_fmt, categoryDisplay(story.improvedCategory),
+            fmt(story.improvedAmount) + " " + currency
+        )
+    }
+    if (story.longestStreakDays > 0) {
+        lines += Icons.Default.Spa to stringResource(R.string.story_streak_fmt, insNum(story.longestStreakDays))
+    }
+    if (lines.isEmpty()) return
+    SoftCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.story_title), style = H2, modifier = Modifier.weight(1f))
+            IconButton(onClick = { onShare(shareTitle + "\n" + lines.joinToString("\n") { "• " + it.second }) }) {
+                Icon(Icons.Default.Share, stringResource(R.string.reports_share_chooser), tint = Indigo)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        lines.forEach { (icon, text) ->
+            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(icon, Indigo, IndigoSoft, size = 36.dp, iconSize = 18.dp)
+                Spacer(Modifier.width(12.dp))
+                Text(text, style = Body.copy(fontSize = 14.sp), modifier = Modifier.weight(1f))
+            }
+        }
+    }
 }

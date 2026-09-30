@@ -76,4 +76,25 @@
     <string name="budget_leftover_pick_goal">Choose a goal</string>
     <string name="pl_budget_total_not_set">Not set</string>
     <string name="pl_budget_use_suggested_fmt">Use %1$s SAR (left to spend)</string>
+
+    <string name="fund_section">Yearly expense funds</string>
+    <string name="fund_empty_desc">Split a yearly expense (car insurance, zakat, travel, subscriptions) over 12 months. A share is set aside from your budget every month so the big bill never surprises you.</string>
+    <string name="fund_add">Add fund</string>
+    <string name="fund_edit">Edit fund</string>
+    <string name="fund_delete">Delete fund</string>
+    <string name="fund_name_hint">Name (e.g. Car insurance)</string>
+    <string name="fund_yearly_hint_fmt">Yearly amount (%1$s)</string>
+    <string name="fund_due_month_hint">Due month (1–12), optional</string>
+    <string name="fund_preview_fmt">Set aside monthly: %1$s</string>
+    <string name="fund_total_monthly_fmt">Set aside from your budget monthly: %1$s</string>
+    <string name="fund_monthly_fmt">%1$s / month</string>
+    <string name="fund_of_fmt">of %1$s</string>
+    <string name="fund_due_fmt">Due: %1$s</string>
+
+    <string name="story_title">Month story</string>
+    <string name="story_share_title_fmt">My %1$s in Mizan</string>
+    <string name="story_top_merchant_fmt">Top merchant: %1$s — %2$s (%3$s times)</string>
+    <string name="story_priciest_day_fmt">Priciest day: %1$s — %2$s</string>
+    <string name="story_improved_fmt">Most improved category: %1$s (saved %2$s vs last month)</string>
+    <string name="story_streak_fmt">Longest no-impulse-spend streak: %1$s days</string>
 </resources>

@@ -41,7 +41,11 @@ data class TransactionEntity(
     // bill). It arrives as an incoming transfer but is not real income — it
     // offsets the original spending, so it is excluded from income and
     // subtracted from the totals/category of the expense it reimburses.
-    val isReimbursement: Boolean = false
+    val isReimbursement: Boolean = false,
+    // Free-text reason the user attached ("gift for my brother"). Stored on the
+    // row but not derived from the SMS, so a rescan (which rewrites SMS-sourced
+    // rows) must keep it: see TransactionRepository.reconcile.
+    val note: String? = null
 )
 
 @Entity(tableName = "budgets", primaryKeys = ["monthKey", "category"])
@@ -139,4 +143,18 @@ data class RecurringItemEntity(
     // implicitly every month since this is compared against the current month key.
     val lastNotifiedMonthKey: String? = null,
     val createdAt: Long = System.currentTimeMillis()
+)
+
+// A yearly expense the user wants to set aside for a little each month
+// (car insurance, annual subscriptions, zakat, a trip). The monthly share is
+// yearlyAmount / 12; nothing is actually moved, it is a reservation the budget
+// plan treats as already spoken for. dueMonth is 1-12, or 0 when not fixed.
+@Entity(tableName = "sinking_funds")
+data class SinkingFundEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val yearlyAmount: Double,
+    val dueMonth: Int = 0,
+    val createdAt: Long = System.currentTimeMillis(),
+    val isArchived: Boolean = false
 )

@@ -134,6 +134,7 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
             if (!filter.matches(tx)) return@filter false
             if (q.isEmpty()) return@filter true
             (tx.merchant ?: "").contains(q, ignoreCase = true) ||
+                (tx.note ?: "").contains(q, ignoreCase = true) ||
                 tx.category.contains(q, ignoreCase = true) ||
                 categoryDisplayName(ctx, tx.category).contains(q, ignoreCase = true) ||
                 (tx.bankName ?: "").contains(q, ignoreCase = true) ||
@@ -367,7 +368,8 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
             recurringItems = recurringItems,
             onDismiss = { selected = null },
             onDelete = { vm.delete(current); selected = null },
-            onSave = { updated, billReminder -> vm.update(updated); vm.setBillReminder(updated, billReminder); selected = null }
+            onSave = { updated, billReminder -> vm.update(updated); vm.setBillReminder(updated, billReminder); selected = null },
+            onNoteSave = { vm.setNote(current, it); selected = current.copy(note = it?.trim()?.ifBlank { null }) }
         )
     }
     if (showFilterSheet) {

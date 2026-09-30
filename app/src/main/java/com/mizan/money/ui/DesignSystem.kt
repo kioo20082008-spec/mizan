@@ -410,7 +410,8 @@ fun TransactionCard(
                     else stringResource(if (isExpense) R.string.tx_self_from_fmt else R.string.tx_self_to_fmt, bank)
                 } else categoryDisplay(tx.category)
                 Text(
-                    if (showDate) "$subtitle • ${Dates.dayLabel(tx.timestamp)}" else subtitle,
+                    (if (showDate) "$subtitle • ${Dates.dayLabel(tx.timestamp)}" else subtitle) +
+                        (tx.note?.takeIf { it.isNotBlank() }?.let { " • $it" } ?: ""),
                     style = Eyebrow.copy(color = InkSoft, fontWeight = FontWeight.Normal, fontSize = 13.sp),
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )

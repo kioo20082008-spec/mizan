@@ -90,4 +90,25 @@
     <string name="budget_leftover_pick_goal">اختر الهدف</string>
     <string name="pl_budget_total_not_set">غير محددة</string>
     <string name="pl_budget_use_suggested_fmt">اعتمد %1$s ر.س (المتبقي للصرف)</string>
+
+    <string name="fund_section">صناديق المصاريف السنوية</string>
+    <string name="fund_empty_desc">قسّم مصروفك السنوي (تأمين السيارة، الزكاة، السفر، الاشتراكات) على ١٢ شهراً، ويُحجز جزء منه تلقائياً من ميزانيتك كل شهر فلا تفاجئك الفاتورة.</string>
+    <string name="fund_add">إضافة صندوق</string>
+    <string name="fund_edit">تعديل الصندوق</string>
+    <string name="fund_delete">حذف الصندوق</string>
+    <string name="fund_name_hint">الاسم (مثال: تأمين السيارة)</string>
+    <string name="fund_yearly_hint_fmt">المبلغ السنوي (%1$s)</string>
+    <string name="fund_due_month_hint">شهر الاستحقاق (١–١٢) اختياري</string>
+    <string name="fund_preview_fmt">يُحجز شهرياً: %1$s</string>
+    <string name="fund_total_monthly_fmt">يُحجز من ميزانيتك شهرياً: %1$s</string>
+    <string name="fund_monthly_fmt">%1$s شهرياً</string>
+    <string name="fund_of_fmt">من %1$s</string>
+    <string name="fund_due_fmt">الاستحقاق: %1$s</string>
+
+    <string name="story_title">قصة الشهر</string>
+    <string name="story_share_title_fmt">قصة %1$s في ميزان</string>
+    <string name="story_top_merchant_fmt">أكثر تاجر صرفت عنده: %1$s — %2$s (%3$s مرة)</string>
+    <string name="story_priciest_day_fmt">أغلى يوم: %1$s — %2$s</string>
+    <string name="story_improved_fmt">الفئة التي تحسّنت: %1$s (وفّرت %2$s عن الشهر السابق)</string>
+    <string name="story_streak_fmt">أطول فترة بدون صرف عشوائي: %1$s يوم</string>
 </resources>

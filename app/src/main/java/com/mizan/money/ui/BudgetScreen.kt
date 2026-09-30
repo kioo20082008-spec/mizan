@@ -45,6 +45,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
     val rates by vm.exchangeRates.collectAsState()
     val debts by vm.debts.collectAsState()
     val goals by vm.goals.collectAsState()
+    val funds by vm.sinkingFunds.collectAsState()
     val recurring by vm.recurringItems.collectAsState()
     val contributions by vm.goalContributions.collectAsState()
     val manualSalary by vm.manualSalary.collectAsState()
@@ -55,8 +56,8 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
     val expectedIncome = remember(summary, txs, manualSalary, rates) {
         FinancialAdvisor.planningIncome(summary, txs, manualSalary, rates)
     }
-    val plan = remember(txs, expectedIncome, recurring, debts, goals, categories, rates) {
-        FinancialAdvisor.plan(txs, expectedIncome ?: 0.0, categories, recurring, debts, goals, rates)
+    val plan = remember(txs, expectedIncome, recurring, debts, goals, funds, categories, rates) {
+        FinancialAdvisor.plan(txs, expectedIncome ?: 0.0, categories, recurring, debts, goals, rates, funds = funds)
     }
     val savingsThisMonth = remember(contributions, range) {
         contributions.filter { it.timestamp in range.first..range.last }.sumOf { it.amount }

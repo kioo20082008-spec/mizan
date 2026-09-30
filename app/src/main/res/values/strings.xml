@@ -602,4 +602,6 @@
     <string name="tx_self_from_fmt">من %1$s</string>
     <string name="tx_self_to_fmt">إلى %1$s</string>
     <string name="header_greeting_name_fmt">أهلاً %1$s</string>
+    <string name="tx_note_add">+ إضافة ملاحظة</string>
+    <string name="tx_note_hint">سبب الصرف (مثلاً: هدية أخي)</string>
 </resources>

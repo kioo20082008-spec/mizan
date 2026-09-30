@@ -535,9 +535,12 @@ internal fun TxDetailDialog(
     recurringItems: List<RecurringItemEntity>,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
-    onSave: (TransactionEntity, Boolean) -> Unit
+    onSave: (TransactionEntity, Boolean) -> Unit,
+    onNoteSave: (String?) -> Unit = {}
 ) {
     var editing by remember(tx.id) { mutableStateOf(false) }
+    var editingNote by remember(tx.id) { mutableStateOf(false) }
+    var noteText by remember(tx.id, tx.note) { mutableStateOf(tx.note ?: "") }
     var amount by remember(tx.id) { mutableStateOf(stripTrailingZero(tx.amount)) }
     var merchant by remember(tx.id) { mutableStateOf(tx.merchant ?: "") }
     var category by remember(tx.id) { mutableStateOf(tx.category) }
@@ -727,6 +730,43 @@ internal fun TxDetailDialog(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+                    }
+                    // The user's own note. Saved on its own (not through the edit
+                    // form) so adding one doesn't mark the row as hand-corrected.
+                    Spacer(Modifier.height(14.dp))
+                    if (editingNote) {
+                        OutlinedTextField(
+                            value = noteText, onValueChange = { noteText = it },
+                            placeholder = { Text(stringResource(R.string.tx_note_hint), style = BodyMuted) },
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 3,
+                            shape = RoundedCornerShape(RadiusSm),
+                            textStyle = Body
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            PillButton(
+                                stringResource(R.string.tx_detail_cancel),
+                                onClick = { noteText = tx.note ?: ""; editingNote = false },
+                                modifier = Modifier.weight(1f)
+                            )
+                            PillButton(
+                                stringResource(R.string.tx_detail_save),
+                                onClick = { onNoteSave(noteText); editingNote = false },
+                                modifier = Modifier.weight(1f),
+                                primary = true
+                            )
+                        }
+                    } else {
+                        Text(
+                            tx.note?.takeIf { it.isNotBlank() } ?: stringResource(R.string.tx_note_add),
+                            style = if (tx.note.isNullOrBlank()) Body.copy(color = Indigo, fontWeight = FontWeight.Medium) else Body,
+                            modifier = Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(RadiusMd))
+                                .background(PaperOuter)
+                                .clickable { editingNote = true }
+                                .padding(12.dp)
+                        )
                     }
                     // Manual entries have no SMS behind them (rawSms only holds
                     // a placeholder), so the section is hidden for them.

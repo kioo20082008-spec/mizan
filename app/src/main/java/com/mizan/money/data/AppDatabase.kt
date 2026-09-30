@@ -11,9 +11,9 @@ import androidx.room.migration.Migration
     entities = [
         TransactionEntity::class, BudgetEntity::class,
         GoalEntity::class, DebtEntity::class, RecurringItemEntity::class,
-        GoalContributionEntity::class
+        GoalContributionEntity::class, SinkingFundEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -24,6 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun debtDao(): DebtDao
     abstract fun recurringItemDao(): RecurringItemDao
     abstract fun backupDao(): BackupDao
+    abstract fun sinkingFundDao(): SinkingFundDao
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
 
@@ -125,13 +126,31 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Per-transaction note (nullable text) and the new independent
+        // sinking_funds table for yearly expenses set aside monthly.
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN note TEXT")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS sinking_funds (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        yearlyAmount REAL NOT NULL,
+                        dueMonth INTEGER NOT NULL DEFAULT 0,
+                        createdAt INTEGER NOT NULL,
+                        isArchived INTEGER NOT NULL DEFAULT 0
+                    )"""
+                )
+            }
+        }
+
         // No fallbackToDestructiveMigration: this holds a user's financial history,
         // so a future schema change must ship a real Migration rather than silently
         // wipe their data. exportSchema keeps the schema history to write one from.
         fun get(ctx: Context): AppDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(
                 ctx.applicationContext, AppDatabase::class.java, "mizan.db"
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build().also { INSTANCE = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build().also { INSTANCE = it }
         }
     }
 }

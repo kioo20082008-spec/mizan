@@ -28,6 +28,7 @@ class AutoBackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
                 debts = dao.debts(),
                 recurringItems = dao.recurringItems(),
                 goalContributions = dao.goalContributions(),
+                sinkingFunds = dao.sinkingFunds(),
             )
             // Never overwrite a good cloud backup with an empty database.
             if (data.transactions.isEmpty() && data.budgets.isEmpty() && data.goals.isEmpty() && data.debts.isEmpty())
