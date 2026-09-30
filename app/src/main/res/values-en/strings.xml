@@ -601,4 +601,5 @@
     <string name="tx_undo">Undo</string>
     <string name="tx_self_from_fmt">From %1$s</string>
     <string name="tx_self_to_fmt">To %1$s</string>
+    <string name="header_greeting_name_fmt">Hi %1$s</string>
 </resources>

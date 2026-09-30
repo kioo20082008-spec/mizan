@@ -290,6 +290,7 @@ private fun RootScaffold(
     var showAdd by rememberSaveable { mutableStateOf(false) }
     val categories by vm.categories.collectAsState()
     val startDay by vm.monthStartDay.collectAsState()
+    val ownerName by vm.ownerName.collectAsState()
     // Category shortcuts (Home/Planning/Insights) open Transactions filtered to
     // that category; null ("view all") opens it unfiltered.
     val openTransactions: (String?) -> Unit = { cat -> vm.showTransactionsFor(cat); tab = 1 }
@@ -355,10 +356,13 @@ private fun RootScaffold(
         }
     }
     val expandFraction = if (rangePx > 0f) 1f + headerOffset / rangePx else 1f
-    // Home's large title is the month being viewed (more useful than the app
-    // name); the greeting sits under it as a small subtitle.
+    // Home's title greets the user by first name (the month already appears in
+    // the hero card's picker, so repeating it here was redundant); without a
+    // name set in Settings it falls back to a plain greeting.
+    val firstName = ownerName.trim().split(Regex("\\s+")).firstOrNull()?.takeIf { it.isNotBlank() }
     val title = when (tab) {
-        0 -> monthName(monthOffset, startDay)
+        0 -> if (firstName != null) stringResource(R.string.header_greeting_name_fmt, firstName)
+             else stringResource(R.string.header_greeting)
         1 -> stringResource(R.string.tx_title)
         2 -> stringResource(R.string.planning_title)
         else -> stringResource(R.string.insights_title)
