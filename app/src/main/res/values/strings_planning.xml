@@ -125,7 +125,7 @@
     <string name="story_streak_val_fmt">%1$s أيام متتالية</string>
     <string name="story_streak_range_fmt">من %1$s إلى %2$s</string>
     <string name="story_share_action">مشاركة القصة</string>
-    <string name="budget_pace_ahead_fmt">أسرع من وتيرة الشهر — المتوقع اليوم %1$s٪</string>
+    <string name="budget_pace_ahead">أسرع من وتيرة الشهر</string>
     <string name="pl_commit_title">التزاماتك هذا الشهر</string>
     <string name="pl_commit_pct_fmt">%1$s٪ من دخلك</string>
     <string name="pl_commit_bills">فواتير</string>

@@ -35,6 +35,9 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 // ============ BUDGET ============
+// Categories that are paid in a lump rather than spread over the month.
+private val LUMPY_CATEGORIES = setOf("إيجار", "فواتير", "اتصالات", "تحويلات")
+
 @Composable
 fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Unit = {}) {
     val budgets by vm.budgets.collectAsState()
@@ -273,11 +276,16 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                         onClick = { editingCategory = cat },
                         below = if (effectiveLimit > 0) {
                             {
-                                val ahead = !isOver && pace != null && pct > pace + 0.10f
-                                PaceProgressBar(pct, if (isOver) Danger else if (ahead) Amber else catColor(cat), pace)
+                                // Bills and rent land in one go early in the month, so
+                                // "ahead of pace" would be noise for them. Skip the
+                                // marker there, and stay quiet in the first days too.
+                                val lumpy = cat in LUMPY_CATEGORIES || recurring.any { it.isFixed && it.category == cat }
+                                val catPace = if (lumpy) null else pace
+                                val ahead = !isOver && catPace != null && catPace >= 0.2f && pct > catPace + 0.10f
+                                PaceProgressBar(pct, if (isOver) Danger else if (ahead) Amber else catColor(cat), catPace)
                                 if (ahead) Text(
-                                    stringResource(R.string.budget_pace_ahead_fmt, (pace!! * 100).roundToInt()),
-                                    style = Eyebrow.copy(fontSize = 13.sp, color = Amber, fontWeight = FontWeight.Bold)
+                                    stringResource(R.string.budget_pace_ahead),
+                                    style = Eyebrow.copy(fontSize = 12.sp, color = Amber, fontWeight = FontWeight.Bold)
                                 )
                             }
                         } else null
