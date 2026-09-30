@@ -200,7 +200,7 @@ internal fun AdvancedFilterSheet(
                     OutlinedTextField(
                         value = amountMinInput,
                         onValueChange = { amountMinInput = sanitizeAmountInput(it) },
-                        placeholder = { Text(stringResource(R.string.tx_filter_min_hint), style = Eyebrow.copy(fontSize = 12.sp)) },
+                        placeholder = { Text(stringResource(R.string.tx_filter_min_hint), style = Eyebrow.copy(fontSize = 13.sp)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -210,7 +210,7 @@ internal fun AdvancedFilterSheet(
                     OutlinedTextField(
                         value = amountMaxInput,
                         onValueChange = { amountMaxInput = sanitizeAmountInput(it) },
-                        placeholder = { Text(stringResource(R.string.tx_filter_max_hint), style = Eyebrow.copy(fontSize = 12.sp)) },
+                        placeholder = { Text(stringResource(R.string.tx_filter_max_hint), style = Eyebrow.copy(fontSize = 13.sp)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -517,7 +517,7 @@ private fun ToggleRow(title: String, desc: String, checked: Boolean, onCheckedCh
     ) {
         Column(Modifier.weight(1f)) {
             Text(title, style = Body.copy(fontWeight = FontWeight.Medium))
-            Text(desc, style = Eyebrow.copy(fontSize = 12.sp))
+            Text(desc, style = Eyebrow.copy(fontSize = 13.sp))
         }
         Switch(
             checked = checked,
@@ -707,7 +707,7 @@ internal fun TxDetailDialog(
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 stringResource(R.string.tx_self_transfer_note),
-                                style = Eyebrow.copy(fontSize = 12.sp),
+                                style = Eyebrow.copy(fontSize = 13.sp),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -716,7 +716,7 @@ internal fun TxDetailDialog(
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 stringResource(R.string.tx_exclude_daily_note),
-                                style = Eyebrow.copy(fontSize = 12.sp),
+                                style = Eyebrow.copy(fontSize = 13.sp),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -725,7 +725,7 @@ internal fun TxDetailDialog(
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 stringResource(R.string.tx_reimbursement_note),
-                                style = Eyebrow.copy(fontSize = 12.sp),
+                                style = Eyebrow.copy(fontSize = 13.sp),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )

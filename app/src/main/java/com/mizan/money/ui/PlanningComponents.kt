@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -132,6 +134,19 @@ fun PlanningProgressBar(fraction: Float, color: Color, modifier: Modifier = Modi
     }
 }
 
+// Progress bar with a thin tick showing where spending "should" be by today
+// (cycle progress). Falls back to a plain bar when there's no pace to show.
+@Composable
+fun PaceProgressBar(fraction: Float, color: Color, pace: Float?, modifier: Modifier = Modifier, height: Int = 5) {
+    if (pace == null) { PlanningProgressBar(fraction, color, modifier, height); return }
+    Box(modifier.fillMaxWidth().height((height + 8).dp), contentAlignment = Alignment.CenterStart) {
+        PlanningProgressBar(fraction, color, height = height)
+        Box(Modifier.fillMaxWidth(pace.coerceIn(0.02f, 1f)).height((height + 8).dp), contentAlignment = Alignment.CenterEnd) {
+            Box(Modifier.width(2.dp).fillMaxHeight().clip(RoundedCornerShape(1.dp)).background(Ink.copy(alpha = 0.55f)))
+        }
+    }
+}
+
 // Confirm/cancel slots for FormSheet.
 @Composable
 fun PlanningSheetConfirm(text: String, enabled: Boolean = true, onClick: () -> Unit) {
@@ -159,6 +174,7 @@ fun PlanningDeleteButton(text: String, onClick: () -> Unit) {
 }
 
 // Title row above a group of cards: heading + optional subtitle + add pill.
+// With onToggle the title becomes a tap target that folds the section away.
 @Composable
 fun PlanningSectionHeader(
     title: String,
@@ -166,19 +182,42 @@ fun PlanningSectionHeader(
     actionLabel: String? = null,
     actionIcon: ImageVector? = null,
     onAction: (() -> Unit)? = null,
+    collapsed: Boolean = false,
+    onToggle: (() -> Unit)? = null,
 ) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = H2.copy(fontSize = 17.sp))
-            if (subtitle != null) {
-                Spacer(Modifier.height(2.dp))
-                Text(subtitle, style = Eyebrow.copy(fontSize = 13.sp))
+        Row(
+            Modifier.weight(1f).then(if (onToggle != null) Modifier.clip(RoundedCornerShape(RadiusMd)).clickable(onClick = onToggle) else Modifier)
+                .heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f, fill = false)) {
+                Text(title, style = H2.copy(fontSize = 17.sp))
+                if (subtitle != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(subtitle, style = Eyebrow.copy(fontSize = 13.sp))
+                }
+            }
+            if (onToggle != null) {
+                Spacer(Modifier.width(6.dp))
+                Icon(if (collapsed) Icons.Default.ExpandMore else Icons.Default.ExpandLess, null, Modifier.size(22.dp), tint = InkSoft)
             }
         }
-        if (actionLabel != null && onAction != null) {
+        if (actionLabel != null && onAction != null && !collapsed) {
             Spacer(Modifier.width(8.dp))
             PlanningPillButton(text = actionLabel, onClick = onAction, icon = actionIcon, compact = true)
         }
+    }
+}
+
+// Which planning sections the user folded away, remembered across launches.
+object PlanningPrefs {
+    private const val FILE = "planning_ui"
+    private const val KEY = "collapsed"
+    fun collapsed(ctx: android.content.Context): Set<String> =
+        ctx.getSharedPreferences(FILE, android.content.Context.MODE_PRIVATE).getStringSet(KEY, emptySet()) ?: emptySet()
+    fun setCollapsed(ctx: android.content.Context, value: Set<String>) {
+        ctx.getSharedPreferences(FILE, android.content.Context.MODE_PRIVATE).edit().putStringSet(KEY, value.toSet()).apply()
     }
 }
 

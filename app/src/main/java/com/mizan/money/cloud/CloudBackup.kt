@@ -53,12 +53,14 @@ object CloudBackup {
             BuildConfig.FIREBASE_API_KEY.isNotBlank()
 
     private var app: FirebaseApp? = null
+    private var appContext: Context? = null
     private var authInstance: FirebaseAuth? = null
     private var firestoreInstance: FirebaseFirestore? = null
 
     // Safe to call more than once (MoneyApp.onCreate and SettingsDialog both
     // do). No-ops when unconfigured so it can never crash an unconfigured build.
     fun init(context: Context) {
+        appContext = context.applicationContext
         if (!isConfigured || app != null) return
         val fa = try {
             FirebaseApp.getInstance()
@@ -164,7 +166,18 @@ object CloudBackup {
     // meta document records when it happened. Deletions are collected into the
     // same batches as writes where possible so a backup is only ever a few
     // network round-trips.
-    suspend fun upload(data: BackupData): Result<Unit> = withContext(Dispatchers.IO) {
+    // Remembered so Settings can show "last backup" and the user can tell the
+    // daily background upload is actually working.
+    fun lastSuccessMs(context: Context): Long =
+        context.applicationContext.getSharedPreferences("cloud_backup_status", Context.MODE_PRIVATE).getLong("last_success", 0L)
+
+    suspend fun upload(data: BackupData): Result<Unit> =
+        doUpload(data).onSuccess {
+            appContext?.getSharedPreferences("cloud_backup_status", Context.MODE_PRIVATE)
+                ?.edit()?.putLong("last_success", System.currentTimeMillis())?.apply()
+        }
+
+    private suspend fun doUpload(data: BackupData): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val db = firestoreInstance ?: error("Cloud backup is not configured")
             val uid = authInstance?.currentUser?.uid ?: error("Not signed in")

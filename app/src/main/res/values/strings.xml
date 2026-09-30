@@ -604,4 +604,8 @@
     <string name="header_greeting_name_fmt">أهلاً %1$s</string>
     <string name="tx_note_add">+ إضافة ملاحظة</string>
     <string name="tx_note_hint">سبب الصرف (مثلاً: هدية أخي)</string>
+    <string name="stg_backup_last_title">آخر نسخة احتياطية</string>
+    <string name="stg_backup_never">لا توجد نسخة بعد</string>
+    <string name="tx_chip_week">هذا الأسبوع</string>
+    <string name="tx_chip_cycle">هذا الشهر</string>
 </resources>

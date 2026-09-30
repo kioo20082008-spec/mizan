@@ -604,4 +604,8 @@
     <string name="header_greeting_name_fmt">Hi %1$s</string>
     <string name="tx_note_add">+ Add a note</string>
     <string name="tx_note_hint">Why you spent it (e.g. gift for my brother)</string>
+    <string name="stg_backup_last_title">Last backup</string>
+    <string name="stg_backup_never">No backup yet</string>
+    <string name="tx_chip_week">This week</string>
+    <string name="tx_chip_cycle">This month</string>
 </resources>

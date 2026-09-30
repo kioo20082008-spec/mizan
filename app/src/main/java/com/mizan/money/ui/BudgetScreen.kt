@@ -63,6 +63,13 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
         contributions.filter { it.timestamp in range.first..range.last }.sumOf { it.amount }
     }
 
+    // Where spending "should" be today, as a share of the cycle. Only meaningful
+    // while the viewed cycle is the one running.
+    val pace: Float? = remember(range) {
+        val n = System.currentTimeMillis()
+        if (n in range) ((n - range.first).toDouble() / (range.last - range.first).coerceAtLeast(1L)).toFloat() else null
+    }
+
     val monthBudgets = budgets.filter { it.monthKey == monthKey }
     val totalBudget = monthBudgets.firstOrNull { it.category == TOTAL_BUDGET }?.limitAmount ?: 0.0
     val limitByCat = monthBudgets.filter { it.category != TOTAL_BUDGET }.associate { it.category to it.limitAmount }
@@ -265,7 +272,14 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                         showDivider = !isLast,
                         onClick = { editingCategory = cat },
                         below = if (effectiveLimit > 0) {
-                            { PlanningProgressBar(pct, if (isOver) Danger else catColor(cat), height = 5) }
+                            {
+                                val ahead = !isOver && pace != null && pct > pace + 0.10f
+                                PaceProgressBar(pct, if (isOver) Danger else if (ahead) Amber else catColor(cat), pace)
+                                if (ahead) Text(
+                                    stringResource(R.string.budget_pace_ahead_fmt, (pace!! * 100).roundToInt()),
+                                    style = Eyebrow.copy(fontSize = 13.sp, color = Amber, fontWeight = FontWeight.Bold)
+                                )
+                            }
                         } else null
                     )
                 }
@@ -669,7 +683,7 @@ private fun CategoryBudgetSheet(
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 stringResource(if (hasLimit) R.string.budget_rollover_desc else R.string.pl_budget_rollover_needs_limit),
-                                style = Eyebrow.copy(fontSize = 12.sp)
+                                style = Eyebrow.copy(fontSize = 13.sp)
                             )
                         }
                         Spacer(Modifier.width(8.dp))
@@ -820,7 +834,7 @@ private fun BudgetSuggestionsCard(
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.budget_suggestions_title), style = H2)
-                Text(stringResource(R.string.budget_suggestions_desc), style = Eyebrow.copy(fontSize = 12.sp))
+                Text(stringResource(R.string.budget_suggestions_desc), style = Eyebrow.copy(fontSize = 13.sp))
             }
             Spacer(Modifier.width(8.dp))
             Icon(
@@ -853,7 +867,7 @@ private fun SuggestionsBody(
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(categoryDisplay(s.category), style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp))
-                        Text(fmt(s.amount) + " " + currency, style = Eyebrow.copy(fontSize = 12.sp))
+                        Text(fmt(s.amount) + " " + currency, style = Eyebrow.copy(fontSize = 13.sp))
                     }
                     PlanningSoftPill(stringResource(R.string.budget_apply_suggestion), onClick = { onApply(s.category, s.amount) })
                 }

@@ -17,7 +17,12 @@ import com.mizan.money.sms.InboxScanner
 import com.mizan.money.ui.theme.localizedContext
 import com.mizan.money.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,8 +34,18 @@ import java.util.Calendar
 // The repository is constructor-injected (see MainViewModel.factory()) instead of
 // cast out of Application inside the class, so this can be constructed with a
 // fake repository in tests or previews.
+// Emitted after a delete so the screen can offer "Undo": name for the message,
+// restore() puts the row back.
+class UndoEvent(val name: String, val restore: () -> Unit)
+
 class MainViewModel(app: Application, private val repo: TransactionRepository) : AndroidViewModel(app) {
+    private val _undoEvents = MutableSharedFlow<UndoEvent>(extraBufferCapacity = 4)
+    val undoEvents: SharedFlow<UndoEvent> = _undoEvents.asSharedFlow()
+
     val transactions = repo.allTransactions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    // False until the first database read lands, so screens can show a skeleton
+    // instead of flashing the "no transactions" empty state.
+    val transactionsLoaded = repo.allTransactions().map { true }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val budgets = repo.budgets().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val goals = repo.goals().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val debts = repo.debts().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -47,7 +62,24 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     fun setTxQuery(q: String) { _txQuery.value = q }
     private val _txFilter = MutableStateFlow(TxFilter())
     val txFilter: StateFlow<TxFilter> = _txFilter
-    fun setTxFilter(f: TxFilter) { _txFilter.value = f }
+    fun setTxFilter(f: TxFilter) {
+        _txFilter.value = f
+        // Only the quick-chip parts are remembered across launches; the date
+        // is stored as a preset so "this week" stays this week next time.
+        val preset = when {
+            f.dateFrom == null || f.dateTo != null -> ""
+            f.dateFrom == weekStartMs() -> "week"
+            f.dateFrom == cycleStartMs() -> "cycle"
+            else -> ""
+        }
+        prefs.edit().putString("tx_preset", preset).putString("tx_type", f.type?.name ?: "")
+            .putStringSet("tx_banks", f.banks.toSet()).apply()
+    }
+    fun weekStartMs(): Long = Calendar.getInstance().apply {
+        set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
+        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+    fun cycleStartMs(): Long = Dates.monthRange(0, _monthStartDay.value).first
     // Category shortcuts (Home/Planning/Insights) open the list pre-filtered to
     // that category; "view all" (null) shows the unfiltered list.
     fun showTransactionsFor(category: String?) {
@@ -79,6 +111,13 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     // the calendar month. Clamped to 1..28 so every calendar month can host it.
     private val _monthStartDay = MutableStateFlow(prefs.getInt("month_start_day", 1))
     val monthStartDay: StateFlow<Int> = _monthStartDay
+
+    init {
+        val from = when (prefs.getString("tx_preset", "")) { "week" -> weekStartMs(); "cycle" -> cycleStartMs(); else -> null }
+        val type = prefs.getString("tx_type", "")?.takeIf { it.isNotEmpty() }?.let { runCatching { TxType.valueOf(it) }.getOrNull() }
+        val banks = prefs.getStringSet("tx_banks", emptySet()) ?: emptySet()
+        if (from != null || type != null || banks.isNotEmpty()) _txFilter.value = TxFilter(dateFrom = from, type = type, banks = banks.toSet())
+    }
     fun setMonthStartDay(day: Int) {
         val clamped = day.coerceIn(1, 28)
         prefs.edit().putInt("month_start_day", clamped).apply()
@@ -420,8 +459,15 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
         repo.addGoalContribution(GoalContributionEntity(goalId = goal.id, amount = -actual, timestamp = System.currentTimeMillis()))
     }
     fun deleteGoal(goal: GoalEntity) = viewModelScope.launch {
+        val contributions = repo.goalContributions().first().filter { it.goalId == goal.id }
         repo.deleteGoalContributions(goal.id)
         repo.deleteGoal(goal)
+        _undoEvents.tryEmit(UndoEvent(goal.name) {
+            viewModelScope.launch {
+                repo.addGoal(goal)
+                contributions.forEach { repo.addGoalContribution(it) }
+            }
+        })
     }
 
     // ---- Debts / installments ----
@@ -458,12 +504,18 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
     fun saveDebt(debt: DebtEntity) = viewModelScope.launch {
         if (debt.id == 0L) repo.addDebt(debt) else repo.updateDebt(debt)
     }
-    fun deleteDebt(debt: DebtEntity) = viewModelScope.launch { repo.deleteDebt(debt) }
+    fun deleteDebt(debt: DebtEntity) = viewModelScope.launch {
+        repo.deleteDebt(debt)
+        _undoEvents.tryEmit(UndoEvent(debt.name) { viewModelScope.launch { repo.addDebt(debt) } })
+    }
 
     fun saveFund(fund: com.mizan.money.data.SinkingFundEntity) = viewModelScope.launch {
         if (fund.id == 0L) repo.addSinkingFund(fund) else repo.updateSinkingFund(fund)
     }
-    fun deleteFund(fund: com.mizan.money.data.SinkingFundEntity) = viewModelScope.launch { repo.deleteSinkingFund(fund) }
+    fun deleteFund(fund: com.mizan.money.data.SinkingFundEntity) = viewModelScope.launch {
+        repo.deleteSinkingFund(fund)
+        _undoEvents.tryEmit(UndoEvent(fund.name) { viewModelScope.launch { repo.addSinkingFund(fund) } })
+    }
 
     // Merchant names (lowercased) the user dismissed from the "track this as a
     // debt?" suggestion banner — persisted so a dismissal survives app restarts
@@ -556,6 +608,7 @@ class MainViewModel(app: Application, private val repo: TransactionRepository) :
 
     fun deleteRecurringItem(item: RecurringItemEntity) = viewModelScope.launch {
         repo.deleteRecurringItem(item)
+        _undoEvents.tryEmit(UndoEvent(item.merchant) { viewModelScope.launch { repo.upsertRecurringItem(item) } })
     }
 
     companion object {

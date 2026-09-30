@@ -36,16 +36,33 @@ import androidx.compose.ui.unit.sp
 import com.mizan.money.R
 import com.mizan.money.data.DebtEntity
 import com.mizan.money.data.DebtType
+import com.mizan.money.advisor.FinancialAdvisor
 import com.mizan.money.advisor.SinkingFunds
 import com.mizan.money.data.GoalEntity
 import com.mizan.money.data.SinkingFundEntity
 import com.mizan.money.data.TxType
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.roundToInt
 
 // ============ PLANNING ============
 @Composable
 fun PlanningScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Unit = {}) {
     var subTab by rememberSaveable { mutableIntStateOf(0) }
+    val snackbarHost = remember { SnackbarHostState() }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val undoLabel = stringResource(R.string.tx_undo)
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    LaunchedEffect(Unit) {
+        vm.undoEvents.collectLatest { e ->
+            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+            val r = snackbarHost.showSnackbar(
+                message = ctx.getString(R.string.pl_deleted_fmt, e.name),
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Short
+            )
+            if (r == SnackbarResult.ActionPerformed) e.restore()
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(start = 20.dp, top = 4.dp, end = 20.dp, bottom = 10.dp)) {
             TabSwitcher(
@@ -79,6 +96,7 @@ fun PlanningScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> U
                     else -> CommitmentsSection(vm)
                 }
             }
+            SnackbarHost(snackbarHost, Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 96.dp))
         }
     }
 }
@@ -87,15 +105,69 @@ fun PlanningScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> U
 // scrolling "commitments" page with a section each.
 @Composable
 private fun CommitmentsSection(vm: MainViewModel) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var collapsed by remember { mutableStateOf(PlanningPrefs.collapsed(ctx)) }
+    fun toggle(key: String) {
+        collapsed = if (key in collapsed) collapsed - key else collapsed + key
+        PlanningPrefs.setCollapsed(ctx, collapsed)
+    }
     Column(
         Modifier.fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp)
     ) {
-        RemindersBlock(vm)
-        DebtsBlock(vm)
-        FundsBlock(vm)
+        CommitmentsSummary(vm)
+        RemindersBlock(vm, "bills" in collapsed) { toggle("bills") }
+        DebtsBlock(vm, "debts" in collapsed) { toggle("debts") }
+        FundsBlock(vm, "funds" in collapsed) { toggle("funds") }
+    }
+}
+
+// One-glance answer to "how much of my income is already spoken for?".
+@Composable
+private fun CommitmentsSummary(vm: MainViewModel) {
+    val recurring by vm.recurringItems.collectAsState()
+    val debts by vm.debts.collectAsState()
+    val funds by vm.sinkingFunds.collectAsState()
+    val txs by vm.transactions.collectAsState()
+    val rates by vm.exchangeRates.collectAsState()
+    val manualSalary by vm.manualSalary.collectAsState()
+    val startDay by vm.monthStartDay.collectAsState()
+    val currency = currencyLabel("SAR")
+
+    val bills = recurring.filter { it.isFixed }.sumOf { it.expectedAmount }
+    val installments = debts.filter { !it.isArchived && it.remainingAmount > 0.0 }.sumOf { it.installmentAmount }
+    val fundsMonthly = SinkingFunds.totalMonthly(funds)
+    val total = bills + installments + fundsMonthly
+    if (total <= 0.0) return
+
+    val income = remember(txs, rates, manualSalary, startDay) {
+        val r = Dates.monthRange(0, startDay)
+        FinancialAdvisor.planningIncome(FinancialAdvisor.summarize(txs, r.first, r.last, rates), txs, manualSalary, rates)
+    }
+    SoftCard(Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.pl_commit_title), style = Eyebrow.copy(fontSize = 13.sp))
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(fmt(total) + " " + currency, style = NumBold.copy(fontSize = 26.sp), modifier = Modifier.weight(1f))
+            if (income != null && income > 0.0) {
+                Text(
+                    stringResource(R.string.pl_commit_pct_fmt, localDigits((total / income * 100).roundToInt())),
+                    style = Body.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (total / income > 0.6) Danger else Indigo)
+                )
+            }
+        }
+        if (income != null && income > 0.0) {
+            Spacer(Modifier.height(10.dp))
+            PlanningProgressBar((total / income).toFloat(), if (total / income > 0.6) Danger else Indigo, height = 8)
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth()) {
+            SummaryStat(stringResource(R.string.pl_commit_bills), fmt(bills), Modifier.weight(1f))
+            SummaryStat(stringResource(R.string.pl_commit_debts), fmt(installments), Modifier.weight(1f))
+            SummaryStat(stringResource(R.string.pl_commit_funds), fmt(fundsMonthly), Modifier.weight(1f))
+        }
     }
 }
 
@@ -121,7 +193,6 @@ private fun GoalsSection(vm: MainViewModel) {
     var editing by remember { mutableStateOf<GoalEntity?>(null) }
     // Goal + whether the sheet opens in withdraw mode.
     var amountFor by remember { mutableStateOf<Pair<GoalEntity, Boolean>?>(null) }
-    var confirmingDelete by remember { mutableStateOf<GoalEntity?>(null) }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -167,7 +238,7 @@ private fun GoalsSection(vm: MainViewModel) {
         GoalEditorDialog(
             initial = goal,
             onDismiss = { editing = null },
-            onDelete = { editing = null; confirmingDelete = goal },
+            onDelete = { editing = null; vm.deleteGoal(goal) },
             onSave = { name, amount, targetDate, monthly ->
                 vm.editGoal(goal, name, amount, targetDate, monthly); editing = null
             }
@@ -180,25 +251,6 @@ private fun GoalsSection(vm: MainViewModel) {
             onDismiss = { amountFor = null },
             onDeposit = { amount -> vm.contributeToGoal(goal, amount); amountFor = null },
             onWithdraw = { amount -> vm.withdrawFromGoal(goal, amount); amountFor = null }
-        )
-    }
-    confirmingDelete?.let { goal ->
-        AlertDialog(
-            onDismissRequest = { confirmingDelete = null },
-            containerColor = White,
-            shape = RoundedCornerShape(RadiusXl),
-            title = { Text(stringResource(R.string.goals_delete_confirm_title_fmt, goal.name), style = H2) },
-            text = { Text(stringResource(R.string.goals_delete_confirm_desc), style = BodyMuted) },
-            confirmButton = {
-                TextButton(onClick = { vm.deleteGoal(goal); confirmingDelete = null }) {
-                    Text(stringResource(R.string.goals_delete), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmingDelete = null }) {
-                    Text(stringResource(R.string.goals_cancel), style = Body.copy(color = InkSoft))
-                }
-            }
         )
     }
 }
@@ -276,13 +328,13 @@ private fun GoalCard(
             Text(
                 if (reached) stringResource(R.string.goals_reached)
                 else stringResource(R.string.goals_progress_fmt, (pct * 100).roundToInt()),
-                style = Eyebrow.copy(fontSize = 12.sp, color = if (reached) Success else InkSoft, fontWeight = FontWeight.Bold)
+                style = Eyebrow.copy(fontSize = 13.sp, color = if (reached) Success else InkSoft, fontWeight = FontWeight.Bold)
             )
             Spacer(Modifier.weight(1f))
             if (!reached) {
                 Text(
                     stringResource(R.string.goals_remaining_fmt, fmt(remaining), currency),
-                    style = Eyebrow.copy(fontSize = 12.sp, color = InkSoft, fontWeight = FontWeight.Bold)
+                    style = Eyebrow.copy(fontSize = 13.sp, color = InkSoft, fontWeight = FontWeight.Bold)
                 )
             }
         }
@@ -428,7 +480,7 @@ private fun GoalEditorDialog(
                     Text(
                         deadline?.let { stringResource(R.string.goals_deadline_fmt, Dates.dayLabel(it)) }
                             ?: stringResource(R.string.goals_deadline_none),
-                        style = Eyebrow.copy(fontSize = 12.sp)
+                        style = Eyebrow.copy(fontSize = 13.sp)
                     )
                 }
                 Spacer(Modifier.height(12.dp))
@@ -588,14 +640,13 @@ private fun ModeTab(label: String, selected: Boolean, modifier: Modifier = Modif
 
 // ============ DEBTS ============
 @Composable
-private fun DebtsBlock(vm: MainViewModel) {
+private fun DebtsBlock(vm: MainViewModel, collapsed: Boolean = false, onToggle: (() -> Unit)? = null) {
     val debts by vm.debts.collectAsState()
     val txs by vm.transactions.collectAsState()
     val dismissed by vm.dismissedBnplSuggestions.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<DebtEntity?>(null) }
     var payingOn by remember { mutableStateOf<DebtEntity?>(null) }
-    var confirmingDelete by remember { mutableStateOf<DebtEntity?>(null) }
 
     val suggestion = remember(txs, debts, dismissed) {
         detectUntrackedBnpl(txs, debts.map { it.name.lowercase().trim() }.toSet(), dismissed)
@@ -607,8 +658,10 @@ private fun DebtsBlock(vm: MainViewModel) {
             title = stringResource(R.string.pl_section_debts),
             actionLabel = if (debts.isEmpty()) null else stringResource(R.string.pl_add),
             actionIcon = Icons.Default.Add,
-            onAction = { showAdd = true }
+            onAction = { showAdd = true },
+            collapsed = collapsed, onToggle = onToggle
         )
+        if (!collapsed) {
         if (suggestion != null) {
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(RadiusLg)).background(IndigoSoft)
@@ -649,9 +702,10 @@ private fun DebtsBlock(vm: MainViewModel) {
             DebtSummaryCard(debts)
             debts.sortedByDescending { it.remainingAmount }.forEach { debt ->
                 key(debt.id) {
-                    DebtCard(debt = debt, onPay = { payingOn = debt }, onEdit = { editing = debt }, onDelete = { confirmingDelete = debt })
+                    DebtCard(debt = debt, onPay = { payingOn = debt }, onEdit = { editing = debt }, onDelete = { vm.deleteDebt(debt) })
                 }
             }
+        }
         }
     }
 
@@ -666,25 +720,6 @@ private fun DebtsBlock(vm: MainViewModel) {
             debt = debt,
             onDismiss = { payingOn = null },
             onSave = { amount, date -> vm.logDebtPayment(debt, amount, date); payingOn = null }
-        )
-    }
-    confirmingDelete?.let { debt ->
-        AlertDialog(
-            onDismissRequest = { confirmingDelete = null },
-            containerColor = White,
-            shape = RoundedCornerShape(RadiusXl),
-            title = { Text(stringResource(R.string.debts_delete_confirm_title_fmt, debt.name), style = H2) },
-            text = { Text(stringResource(R.string.debts_delete_confirm_desc), style = BodyMuted) },
-            confirmButton = {
-                TextButton(onClick = { vm.deleteDebt(debt); confirmingDelete = null }) {
-                    Text(stringResource(R.string.debts_delete), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmingDelete = null }) {
-                    Text(stringResource(R.string.debts_cancel), style = Body.copy(color = InkSoft))
-                }
-            }
         )
     }
 }
@@ -723,7 +758,7 @@ private fun DebtSummaryCard(debts: List<DebtEntity>) {
                 Spacer(Modifier.width(5.dp))
                 Text(
                     stringResource(R.string.debts_from_budget_fmt, fmt(monthly)),
-                    style = Eyebrow.copy(fontSize = 12.sp, color = Indigo, fontWeight = FontWeight.Bold)
+                    style = Eyebrow.copy(fontSize = 13.sp, color = Indigo, fontWeight = FontWeight.Bold)
                 )
             }
         }
@@ -733,7 +768,7 @@ private fun DebtSummaryCard(debts: List<DebtEntity>) {
 @Composable
 private fun SummaryStat(label: String, value: String, modifier: Modifier = Modifier) {
     Column(modifier) {
-        Text(label, style = Eyebrow.copy(fontSize = 12.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, style = Eyebrow.copy(fontSize = 13.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(3.dp))
         Text(value, style = NumBold.copy(fontSize = 15.sp), maxLines = 1)
     }
@@ -765,7 +800,7 @@ private fun DebtCard(debt: DebtEntity, onPay: () -> Unit, onEdit: () -> Unit, on
                         Box(Modifier.size(6.dp).clip(RoundedCornerShape(Pill)).background(Amber))
                     }
                 }
-                Text(debtTypeLabel(debt.type), style = Eyebrow.copy(fontSize = 12.sp))
+                Text(debtTypeLabel(debt.type), style = Eyebrow.copy(fontSize = 13.sp))
             }
             Text(
                 if (settled) stringResource(R.string.debts_settled)
@@ -1051,7 +1086,7 @@ private fun detectUntrackedBnpl(
 
 // ============ YEARLY FUNDS (sinking funds) ============
 @Composable
-private fun FundsBlock(vm: MainViewModel) {
+private fun FundsBlock(vm: MainViewModel, collapsed: Boolean = false, onToggle: (() -> Unit)? = null) {
     val funds by vm.sinkingFunds.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<SinkingFundEntity?>(null) }
@@ -1062,8 +1097,10 @@ private fun FundsBlock(vm: MainViewModel) {
             title = stringResource(R.string.fund_section),
             actionLabel = if (funds.isEmpty()) null else stringResource(R.string.pl_add),
             actionIcon = Icons.Default.Add,
-            onAction = { showAdd = true }
+            onAction = { showAdd = true },
+            collapsed = collapsed, onToggle = onToggle
         )
+        if (!collapsed) {
         if (funds.isEmpty()) {
             PlanningEmptyCard(
                 icon = Icons.Default.Savings,
@@ -1102,7 +1139,7 @@ private fun FundsBlock(vm: MainViewModel) {
                                 Text(fmt(reserved) + " " + currency, style = NumBold.copy(fontSize = 15.sp), maxLines = 1)
                                 Text(
                                     stringResource(R.string.fund_of_fmt, fmt(f.yearlyAmount)),
-                                    style = Eyebrow.copy(fontSize = 12.sp), maxLines = 1
+                                    style = Eyebrow.copy(fontSize = 13.sp), maxLines = 1
                                 )
                             }
                         }
@@ -1112,12 +1149,13 @@ private fun FundsBlock(vm: MainViewModel) {
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 stringResource(R.string.fund_due_fmt, fundMonthName(f.dueMonth)),
-                                style = Eyebrow.copy(fontSize = 12.sp)
+                                style = Eyebrow.copy(fontSize = 13.sp)
                             )
                         }
                     }
                 }
             }
+        }
         }
     }
 

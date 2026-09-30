@@ -1,5 +1,11 @@
 package com.mizan.money.ui
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
@@ -91,9 +97,9 @@ val H2: TextStyle @Composable @ReadOnlyComposable get() =
 val Body: TextStyle @Composable @ReadOnlyComposable get() =
     TextStyle(fontFamily = Sans, fontSize = 14.sp, color = Ink)
 val BodyMuted: TextStyle @Composable @ReadOnlyComposable get() =
-    TextStyle(fontFamily = Sans, fontSize = 13.sp, color = InkSoft)
+    TextStyle(fontFamily = Sans, fontSize = 14.sp, color = InkSoft)
 val Eyebrow: TextStyle @Composable @ReadOnlyComposable get() =
-    TextStyle(fontFamily = Sans, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = InkSoft)
+    TextStyle(fontFamily = Sans, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = InkSoft)
 val NumBold: TextStyle @Composable @ReadOnlyComposable get() =
     TextStyle(fontFamily = Sans, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)
 
@@ -563,4 +569,38 @@ fun monthName(offset: Int, startDay: Int = 1): String {
     val c = java.util.Calendar.getInstance().apply { timeInMillis = Dates.monthRange(offset, startDay).first }
     val symbols = java.text.DateFormatSymbols(locale)
     return symbols.months[c.get(java.util.Calendar.MONTH)] + " " + c.get(java.util.Calendar.YEAR)
+}
+
+
+// A number that counts up/down to its new value instead of jumping. The first
+// composition shows the value as is (no animation on screen open).
+@Composable
+fun animatedAmount(target: Double): Double {
+    val anim by animateFloatAsState(targetValue = target.toFloat(), animationSpec = tween(600), label = "amount")
+    return if (kotlin.math.abs(anim - target.toFloat()) < 0.01f) target else anim.toDouble()
+}
+
+// Placeholder rows shown while the database is still loading, so the screen
+// never flashes an "empty" message before the real data arrives.
+@Composable
+fun SkeletonRows(count: Int = 7) {
+    val transition = rememberInfiniteTransition(label = "skeleton")
+    val alpha by transition.animateFloat(
+        initialValue = 0.10f, targetValue = 0.22f,
+        animationSpec = infiniteRepeatable(tween(800), RepeatMode.Reverse), label = "skeletonAlpha"
+    )
+    val c = InkSoft.copy(alpha = alpha)
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        repeat(count) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(Pill)).background(c))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.fillMaxWidth(0.5f).height(14.dp).clip(RoundedCornerShape(7.dp)).background(c))
+                    Box(Modifier.fillMaxWidth(0.3f).height(11.dp).clip(RoundedCornerShape(6.dp)).background(c))
+                }
+                Box(Modifier.width(64.dp).height(16.dp).clip(RoundedCornerShape(8.dp)).background(c))
+            }
+        }
+    }
 }

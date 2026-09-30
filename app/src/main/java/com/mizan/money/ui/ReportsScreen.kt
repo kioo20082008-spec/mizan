@@ -471,7 +471,7 @@ private fun TrendChart(points: List<InsightsTrendPoint>, startDay: Int, currency
             Text("${fmt(sel.income)} $currency", style = NumBold.copy(fontSize = 15.sp, color = successColor))
         }
         Spacer(Modifier.height(12.dp))
-        Text(fmt(maxVal), style = Eyebrow.copy(fontSize = 11.sp, color = InkFaint))
+        Text(fmt(maxVal), style = Eyebrow.copy(fontSize = 12.sp, color = InkFaint))
         Spacer(Modifier.height(2.dp))
         Canvas(
             Modifier.fillMaxWidth().height(140.dp)
@@ -560,7 +560,7 @@ private fun CategoryDonut(categories: List<CategoryTotal>, total: Double, curren
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(fmt(total), style = NumBold.copy(fontSize = 15.sp), maxLines = 1)
-            Text(currency, style = Eyebrow.copy(fontSize = 11.sp))
+            Text(currency, style = Eyebrow.copy(fontSize = 12.sp))
         }
     }
 }
@@ -579,7 +579,7 @@ private fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(8.dp).clip(RoundedCornerShape(Pill)).background(color))
         Spacer(Modifier.width(6.dp))
-        Text(label, style = Eyebrow.copy(fontSize = 12.sp))
+        Text(label, style = Eyebrow.copy(fontSize = 13.sp))
     }
 }
 
@@ -635,13 +635,17 @@ private fun MonthStoryCard(
             if (story.topMerchant != null) {
                 val amt = fmt(story.topMerchantAmount) + " " + currency
                 val sentence = stringResource(R.string.story_sentence_fmt, story.topMerchant, amt, insNum(story.topMerchantCount))
-                val styled = remember(sentence, story.topMerchant, amt) {
+                // Theme colors are composable getters, so read them out here rather
+                // than inside remember's non-composable lambda.
+                val accent = Indigo
+                val accentBg = IndigoSoft
+                val styled = remember(sentence, story.topMerchant, amt, accent, accentBg) {
                     androidx.compose.ui.text.buildAnnotatedString {
                         append(sentence)
                         for (part in listOf(story.topMerchant, amt)) {
                             val at = sentence.indexOf(part)
                             if (at >= 0) addStyle(
-                                androidx.compose.ui.text.SpanStyle(color = Indigo, background = IndigoSoft),
+                                androidx.compose.ui.text.SpanStyle(color = accent, background = accentBg),
                                 at, at + part.length
                             )
                         }
@@ -655,8 +659,8 @@ private fun MonthStoryCard(
                     PlanningProgressBar(share.toFloat(), Indigo, height = 8)
                     Spacer(Modifier.height(8.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(stringResource(R.string.story_share_pct_fmt, insNum((share * 100).roundToInt())), style = Eyebrow.copy(fontSize = 12.sp))
-                        Text(stringResource(R.string.story_total_fmt, fmt(story.totalSpend) + " " + currency), style = Eyebrow.copy(fontSize = 12.sp))
+                        Text(stringResource(R.string.story_share_pct_fmt, insNum((share * 100).roundToInt())), style = Eyebrow.copy(fontSize = 13.sp))
+                        Text(stringResource(R.string.story_total_fmt, fmt(story.totalSpend) + " " + currency), style = Eyebrow.copy(fontSize = 13.sp))
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -738,7 +742,7 @@ private fun StoryRow(
         }
         Spacer(Modifier.height(9.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(sub, style = Eyebrow.copy(fontSize = 12.5.sp), modifier = Modifier.weight(1f))
+            Text(sub, style = Eyebrow.copy(fontSize = 13.sp), modifier = Modifier.weight(1f))
             chart()
         }
     }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,6 +86,8 @@ data class TxFilter(
 @Composable
 fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
     val txs by vm.transactions.collectAsState()
+    val loaded by vm.transactionsLoaded.collectAsState()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val categories by vm.categories.collectAsState()
     val recurringItems by vm.recurringItems.collectAsState()
     val rates by vm.exchangeRates.collectAsState()
@@ -194,15 +197,15 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
                 textStyle = Body
             )
             if (query.isNotEmpty()) {
-                IconButton(onClick = { vm.setTxQuery("") }, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = { vm.setTxQuery("") }, modifier = Modifier.size(48.dp)) {
                     Icon(Icons.Default.Close, stringResource(R.string.tx_clear_search), Modifier.size(16.dp), tint = InkFaint)
                 }
             }
             // Filter icon + active-count badge
-            Box(modifier = Modifier.size(44.dp)) {
+            Box(modifier = Modifier.size(48.dp)) {
                 IconButton(
                     onClick = { showFilterSheet = true },
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         Icons.Default.Tune,
@@ -226,6 +229,46 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
                 }
             }
         }
+        // One-tap presets. The choice is remembered, so the list opens the way
+        // you left it.
+        if (!selectionMode) {
+            val weekStart = remember { vm.weekStartMs() }
+            val cycleStart = remember(startDay) { vm.cycleStartMs() }
+            val weekSel = filter.dateFrom == weekStart && filter.dateTo == null
+            val cycleSel = filter.dateFrom == cycleStart && filter.dateTo == null
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) {
+                item {
+                    PlanningChip(stringResource(R.string.tx_chip_week), weekSel) {
+                        vm.setTxFilter(filter.copy(dateFrom = if (weekSel) null else weekStart, dateTo = null))
+                    }
+                }
+                item {
+                    PlanningChip(stringResource(R.string.tx_chip_cycle), cycleSel) {
+                        vm.setTxFilter(filter.copy(dateFrom = if (cycleSel) null else cycleStart, dateTo = null))
+                    }
+                }
+                item {
+                    PlanningChip(stringResource(R.string.tx_type_expense), filter.type == TxType.EXPENSE) {
+                        vm.setTxFilter(filter.copy(type = if (filter.type == TxType.EXPENSE) null else TxType.EXPENSE))
+                    }
+                }
+                item {
+                    PlanningChip(stringResource(R.string.tx_type_income), filter.type == TxType.INCOME) {
+                        vm.setTxFilter(filter.copy(type = if (filter.type == TxType.INCOME) null else TxType.INCOME))
+                    }
+                }
+                if (availableBanks.size > 1) items(availableBanks) { bank ->
+                    val sel = bank in filter.banks
+                    PlanningChip(bank, sel) {
+                        vm.setTxFilter(filter.copy(banks = if (sel) filter.banks - bank else filter.banks + bank))
+                    }
+                }
+            }
+        }
         // Active filters as removable pills, plus "clear all".
         if (!filter.isEmpty) {
             ActiveFilterChips(
@@ -239,7 +282,9 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
             Modifier.fillMaxWidth().weight(1f),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 96.dp),
         ) {
-            if (filtered.isEmpty()) {
+            if (!loaded) {
+                item { SkeletonRows() }
+            } else if (filtered.isEmpty()) {
                 item {
                     val noTxs = txs.isEmpty()
                     val filteredOut = !filter.isEmpty
@@ -283,10 +328,12 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
                             confirmValueChange = { value ->
                                 when (value) {
                                     SwipeToDismissBoxValue.StartToEnd -> {
+                                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                                         swipeRecatTx = currentTx
                                         false // snap back; the picker changes the category
                                     }
                                     SwipeToDismissBoxValue.EndToStart -> {
+                                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                                         val gone = currentTx
                                         vm.delete(gone)
                                         swipeScope.launch {
@@ -438,7 +485,7 @@ private fun SelectionBar(
             .padding(start = 6.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onCancel, modifier = Modifier.size(40.dp)) {
+        IconButton(onClick = onCancel, modifier = Modifier.size(48.dp)) {
             Icon(Icons.Default.Close, stringResource(R.string.tx_selection_cancel_desc), Modifier.size(18.dp), tint = InkSoft)
         }
         Text(
@@ -446,10 +493,10 @@ private fun SelectionBar(
             style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp),
             modifier = Modifier.weight(1f).padding(start = 4.dp)
         )
-        IconButton(onClick = onRecategorize, modifier = Modifier.size(40.dp)) {
+        IconButton(onClick = onRecategorize, modifier = Modifier.size(48.dp)) {
             Icon(Icons.Default.Label, stringResource(R.string.tx_selection_recategorize_desc), Modifier.size(18.dp), tint = Indigo)
         }
-        IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
+        IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
             Icon(Icons.Default.DeleteOutline, stringResource(R.string.tx_selection_delete_desc), Modifier.size(18.dp), tint = Danger)
         }
     }

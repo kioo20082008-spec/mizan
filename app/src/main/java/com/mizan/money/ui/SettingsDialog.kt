@@ -95,6 +95,7 @@ internal fun SettingsDialog(
 
     // ---- Cloud backup ----
     var cloudBusy by remember { mutableStateOf(false) }
+    var lastBackupMs by remember { mutableStateOf(CloudBackup.lastSuccessMs(ctx)) }
     var cloudSignedIn by remember { mutableStateOf(false) }
     var showCloudRestoreConfirm by remember { mutableStateOf(false) }
 
@@ -146,6 +147,7 @@ internal fun SettingsDialog(
                 false
             }
             cloudBusy = false
+            lastBackupMs = CloudBackup.lastSuccessMs(ctx)
             toast(ctx.getString(if (ok) R.string.stg_cloud_upload_ok else R.string.stg_cloud_failed))
         }
     }
@@ -414,6 +416,16 @@ internal fun SettingsDialog(
                             onClick = { sheet = SHEET_CLOUD }
                         )
                         else -> {
+                            val stale = lastBackupMs == 0L || System.currentTimeMillis() - lastBackupMs > 3L * 86_400_000L
+                            SettingsRow(
+                                icon = Icons.Default.CloudDone, tint = if (stale) Amber else Success,
+                                title = stringResource(R.string.stg_backup_last_title),
+                                value = if (lastBackupMs == 0L) stringResource(R.string.stg_backup_never)
+                                else android.text.format.DateUtils.getRelativeDateTimeString(
+                                    ctx, lastBackupMs, android.text.format.DateUtils.DAY_IN_MILLIS,
+                                    android.text.format.DateUtils.WEEK_IN_MILLIS, 0
+                                ).toString()
+                            )
                             SettingsRow(
                                 icon = Icons.Default.CloudUpload, tint = Indigo,
                                 title = stringResource(R.string.stg2_cloud_upload_title),

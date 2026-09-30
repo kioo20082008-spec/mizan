@@ -253,7 +253,7 @@ private fun MonthPill(offset: Int, startDay: Int, onPrev: () -> Unit, onNext: ()
         Modifier.clip(RoundedCornerShape(Pill)).background(PaperOuter).padding(2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onPrev, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onPrev, modifier = Modifier.size(48.dp)) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 stringResource(R.string.dash_month_prev),
@@ -266,7 +266,7 @@ private fun MonthPill(offset: Int, startDay: Int, onPrev: () -> Unit, onNext: ()
             maxLines = 1,
             modifier = Modifier.padding(horizontal = 4.dp)
         )
-        IconButton(onClick = onNext, enabled = offset < 0, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onNext, enabled = offset < 0, modifier = Modifier.size(48.dp)) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 stringResource(R.string.dash_month_next),
@@ -365,7 +365,7 @@ private fun HeroCard(
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
-                (if (amount < 0) "-" else "") + fmt(abs(amount)),
+                (if (amount < 0) "-" else "") + fmt(abs(animatedAmount(amount))),
                 style = Display.copy(color = if (danger) Danger else Ink),
                 maxLines = 1
             )

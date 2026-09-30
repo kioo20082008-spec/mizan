@@ -36,7 +36,7 @@ import kotlin.math.abs
 // Rendered as the "monthly bills" section of the Planning > Commitments page
 // (one scrolling page together with the debts section).
 @Composable
-fun RemindersBlock(vm: MainViewModel) {
+fun RemindersBlock(vm: MainViewModel, collapsed: Boolean = false, onToggle: (() -> Unit)? = null) {
     val reminders by vm.recurringItems.collectAsState()
     val categories by vm.categories.collectAsState()
     val txs by vm.transactions.collectAsState()
@@ -46,7 +46,6 @@ fun RemindersBlock(vm: MainViewModel) {
     val suggestion = suggestions.firstOrNull()
     var showAdd by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<RecurringItemEntity?>(null) }
-    var confirmingDelete by remember { mutableStateOf<RecurringItemEntity?>(null) }
     // Due dates are calendar-month based (not the budget cycle), so "paid"
     // looks at this calendar month's transactions.
     val monthStart = remember { Dates.monthRange(0, 1).first }
@@ -70,8 +69,10 @@ fun RemindersBlock(vm: MainViewModel) {
                     stringResource(R.string.pl_bills_total_fmt, fmt(monthlyTotal), currency),
             actionLabel = if (reminders.isEmpty()) null else stringResource(R.string.pl_add),
             actionIcon = Icons.Default.Add,
-            onAction = { showAdd = true }
+            onAction = { showAdd = true },
+            collapsed = collapsed, onToggle = onToggle
         )
+        if (!collapsed) {
         if (suggestion != null) {
             RecurringSuggestionBanner(
                 suggestion = suggestion,
@@ -102,6 +103,7 @@ fun RemindersBlock(vm: MainViewModel) {
                 }
             }
         }
+        }
     }
 
     if (showAdd) {
@@ -119,7 +121,7 @@ fun RemindersBlock(vm: MainViewModel) {
             initial = item,
             categories = categories,
             onDismiss = { editing = null },
-            onDelete = { editing = null; confirmingDelete = item },
+            onDelete = { editing = null; vm.deleteRecurringItem(item) },
             onSave = { merchant, amount, day, category, enabled, fixed ->
                 vm.updateRecurringItem(
                     item.copy(
@@ -132,25 +134,6 @@ fun RemindersBlock(vm: MainViewModel) {
                     )
                 )
                 editing = null
-            }
-        )
-    }
-    confirmingDelete?.let { item ->
-        AlertDialog(
-            onDismissRequest = { confirmingDelete = null },
-            containerColor = White,
-            shape = RoundedCornerShape(RadiusXl),
-            title = { Text(stringResource(R.string.reminders_delete_confirm, item.merchant), style = H2) },
-            text = { Text(stringResource(R.string.reminders_delete_confirm_desc), style = BodyMuted) },
-            confirmButton = {
-                TextButton(onClick = { vm.deleteRecurringItem(item); confirmingDelete = null }) {
-                    Text(stringResource(R.string.reminders_delete), style = Body.copy(color = Danger, fontWeight = FontWeight.Bold))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmingDelete = null }) {
-                    Text(stringResource(R.string.reminders_cancel), style = Body.copy(color = InkSoft))
-                }
             }
         )
     }
@@ -389,7 +372,7 @@ private fun ReminderEditorDialog(
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.reminders_fixed_label), style = Body)
                             Spacer(Modifier.height(2.dp))
-                            Text(stringResource(R.string.pl_fixed_desc), style = Eyebrow.copy(fontSize = 12.sp))
+                            Text(stringResource(R.string.pl_fixed_desc), style = Eyebrow.copy(fontSize = 13.sp))
                         }
                         Spacer(Modifier.width(8.dp))
                         Switch(checked = fixed, onCheckedChange = { fixed = it }, colors = oneUiSwitchColors())
