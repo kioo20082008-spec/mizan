@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Android 12+ system splash: the launcher icon on the brand indigo. -->
+    <style name="Theme.Mizan" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F6F6F8</item>
+        <item name="android:statusBarColor">#F6F6F8</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+        <item name="android:windowSplashScreenBackground">#4338CA</item>
+    </style>
+</resources>

@@ -374,11 +374,12 @@ private fun RootScaffold(
                 Modifier.fillMaxWidth().height(collapsedH).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                MizanMark(30.dp, Modifier.padding(start = 12.dp))
                 Text(
                     title,
                     style = H1.copy(fontSize = 24.sp),
                     maxLines = 1,
-                    modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp)
                 )
                 IconButton(onClick = { showSettings = true }, modifier = Modifier.size(48.dp)) {
                     Icon(Icons.Outlined.Settings, stringResource(R.string.header_settings), Modifier.size(24.dp), tint = Ink)

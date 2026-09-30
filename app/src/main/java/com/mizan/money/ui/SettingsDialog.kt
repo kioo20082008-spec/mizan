@@ -492,6 +492,14 @@ internal fun SettingsDialog(
                         showDivider = false
                     )
                 }
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    MizanMark(52.dp)
+                    Spacer(Modifier.height(8.dp))
+                    Text(stringResource(R.string.app_name), style = H1.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold), color = Indigo)
+                }
             }
             // Sheets live inside the Dialog so they always open above it.
             // ================= Sheets =================

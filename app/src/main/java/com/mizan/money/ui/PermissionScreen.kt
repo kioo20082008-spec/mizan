@@ -40,12 +40,7 @@ fun PermissionScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(28.dp))
-            Box(
-                Modifier.size(96.dp).clip(RoundedCornerShape(RadiusXl)).background(Ink900),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Savings, null, Modifier.size(44.dp), tint = Lime)
-            }
+            MizanMark(96.dp)
 
             Spacer(Modifier.height(20.dp))
             Text(stringResource(R.string.app_name), style = H1.copy(fontSize = 32.sp, fontWeight = FontWeight.Bold))
