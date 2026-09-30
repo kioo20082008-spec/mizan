@@ -91,6 +91,18 @@ internal fun SettingsDialog(
 
     var sheet by rememberSaveable { mutableStateOf(SHEET_NONE) }
     var showExportConfirm by remember { mutableStateOf(false) }
+    // Sections the user folded away are remembered between visits.
+    var collapsedSections by remember {
+        mutableStateOf(
+            ctx.getSharedPreferences("settings_ui", Context.MODE_PRIVATE)
+                .getStringSet("collapsed", emptySet())?.toSet() ?: emptySet()
+        )
+    }
+    val toggleSection = { key: String ->
+        collapsedSections = if (key in collapsedSections) collapsedSections - key else collapsedSections + key
+        ctx.getSharedPreferences("settings_ui", Context.MODE_PRIVATE)
+            .edit().putStringSet("collapsed", collapsedSections).apply()
+    }
     var pendingRestoreJson by remember { mutableStateOf<String?>(null) }
 
     // ---- Cloud backup ----
@@ -339,7 +351,11 @@ internal fun SettingsDialog(
                 }
 
                 // ==================== BUDGET ====================
-                SectionCard(stringResource(R.string.stg2_section_budget)) {
+                SectionCard(
+                    stringResource(R.string.stg2_section_budget),
+                    collapsed = "budget" in collapsedSections,
+                    onToggle = { toggleSection("budget") }
+                ) {
                     SettingsRow(
                         icon = Icons.Default.CalendarMonth, tint = Amber,
                         title = stringResource(R.string.stg_month_start_label),
@@ -370,7 +386,11 @@ internal fun SettingsDialog(
                 }
 
                 // ==================== BACKUP ====================
-                SectionCard(stringResource(R.string.stg2_section_backup)) {
+                SectionCard(
+                    stringResource(R.string.stg2_section_backup),
+                    collapsed = "backup" in collapsedSections,
+                    onToggle = { toggleSection("backup") }
+                ) {
                     SettingsRow(
                         icon = Icons.Default.Backup, tint = Indigo,
                         title = stringResource(R.string.stg_backup_title),
@@ -457,7 +477,11 @@ internal fun SettingsDialog(
                 }
 
                 // ==================== ADVANCED ====================
-                SectionCard(stringResource(R.string.stg2_section_advanced)) {
+                SectionCard(
+                    stringResource(R.string.stg2_section_advanced),
+                    collapsed = "advanced" in collapsedSections,
+                    onToggle = { toggleSection("advanced") }
+                ) {
                     SettingsRow(
                         icon = Icons.Default.Sync, tint = Indigo,
                         title = if (isScanning) stringResource(R.string.stg_rescan_busy)
@@ -478,7 +502,11 @@ internal fun SettingsDialog(
                 }
 
                 // ==================== ABOUT ====================
-                SectionCard(stringResource(R.string.stg2_section_about)) {
+                SectionCard(
+                    stringResource(R.string.stg2_section_about),
+                    collapsed = "about" in collapsedSections,
+                    onToggle = { toggleSection("about") }
+                ) {
                     SettingsRow(
                         icon = Icons.Default.Info, tint = Indigo,
                         title = stringResource(R.string.stg2_version),

@@ -608,4 +608,8 @@
     <string name="stg_backup_never">لا توجد نسخة بعد</string>
     <string name="tx_chip_week">هذا الأسبوع</string>
     <string name="tx_chip_cycle">هذا الشهر</string>
+    <string name="tx_swipe_hint">اسحب أي عملية جانبياً</string>
+    <string name="tx_swipe_recat">تغيير الفئة</string>
+    <string name="tx_swipe_delete">حذف</string>
+    <string name="tx_swipe_gotit">فهمت</string>
 </resources>

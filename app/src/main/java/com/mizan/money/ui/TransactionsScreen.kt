@@ -102,6 +102,10 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
     // deletes with an Undo snackbar.
     var swipeRecatTx by remember { mutableStateOf<TransactionEntity?>(null) }
     val snackbarHost = remember { SnackbarHostState() }
+    // One-time hint that explains the two swipe actions on a row.
+    var showSwipeHint by remember {
+        mutableStateOf(!ctx.getSharedPreferences("ui_hints", android.content.Context.MODE_PRIVATE).getBoolean("swipe_seen", false))
+    }
     val swipeScope = rememberCoroutineScope()
     val deletedMsg = stringResource(R.string.tx_deleted_msg)
     val undoLabel = stringResource(R.string.tx_undo)
@@ -302,6 +306,48 @@ fun TransactionsScreen(vm: MainViewModel, onAddTransaction: () -> Unit = {}) {
                 }
             } else {
                 // One UI list: rows grouped per day under a small date header.
+                if (showSwipeHint) {
+                    item(key = "swipe-hint") {
+                        Column(
+                            Modifier.animateItem().fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .clip(RoundedCornerShape(RadiusLg))
+                                .background(White)
+                                .padding(16.dp)
+                        ) {
+                            Text(stringResource(R.string.tx_swipe_hint), style = Body.copy(fontWeight = FontWeight.SemiBold))
+                            Spacer(Modifier.height(10.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Row(
+                                    Modifier.clip(RoundedCornerShape(Pill)).background(IndigoSoft).padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Category, null, Modifier.size(18.dp), tint = Indigo)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(stringResource(R.string.tx_swipe_recat), style = Body.copy(color = Indigo, fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+                                }
+                                Row(
+                                    Modifier.clip(RoundedCornerShape(Pill)).background(Danger.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Delete, null, Modifier.size(18.dp), tint = Danger)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(stringResource(R.string.tx_swipe_delete), style = Body.copy(color = Danger, fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+                                }
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                stringResource(R.string.tx_swipe_gotit),
+                                style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold),
+                                modifier = Modifier.clip(RoundedCornerShape(Pill)).clickable {
+                                    ctx.getSharedPreferences("ui_hints", android.content.Context.MODE_PRIVATE)
+                                        .edit().putBoolean("swipe_seen", true).apply()
+                                    showSwipeHint = false
+                                }.heightIn(min = 48.dp).padding(horizontal = 4.dp, vertical = 12.dp)
+                            )
+                        }
+                    }
+                }
                 grouped.forEach { (day, dayTxs, daySpent) ->
                     item(key = "day-$day") {
                         Row(

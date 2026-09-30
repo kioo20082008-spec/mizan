@@ -417,6 +417,14 @@ private fun Header(d: WidgetData, p: Palette) {
     DirRow(
         d.flip, GlanceModifier.fillMaxWidth(), Alignment.CenterVertically,
         {
+            Image(
+                ImageProvider(R.drawable.ic_widget_mark),
+                contentDescription = null,
+                modifier = GlanceModifier.size(20.dp)
+            )
+        },
+        { Spacer(GlanceModifier.width(8.dp)) },
+        {
             Box(
                 GlanceModifier.size(8.dp).cornerRadius(4.dp)
                     .background(FixedColor(p.status(d.status)))

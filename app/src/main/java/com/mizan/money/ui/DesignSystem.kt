@@ -152,6 +152,8 @@ fun SectionCard(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    collapsed: Boolean = false,
+    onToggle: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
@@ -160,10 +162,19 @@ fun SectionCard(
             .background(White)
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 12.dp, bottom = 2.dp).heightIn(min = 40.dp),
+            Modifier.fillMaxWidth()
+                .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier)
+                .padding(start = 18.dp, end = 8.dp, top = 12.dp, bottom = 2.dp).heightIn(min = 48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(title, style = H2.copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
+            if (onToggle != null) {
+                Icon(
+                    if (collapsed) androidx.compose.material.icons.Icons.Default.ExpandMore
+                    else androidx.compose.material.icons.Icons.Default.ExpandLess,
+                    null, Modifier.padding(horizontal = 10.dp).size(22.dp), tint = InkSoft
+                )
+            }
             if (actionLabel != null && onAction != null) {
                 Text(
                     actionLabel,
@@ -173,7 +184,7 @@ fun SectionCard(
                 )
             }
         }
-        content()
+        if (!collapsed) content()
         Spacer(Modifier.height(6.dp))
     }
 }

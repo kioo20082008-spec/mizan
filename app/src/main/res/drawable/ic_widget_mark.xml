@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Mizan mark as a small framed tile, for the home-screen widget header. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path
+        android:pathData="M22,0H74A22,22 0 0 1 96,22V74A22,22 0 0 1 74,96H22A22,22 0 0 1 0,74V22A22,22 0 0 1 22,0Z"
+        android:fillColor="#FF4338CA" />
+    <path
+        android:pathData="M38,80L48,62L58,80Z"
+        android:fillColor="#FFFFFFFF" />
+    <group
+        android:rotation="-9"
+        android:pivotX="48"
+        android:pivotY="60">
+        <path
+            android:pathData="M18,52H78A6,6 0 0 1 78,64H18A6,6 0 0 1 18,52Z"
+            android:fillColor="#FFFFFFFF" />
+        <path
+            android:pathData="M62,40a10,10 0 1,0 20,0a10,10 0 1,0 -20,0z"
+            android:fillColor="#FFA8DA2B" />
+    </group>
+</vector>

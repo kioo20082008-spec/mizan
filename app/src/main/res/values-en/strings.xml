@@ -608,4 +608,8 @@
     <string name="stg_backup_never">No backup yet</string>
     <string name="tx_chip_week">This week</string>
     <string name="tx_chip_cycle">This month</string>
+    <string name="tx_swipe_hint">Swipe any transaction sideways</string>
+    <string name="tx_swipe_recat">Change category</string>
+    <string name="tx_swipe_delete">Delete</string>
+    <string name="tx_swipe_gotit">Got it</string>
 </resources>
