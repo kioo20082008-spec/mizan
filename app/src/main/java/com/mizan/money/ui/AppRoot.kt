@@ -314,8 +314,10 @@ private fun RootScaffold(
     // content within thumb reach) and collapses into a toolbar as the content
     // scrolls — driven by nested scroll from whichever screen is showing.
     val density = LocalDensity.current
-    val expandedH = 136.dp
+    // Single compact row (title + settings): the old 136dp expanded title area
+    // left a big empty band under the title on every tab.
     val collapsedH = 60.dp
+    val expandedH = collapsedH
     val rangePx = with(density) { (expandedH - collapsedH).toPx() }
     var headerOffset by remember { mutableFloatStateOf(0f) } // 0 = expanded, -rangePx = collapsed
     LaunchedEffect(tab) { headerOffset = 0f }
@@ -364,30 +366,15 @@ private fun RootScaffold(
 
     Column(Modifier.fillMaxSize().nestedScroll(headerScroll)) {
         Column(Modifier.fillMaxWidth().height(collapsedH + with(density) { (rangePx + headerOffset).toDp() })) {
-            Box(Modifier.fillMaxWidth().weight(1f).clipToBounds()) {
-                Column(
-                    Modifier.align(Alignment.Center)
-                        .padding(horizontal = 24.dp)
-                        .graphicsLayer { alpha = expandFraction },
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(title, style = H1.copy(fontSize = 30.sp), maxLines = 1)
-                    if (tab == 0) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(stringResource(R.string.header_greeting), style = BodyMuted)
-                    }
-                }
-            }
             Row(
                 Modifier.fillMaxWidth().height(collapsedH).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     title,
-                    style = H2.copy(fontSize = 19.sp),
+                    style = H1.copy(fontSize = 24.sp),
                     maxLines = 1,
                     modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
-                        .graphicsLayer { alpha = 1f - expandFraction }
                 )
                 IconButton(onClick = { showSettings = true }, modifier = Modifier.size(48.dp)) {
                     Icon(Icons.Outlined.Settings, stringResource(R.string.header_settings), Modifier.size(24.dp), tint = Ink)

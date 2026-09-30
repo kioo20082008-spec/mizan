@@ -335,6 +335,18 @@ private fun HeroCard(
                 )
             }
         }
+        // A cycle that doesn't start on the 1st spans two calendar months, so the
+        // month name alone ("September") is ambiguous: show the actual dates.
+        if (startDay != 1) {
+            val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+            val fmtDay = java.text.SimpleDateFormat("d MMM", locale)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                fmtDay.format(java.util.Date(range.first)) + " – " + fmtDay.format(java.util.Date(range.last)),
+                style = Eyebrow.copy(color = InkSoft),
+                maxLines = 1
+            )
+        }
         Spacer(Modifier.height(18.dp))
 
         val labelRes = when {

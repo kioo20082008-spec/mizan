@@ -321,56 +321,56 @@
     <string name="reports_export_pdf">PDF</string>
 
     <!-- ================== Advisor advice ================== -->
-    <string name="adv_waiting_income_title">Waiting for this month\'s income 🎯</string>
+    <string name="adv_waiting_income_title">Waiting for this month\'s income</string>
     <string name="adv_waiting_income_body">No income has posted yet this month, and no saved salary to estimate from. Once the first deposit arrives we\'ll compute your usage from your real balance.</string>
-    <string name="adv_over_budget_title">You\'ve exceeded your budget ⚠️</string>
+    <string name="adv_over_budget_title">You\'ve exceeded your budget</string>
     <string name="adv_over_budget_body">You spent %1$s of %2$s SAR (%3$d٪). Over by %4$s SAR.</string>
-    <string name="adv_approaching_title">Approaching the limit 🟠</string>
+    <string name="adv_approaching_title">Approaching the limit</string>
     <string name="adv_approaching_body_future">You\'ve used %1$d٪ of your budget. %2$s SAR left across %3$d days, at %4$s SAR/day.</string>
     <string name="adv_approaching_body_past">You used %1$d٪ of that month\'s budget, with %2$s SAR remaining.</string>
-    <string name="adv_on_track_title">You\'re on track ✅</string>
+    <string name="adv_on_track_title">You\'re on track</string>
     <string name="adv_on_track_body_future">You used %1$d٪ of your budget. %2$s SAR left, you can spend %3$s SAR/day.</string>
     <string name="adv_on_track_body_past">You used %1$d٪ of that month\'s budget.</string>
-    <string name="adv_top_category_title_fmt">Biggest category: %1$s 🔍</string>
+    <string name="adv_top_category_title_fmt">Biggest category: %1$s</string>
     <string name="adv_top_category_body_fmt">\"%1$s\" %2$s SAR (%3$d٪). Cut it by 20٪ to save ~%4$s SAR.</string>
     <string name="adv_projected_title">Your pace exceeds your budget ⏳</string>
     <string name="adv_projected_body_fmt">At this pace you\'ll spend ~%1$s SAR by month end — %2$s SAR over budget.</string>
-    <string name="adv_category_up_title_fmt">%1$s is rising 📈</string>
+    <string name="adv_category_up_title_fmt">%1$s is rising</string>
     <string name="adv_category_up_body_fmt">%1$s: %2$s SAR so far, tracking %3$d٪ above your usual 3-month average.</string>
-    <string name="adv_category_down_title_fmt">Doing better on %1$s 👍</string>
+    <string name="adv_category_down_title_fmt">Doing better on %1$s</string>
     <string name="adv_category_down_body_fmt">%1$s: you spent %2$s SAR, %3$d٪ below your usual 3-month average — keep it up.</string>
     <string name="adv_largest_tx_title">Biggest transaction this month</string>
     <string name="adv_largest_tx_body_fmt">%1$s for %2$s SAR — %3$d٪ of your total spending this month.</string>
-    <string name="adv_debt_load_title">High debt load ⚠️</string>
+    <string name="adv_debt_load_title">High debt load</string>
     <string name="adv_debt_load_body_fmt">Your monthly installments of %2$s SAR are %1$d٪ of your income. Fixed commitments (debt + bills) are usually best kept under 35-40٪ of income.</string>
-    <string name="adv_cash_title">Notable cash withdrawals 💵</string>
+    <string name="adv_cash_title">Notable cash withdrawals</string>
     <string name="adv_cash_body_fmt">You withdrew %1$s SAR in cash (%2$d٪). Cash is hard to track automatically.</string>
-    <string name="adv_daily_avg_title">Your daily spending 📊</string>
+    <string name="adv_daily_avg_title">Your daily spending</string>
     <string name="adv_daily_avg_body_fmt">You spend %1$s SAR/day. At this rate you\'ll spend ~%2$s SAR/month.</string>
-    <string name="adv_subscriptions_title">Recurring subscriptions 💳</string>
+    <string name="adv_subscriptions_title">Recurring subscriptions</string>
     <string name="adv_subscriptions_body_fmt">%1$d subscription(s): %2$s. %3$s SAR/mo = %4$s/yr.</string>
-    <string name="adv_large_tx_title">A big transaction spotted 👀</string>
+    <string name="adv_large_tx_title">A big transaction spotted</string>
     <string name="adv_large_tx_body_fmt">A %1$s SAR charge at \"%2$s\" = %3$d٪ of the month.</string>
-    <string name="adv_savings_excellent_title">Excellent saving 🏆</string>
+    <string name="adv_savings_excellent_title">Excellent saving</string>
     <string name="adv_savings_excellent_body_fmt">Great! Your savings rate is %1$d٪.</string>
     <string name="adv_savings_ok_title">Review your savings rate</string>
     <string name="adv_savings_ok_body_fmt">Your savings rate is %1$d٪. Try to reach 20٪.</string>
     <string name="adv_savings_bad_body_fmt">You spend %1$s SAR more than you earn!</string>
-    <string name="adv_salary_manual_title">Your monthly salary 💼</string>
+    <string name="adv_salary_manual_title">Your monthly salary</string>
     <string name="adv_salary_manual_body_fmt">Based on what you entered in Settings, your monthly salary is %1$s SAR.</string>
-    <string name="adv_salary_detected_title">We detected your monthly salary 💼</string>
+    <string name="adv_salary_detected_title">We detected your monthly salary</string>
     <string name="adv_salary_detected_body_fmt">Based on recurring deposits over the past months, your fixed monthly income is roughly %1$s SAR.</string>
-    <string name="adv_5030_20_title">50 / 30 / 20 rule 💡</string>
+    <string name="adv_5030_20_title">50 / 30 / 20 rule</string>
     <string name="adv_5030_20_body_fmt">From %1$s SAR income: %2$s for needs, %3$s for wants, %4$s for savings.</string>
     <string name="adv_5030_20_body_actual_fmt">Income %1$s SAR: %2$s needs, %3$s wants, %4$s savings — you save %5$d٪ now.</string>
-    <string name="adv_goal_plan_title">Funding your goals 🎯</string>
+    <string name="adv_goal_plan_title">Funding your goals</string>
     <string name="adv_goal_plan_body_fmt">Your goals need %1$s SAR/month — %2$d٪ of your income.</string>
     <string name="adv_goal_plan_body_nofmt_fmt">Your goals need %1$s SAR/month.</string>
-    <string name="adv_goal_behind_title_fmt">Goal \"%1$s\" is behind ⚠️</string>
+    <string name="adv_goal_behind_title_fmt">Goal \"%1$s\" is behind</string>
     <string name="adv_goal_behind_body_fmt">You\'re %2$d٪ done; %3$s SAR left. Raise your saving to get back on track.</string>
-    <string name="adv_saved_goals_title">Saved toward goals this month 🏦</string>
+    <string name="adv_saved_goals_title">Saved toward goals this month</string>
     <string name="adv_saved_goals_body_fmt">You set aside %1$s SAR — %2$d٪ of your income.</string>
-    <string name="adv_subscriptions_body_income_fmt">%1$d subscription(s): %2$s. %3$s SAR/mo (%5$d٪ of income) = %4$s/yr.</string>
+    <string name="adv_subscriptions_body_income_fmt">%1$d subscription(s): %2$s. %3$s SAR/mo (%5$s٪ of income) = %4$s/yr.</string>
 
     <!-- Advisor header -->
     <string name="advisor_header_title">Financial advisor</string>
@@ -599,4 +599,6 @@
     <string name="widget_theme_rose">Rose</string>
     <string name="tx_deleted_msg">Transaction deleted</string>
     <string name="tx_undo">Undo</string>
+    <string name="tx_self_from_fmt">From %1$s</string>
+    <string name="tx_self_to_fmt">To %1$s</string>
 </resources>

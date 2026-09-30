@@ -88,4 +88,6 @@
     <string name="budget_leftover_carry">رحّله لهذا الشهر</string>
     <string name="budget_leftover_dismiss">تجاهل</string>
     <string name="budget_leftover_pick_goal">اختر الهدف</string>
+    <string name="pl_budget_total_not_set">غير محددة</string>
+    <string name="pl_budget_use_suggested_fmt">اعتمد %1$s ر.س (المتبقي للصرف)</string>
 </resources>

@@ -157,7 +157,13 @@ object FinancialAdvisor {
             val remaining = monthlyBudget - summary.spent
             val daysLeft = if (isPastMonth) 0 else max(1, ((monthEnd - now) / 86_400_000L).toInt())
             val safeDaily = if (isPastMonth) 0.0 else max(0.0, remaining / daysLeft)
-            val projected = summary.spent / daysPassed * daysInMonth
+            // One-off / already-settled outflows (rent, bills, transfers) don't
+            // repeat every day, so extrapolating them linearly ("rent x 30")
+            // wildly overstates the month. Project only the day-to-day spending
+            // and add what was already paid as-is.
+            val oneOff = setOf("إيجار", "فواتير", "تحويلات", "تحويل بين حساباتي")
+            val variableSpent = summarize(allTx.filter { it.category !in oneOff }, monthStart, monthEnd, rates).spent
+            val projected = (summary.spent - variableSpent) + variableSpent / daysPassed * daysInMonth
             val pctInt = (pct * 100).toInt()
             when {
                 pct >= 1.0 -> list += Advice(
@@ -167,7 +173,7 @@ object FinancialAdvisor {
                     level = Level.DANGER,
                     target = AdviceTarget.BUDGET,
                 )
-                !isPastMonth && daysPassed >= 5 && projected > monthlyBudget * 1.05 -> list += Advice(
+                !isPastMonth && daysPassed >= 7 && projected > monthlyBudget * 1.05 -> list += Advice(
                     titleRes = R.string.adv_projected_title,
                     bodyRes = R.string.adv_projected_body_fmt,
                     bodyArgs = listOf(fmt(projected), fmt(projected - monthlyBudget)),
@@ -356,10 +362,15 @@ object FinancialAdvisor {
             val total = subs.sumOf { it.second }
             val names = subs.joinToString("، ") { "${it.first} (${fmt(it.second)})" }
             val sharePct = if (income > 0.0) (total / income * 100).toInt() else -1
+            // Shown with a decimal below 10% so a small share reads "0.7" rather than "0".
+            val shareText = if (income <= 0.0) "" else {
+                val share = total / income * 100
+                if (share >= 10) share.toInt().toString() else String.format(java.util.Locale.US, "%.1f", share)
+            }
             list += Advice(
                 titleRes = R.string.adv_subscriptions_title,
                 bodyRes = if (sharePct >= 0) R.string.adv_subscriptions_body_income_fmt else R.string.adv_subscriptions_body_fmt,
-                bodyArgs = if (sharePct >= 0) listOf(subs.size, names, fmt(total), fmt(total * 12), sharePct)
+                bodyArgs = if (sharePct >= 0) listOf(subs.size, names, fmt(total), fmt(total * 12), shareText)
                            else listOf(subs.size, names, fmt(total), fmt(total * 12)),
                 level = if (sharePct >= 10) Level.WARN else Level.INFO,
                 category = "اشتراكات",
@@ -402,8 +413,10 @@ object FinancialAdvisor {
             }
         }
 
-        if (salary != null) {
-            val isManual = manualSalary > 0
+        // A salary the user typed in themselves is not news; only surface the
+        // auto-detected one.
+        if (salary != null && manualSalary <= 0) {
+            val isManual = false
             list += Advice(
                 titleRes = if (isManual) R.string.adv_salary_manual_title else R.string.adv_salary_detected_title,
                 bodyRes = if (isManual) R.string.adv_salary_manual_body_fmt else R.string.adv_salary_detected_body_fmt,

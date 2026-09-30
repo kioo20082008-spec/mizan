@@ -121,11 +121,19 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
             (spentByCat[c] ?: 0.0) <= 0.005
     }
     val activeCats = categories.filterNot { it in idleCats }
+    // Most urgent first: categories with a limit ordered by how much of it is used
+    // (over-limit on top), then the ones without a limit by how much was spent.
     val shownCats = when {
         showAllCats -> categories
         activeCats.isEmpty() -> categories
         else -> activeCats
-    }
+    }.sortedWith(
+        compareByDescending<String> { (limitByCat[it] ?: 0.0) + (rolloverByCat[it] ?: 0.0) > 0.0 }
+            .thenByDescending { c ->
+                val eff = (limitByCat[c] ?: 0.0) + (rolloverByCat[c] ?: 0.0)
+                if (eff > 0.0) (spentByCat[c] ?: 0.0) / eff else (spentByCat[c] ?: 0.0)
+            }
+    )
     val currency = currencyLabel("SAR")
 
     LazyColumn(
@@ -199,7 +207,9 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
                 total = totalBudget,
                 allocated = allocated,
                 currency = currency,
-                onEdit = { editingTotal = true }
+                onEdit = { editingTotal = true },
+                suggested = plan.free,
+                onApplySuggested = { vm.setBudget(monthKey, TOTAL_BUDGET, plan.free.roundToInt().toDouble()) }
             )
         }
 
@@ -341,15 +351,23 @@ private fun showIdleToggle(
 // Big total with a pencil to edit it in a sheet, plus how much of it the
 // per-category limits have claimed.
 @Composable
-private fun TotalBudgetCard(total: Double, allocated: Double, currency: String, onEdit: () -> Unit) {
+private fun TotalBudgetCard(
+    total: Double, allocated: Double, currency: String, onEdit: () -> Unit,
+    suggested: Double = 0.0, onApplySuggested: () -> Unit = {}
+) {
     SoftCard(Modifier.clip(RoundedCornerShape(RadiusLg)).clickable(onClick = onEdit)) {
         Text(stringResource(R.string.budget_total_label), style = Eyebrow.copy(fontSize = 13.sp))
         Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
-                Text(fmt(total), style = Display.copy(fontSize = 34.sp, color = if (total > 0) Ink else InkFaint))
-                Spacer(Modifier.width(6.dp))
-                Text(currency, style = Body.copy(color = InkSoft, fontWeight = FontWeight.Medium), modifier = Modifier.padding(bottom = 6.dp))
+                if (total > 0) {
+                    Text(fmt(total), style = Display.copy(fontSize = 34.sp, color = Ink))
+                    Spacer(Modifier.width(6.dp))
+                    Text(currency, style = Body.copy(color = InkSoft, fontWeight = FontWeight.Medium), modifier = Modifier.padding(bottom = 6.dp))
+                } else {
+                    // A grey Arabic-Indic "٠.٠٠" reads as three dots; say it in words.
+                    Text(stringResource(R.string.pl_budget_total_not_set), style = Display.copy(fontSize = 28.sp, color = InkFaint))
+                }
             }
             IconButton(
                 onClick = onEdit,
@@ -361,6 +379,16 @@ private fun TotalBudgetCard(total: Double, allocated: Double, currency: String, 
         if (total <= 0.0) {
             Spacer(Modifier.height(4.dp))
             Text(stringResource(R.string.pl_budget_total_unset), style = BodyMuted)
+            if (suggested >= 1.0) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    stringResource(R.string.pl_budget_use_suggested_fmt, fmt(suggested.roundToInt().toDouble())),
+                    style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold),
+                    modifier = Modifier.clip(RoundedCornerShape(Pill)).background(IndigoSoft)
+                        .clickable(onClick = onApplySuggested)
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                )
+            }
         }
         if (total > 0.0 || allocated > 0.0) {
             val over = total > 0.0 && allocated > total + 0.005

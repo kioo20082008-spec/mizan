@@ -321,56 +321,56 @@
     <string name="reports_export_pdf">PDF</string>
 
     <!-- ================== Advisor advice ================== -->
-    <string name="adv_waiting_income_title">بانتظار دخل هذا الشهر 🎯</string>
+    <string name="adv_waiting_income_title">بانتظار دخل هذا الشهر</string>
     <string name="adv_waiting_income_body">لم يصلك دخل بعد هذا الشهر، ولا راتب محفوظ نقدّر عليه. بمجرد وصول أول إيداع سنقدر نحسب استهلاكك من رصيدك الفعلي.</string>
-    <string name="adv_over_budget_title">تجاوزت الميزانية ⚠️</string>
+    <string name="adv_over_budget_title">تجاوزت الميزانية</string>
     <string name="adv_over_budget_body">صرفت %1$s من أصل %2$s ر.س (%3$d٪). تجاوزك %4$s ر.س.</string>
-    <string name="adv_approaching_title">اقتربت من الحد 🟠</string>
+    <string name="adv_approaching_title">اقتربت من الحد</string>
     <string name="adv_approaching_body_future">استهلكت %1$d٪ من ميزانيتك. المتبقي %2$s ر.س لـ %3$d يوم، بمعدل %4$s ر.س يومياً.</string>
     <string name="adv_approaching_body_past">استهلكت %1$d٪ من ميزانية ذلك الشهر، بمتبقي %2$s ر.س.</string>
-    <string name="adv_on_track_title">أنت في المسار الصحيح ✅</string>
+    <string name="adv_on_track_title">أنت في المسار الصحيح</string>
     <string name="adv_on_track_body_future">صرفت %1$d٪ من ميزانيتك. المتبقي %2$s ر.س، ويمكنك صرف %3$s ر.س يومياً.</string>
     <string name="adv_on_track_body_past">صرفت %1$d٪ من ميزانية ذلك الشهر.</string>
-    <string name="adv_top_category_title_fmt">أكبر بند: %1$s 🔍</string>
+    <string name="adv_top_category_title_fmt">أكبر بند: %1$s</string>
     <string name="adv_top_category_body_fmt">«%1$s» %2$s ر.س (%3$d٪). خفّضها 20٪ لتوفّر ~%4$s ر.س.</string>
     <string name="adv_projected_title">وتيرتك تتجاوز ميزانيتك ⏳</string>
     <string name="adv_projected_body_fmt">بنفس الوتيرة ستنفق ~%1$s ر.س حتى نهاية الشهر، أي %2$s ر.س فوق ميزانيتك.</string>
-    <string name="adv_category_up_title_fmt">«%1$s» يتصاعد 📈</string>
+    <string name="adv_category_up_title_fmt">«%1$s» يتصاعد</string>
     <string name="adv_category_up_body_fmt">«%1$s»: صرفت %2$s ر.س بوتيرة أعلى بـ %3$d٪ من معدلك المعتاد على آخر 3 أشهر.</string>
-    <string name="adv_category_down_title_fmt">تحسّن في «%1$s» 👍</string>
+    <string name="adv_category_down_title_fmt">تحسّن في «%1$s»</string>
     <string name="adv_category_down_body_fmt">«%1$s»: صرفت %2$s ر.س، أقل بـ %3$d٪ من معدلك المعتاد على آخر 3 أشهر — استمر كذا.</string>
     <string name="adv_largest_tx_title">أكبر عملية هذا الشهر</string>
     <string name="adv_largest_tx_body_fmt">%1$s بمبلغ %2$s ر.س — تمثل %3$d٪ من إجمالي مصروفك هذا الشهر.</string>
-    <string name="adv_debt_load_title">التزامات الديون مرتفعة ⚠️</string>
+    <string name="adv_debt_load_title">التزامات الديون مرتفعة</string>
     <string name="adv_debt_load_body_fmt">أقساطك الشهرية %2$s ر.س تشكّل %1$d٪ من دخلك. عادة يُنصح ألا تتجاوز التزاماتك الثابتة (ديون + فواتير) 35-40٪ من الدخل.</string>
-    <string name="adv_cash_title">سحوبات نقدية ملحوظة 💵</string>
+    <string name="adv_cash_title">سحوبات نقدية ملحوظة</string>
     <string name="adv_cash_body_fmt">سحبت %1$s ر.س نقداً (%2$d٪). يصعب تتبع النقد تلقائياً.</string>
-    <string name="adv_daily_avg_title">معدل صرفك اليومي 📊</string>
+    <string name="adv_daily_avg_title">معدل صرفك اليومي</string>
     <string name="adv_daily_avg_body_fmt">تصرف بمعدل %1$s ر.س يومياً. لو استمريت فستنفق ~%2$s ر.س شهرياً.</string>
-    <string name="adv_subscriptions_title">اشتراكات متكررة 💳</string>
+    <string name="adv_subscriptions_title">اشتراكات متكررة</string>
     <string name="adv_subscriptions_body_fmt">‏%1$d اشتراك: %2$s. شهرياً %3$s ر.س = %4$s سنوياً.</string>
-    <string name="adv_large_tx_title">عملية كبيرة رصدتها 👀</string>
+    <string name="adv_large_tx_title">عملية كبيرة رصدتها</string>
     <string name="adv_large_tx_body_fmt">عملية %1$s ر.س لدى «%2$s» = %3$d٪ من الشهر.</string>
-    <string name="adv_savings_excellent_title">ادخار ممتاز 🏆</string>
+    <string name="adv_savings_excellent_title">ادخار ممتاز</string>
     <string name="adv_savings_excellent_body_fmt">ممتاز! نسبة ادخارك %1$d٪.</string>
     <string name="adv_savings_ok_title">راجع نسبة الادخار</string>
     <string name="adv_savings_ok_body_fmt">نسبة ادخارك %1$d٪. حاول الوصول لـ 20٪.</string>
     <string name="adv_savings_bad_body_fmt">تصرف أكثر مما تدخل بـ %1$s ر.س!</string>
-    <string name="adv_salary_manual_title">راتبك الشهري 💼</string>
+    <string name="adv_salary_manual_title">راتبك الشهري</string>
     <string name="adv_salary_manual_body_fmt">حسب ما أدخلته في الإعدادات، راتبك الشهري %1$s ر.س.</string>
-    <string name="adv_salary_detected_title">رصدنا راتبك الشهري 💼</string>
+    <string name="adv_salary_detected_title">رصدنا راتبك الشهري</string>
     <string name="adv_salary_detected_body_fmt">بناءً على تكرار الإيداعات خلال الأشهر الماضية، دخلك الثابت الشهري تقريباً %1$s ر.س.</string>
-    <string name="adv_5030_20_title">قاعدة 50 / 30 / 20 💡</string>
+    <string name="adv_5030_20_title">قاعدة 50 / 30 / 20</string>
     <string name="adv_5030_20_body_fmt">من دخل %1$s ر.س: %2$s للاحتياجات، %3$s للرغبات، %4$s للادخار.</string>
     <string name="adv_5030_20_body_actual_fmt">دخلك %1$s ر.س: %2$s للاحتياجات، %3$s للرغبات، %4$s للادخار — وتدخر حالياً %5$d٪.</string>
-    <string name="adv_goal_plan_title">ادخار أهدافك 🎯</string>
+    <string name="adv_goal_plan_title">ادخار أهدافك</string>
     <string name="adv_goal_plan_body_fmt">تحتاج %1$s ر.س شهرياً لأهدافك — %2$d٪ من دخلك.</string>
     <string name="adv_goal_plan_body_nofmt_fmt">تحتاج %1$s ر.س شهرياً لأهدافك.</string>
-    <string name="adv_goal_behind_title_fmt">هدف «%1$s» متأخر ⚠️</string>
+    <string name="adv_goal_behind_title_fmt">هدف «%1$s» متأخر</string>
     <string name="adv_goal_behind_body_fmt">أنجزت منه %2$d٪؛ المتبقي %3$s ر.س. ارفع ادخارك لتعود للمسار.</string>
-    <string name="adv_saved_goals_title">ادخرت لأهدافك هذا الشهر 🏦</string>
+    <string name="adv_saved_goals_title">ادخرت لأهدافك هذا الشهر</string>
     <string name="adv_saved_goals_body_fmt">حوّلت %1$s ر.س؛ أي %2$d٪ من دخلك.</string>
-    <string name="adv_subscriptions_body_income_fmt">‏%1$d اشتراك: %2$s. شهرياً %3$s ر.س (%5$d٪ من دخلك) = %4$s سنوياً.</string>
+    <string name="adv_subscriptions_body_income_fmt">‏%1$d اشتراك: %2$s. شهرياً %3$s ر.س (%5$s٪ من دخلك) = %4$s سنوياً.</string>
 
     <!-- Advisor header -->
     <string name="advisor_header_title">المستشار المالي</string>
@@ -599,4 +599,6 @@
     <string name="widget_theme_rose">وردي</string>
     <string name="tx_deleted_msg">تم حذف العملية</string>
     <string name="tx_undo">تراجع</string>
+    <string name="tx_self_from_fmt">من %1$s</string>
+    <string name="tx_self_to_fmt">إلى %1$s</string>
 </resources>

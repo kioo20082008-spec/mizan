@@ -367,7 +367,9 @@ fun TransactionCard(
     onLongClick: () -> Unit = {}
 ) {
     val isExpense = tx.type == TxType.EXPENSE
-    val sign = if (isExpense) "-" else "+"
+    // Money moved between the user's own accounts is neither spending nor income:
+    // no sign, neutral colour, and a readable title instead of the raw account tail.
+    val sign = if (tx.isSelfTransfer) "" else if (isExpense) "-" else "+"
     val amtColor = if (tx.isSelfTransfer) InkFaint else if (isExpense) Ink else Success
 
     Column(
@@ -396,14 +398,19 @@ fun TransactionCard(
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    tx.merchant ?: stringResource(R.string.tx_unknown_merchant),
+                    if (tx.isSelfTransfer) stringResource(R.string.cat_self_transfer)
+                    else tx.merchant ?: stringResource(R.string.tx_unknown_merchant),
                     style = Body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(2.dp))
+                val subtitle = if (tx.isSelfTransfer) {
+                    val bank = tx.bankName
+                    if (bank == null) categoryDisplay(tx.category)
+                    else stringResource(if (isExpense) R.string.tx_self_from_fmt else R.string.tx_self_to_fmt, bank)
+                } else categoryDisplay(tx.category)
                 Text(
-                    if (showDate) "${categoryDisplay(tx.category)} • ${Dates.dayLabel(tx.timestamp)}"
-                    else categoryDisplay(tx.category),
+                    if (showDate) "$subtitle • ${Dates.dayLabel(tx.timestamp)}" else subtitle,
                     style = Eyebrow.copy(color = InkSoft, fontWeight = FontWeight.Normal, fontSize = 13.sp),
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )

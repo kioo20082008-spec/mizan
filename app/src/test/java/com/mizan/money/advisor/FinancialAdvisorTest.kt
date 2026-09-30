@@ -161,8 +161,8 @@ class FinancialAdvisorTest {
             manualSalary = 12000.0
         )
 
-        val salaryAdvice = advice.first { it.titleRes == R.string.adv_salary_manual_title }
-        assertTrue(salaryAdvice.bodyArgs.contains(FinancialAdvisor.fmt(12000.0)))
+        // A salary the user typed in themselves is no longer echoed back as a tip.
+        assertFalse(advice.any { it.titleRes == R.string.adv_salary_manual_title })
         // The 50/30/20 plan is driven by this month's *actual* income (9500)
         // once it has posted; the manual salary only overrides the
         // auto-detected figure when no income has landed yet. This mirrors the
