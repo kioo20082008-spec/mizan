@@ -13,7 +13,7 @@
     <string name="pl_budget_commit_empty">No fixed expenses yet. Add your bills and installments from the Commitments tab.</string>
     <string name="pl_budget_add_income">Add your income</string>
     <string name="pl_budget_income_sheet_title">Your monthly income</string>
-    <string name="pl_budget_income_sheet_desc">Used for your plan instead of the income detected from SMS. Leave empty to go back to automatic.</string>
+    <string name="pl_budget_income_sheet_desc">Your salary stays fixed each month and does not change with other deposits; your plan is built on it. Leave empty to use the salary detected from your SMS.</string>
     <string name="pl_budget_income_field_fmt">Monthly salary (%1$s)</string>
     <string name="pl_budget_total_field_fmt">Total budget (%1$s)</string>
     <string name="pl_budget_total_unset">No budget set for this month yet</string>

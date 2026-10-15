@@ -450,8 +450,16 @@ object FinancialAdvisor {
     ): Double? =
         resolveIncome(summary, manualSalary.takeIf { it > 0 } ?: detectSalary(allTx, rates))
 
+    // The planning income is the salary, so it stays fixed all month instead of
+    // moving with every deposit (a refund, a transfer in). Only when no salary is
+    // known, neither typed in nor detected, does it fall back to what actually
+    // came in this month.
     private fun resolveIncome(summary: MonthSummary, salary: Double?): Double? =
-        summary.income.takeIf { it > 0 } ?: salary
+        salary ?: summary.income.takeIf { it > 0 }
+
+    // The salary the app spotted from the user's own deposits, if any.
+    fun detectedSalary(allTx: List<TransactionEntity>, rates: Map<String, Double> = ExchangeRates.DEFAULT): Double? =
+        detectSalary(allTx, rates)
 
     // Builds the whole monthly plan: fixed commitments, debt installments and
     // planned goal savings first, then per-category limits suggested from the

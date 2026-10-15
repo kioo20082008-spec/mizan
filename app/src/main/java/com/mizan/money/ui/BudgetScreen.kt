@@ -59,6 +59,14 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
     val expectedIncome = remember(summary, txs, manualSalary, rates) {
         FinancialAdvisor.planningIncome(summary, txs, manualSalary, rates)
     }
+    // Where the fixed income comes from, shown next to the amount.
+    val detectedSalary = remember(txs, rates) { FinancialAdvisor.detectedSalary(txs, rates) }
+    val incomeNote = when {
+        manualSalary > 0 -> stringResource(R.string.budget_salary_fixed)
+        detectedSalary != null -> stringResource(R.string.budget_salary_auto)
+        expectedIncome != null -> stringResource(R.string.budget_salary_actual)
+        else -> ""
+    }
     val plan = remember(txs, expectedIncome, recurring, debts, goals, funds, categories, rates) {
         FinancialAdvisor.plan(txs, expectedIncome ?: 0.0, categories, recurring, debts, goals, rates, funds = funds)
     }
@@ -228,6 +236,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
             BudgetPlanCard(
                 plan = plan,
                 income = expectedIncome,
+                incomeNote = incomeNote,
                 savingsThisMonth = savingsThisMonth,
                 currency = currency,
                 onEditIncome = { editingIncome = true }
@@ -325,7 +334,7 @@ fun BudgetScreen(vm: MainViewModel, offset: Int, onOpenCategory: (String) -> Uni
             title = stringResource(R.string.pl_budget_income_sheet_title),
             description = stringResource(R.string.pl_budget_income_sheet_desc),
             fieldLabel = stringResource(R.string.pl_budget_income_field_fmt, currency),
-            initial = manualSalary,
+            initial = if (manualSalary > 0) manualSalary else (detectedSalary ?: 0.0),
             onDismiss = { editingIncome = false },
             onSave = { v -> vm.setManualSalary(v); editingIncome = false }
         )
@@ -442,83 +451,110 @@ private fun TotalBudgetCard(
     }
 }
 
-// Calm plan card: one stacked bar (fixed expenses / free), then rows.
+// Plan card: the salary on top (fixed), one segmented bar, three share tiles,
+// the free amount, then the commitments folded into three tappable rows.
 @Composable
 private fun BudgetPlanCard(
     plan: BudgetPlan,
     income: Double?,
+    incomeNote: String,
     savingsThisMonth: Double,
     currency: String,
     onEditIncome: () -> Unit
 ) {
     val hasIncome = income != null && income > 0
+    val total = if (hasIncome) maxOf(income!!, plan.committedTotal) else 0.0
+    val midIndigo = Indigo.copy(alpha = 0.55f)
+    val freeTint = Success.copy(alpha = 0.25f)
+    val tileBg = Line.copy(alpha = 0.45f)
+    var open by rememberSaveable { mutableStateOf("") }
+    fun share(v: Double): String {
+        val pct = if (total > 0) ((v / total) * 100).roundToInt() else 0
+        return if (isArabicUi()) toArabicIndicDigits("$pct") + "٪" else "$pct%"
+    }
     SoftCard(Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.budget_plan_title), style = H2.copy(fontSize = 17.sp))
         Spacer(Modifier.height(2.dp))
         Text(stringResource(R.string.pl_budget_plan_desc), style = Eyebrow.copy(fontSize = 13.sp))
-        if (hasIncome) {
-            Spacer(Modifier.height(14.dp))
-            val committedFrac = (plan.committedTotal / income!!).coerceIn(0.0, 1.0).toFloat()
-            Row(
-                Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(Pill)).background(Success.copy(alpha = 0.25f))
-            ) {
-                if (committedFrac > 0f) {
-                    Box(Modifier.fillMaxHeight().weight(committedFrac.coerceAtLeast(0.001f)).background(Indigo))
-                }
-                if (committedFrac < 1f) {
-                    Box(Modifier.fillMaxHeight().weight((1f - committedFrac).coerceAtLeast(0.001f)))
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.budget_income_label) + if (incomeNote.isNotEmpty()) " · $incomeNote" else "",
+                    style = Eyebrow.copy(fontSize = 13.sp)
+                )
+                Spacer(Modifier.height(2.dp))
+                if (hasIncome) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(fmt(income!!), style = NumBold.copy(fontSize = 32.sp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(currency, style = Body.copy(color = InkSoft), modifier = Modifier.padding(bottom = 5.dp))
+                    }
+                } else {
+                    Text(stringResource(R.string.pl_budget_add_income), style = Body.copy(color = Indigo, fontWeight = FontWeight.Bold))
                 }
             }
+            Row(
+                Modifier.clip(RoundedCornerShape(Pill)).background(IndigoSoft).clickable(onClick = onEditIncome)
+                    .heightIn(min = 44.dp).padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(if (hasIncome) Icons.Default.Edit else Icons.Default.Add, null, Modifier.size(16.dp), tint = Indigo)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    stringResource(if (hasIncome) R.string.budget_income_edit else R.string.budget_income_add),
+                    style = Body.copy(color = Indigo, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                )
+            }
         }
-        Spacer(Modifier.height(10.dp))
-        PlanRow(
-            dot = null,
-            label = stringResource(R.string.budget_income_label),
-            value = if (hasIncome) fmt(income!!) + " " + currency else stringResource(R.string.pl_budget_add_income),
-            valueColor = if (hasIncome) Ink else Indigo,
-            trailingIcon = if (hasIncome) Icons.Default.Edit else Icons.Default.Add,
-            onClick = onEditIncome
-        )
-        PlanRow(
-            dot = Indigo,
-            label = stringResource(R.string.pl_budget_fixed_label),
-            value = fmt(plan.committedTotal) + " " + currency,
-            valueColor = Ink
-        )
         if (hasIncome) {
-            PlanRow(
-                dot = Success.copy(alpha = 0.5f),
-                label = stringResource(R.string.budget_free_label),
-                value = fmt(plan.free) + " " + currency,
-                valueColor = Success
-            )
-        }
-        Spacer(Modifier.height(6.dp))
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
-        if (plan.fixed.isEmpty() && plan.debts.isEmpty() && plan.savings.isEmpty()) {
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(Pill)), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                listOf(
+                    plan.fixedTotal to Indigo, plan.debtTotal to midIndigo,
+                    plan.savingsTotal to Lime, (total - plan.committedTotal) to freeTint
+                ).filter { it.first > 0.0 }.forEach { (v, c) ->
+                    Box(Modifier.fillMaxHeight().weight((v / total).toFloat().coerceAtLeast(0.004f)).background(c))
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ShareTile(Modifier.weight(1f), tileBg, Indigo, stringResource(R.string.budget_stat_fixed), plan.fixedTotal, share(plan.fixedTotal))
+                ShareTile(Modifier.weight(1f), tileBg, midIndigo, stringResource(R.string.budget_stat_debts), plan.debtTotal, share(plan.debtTotal))
+                ShareTile(Modifier.weight(1f), tileBg, Lime, stringResource(R.string.budget_stat_savings), plan.savingsTotal, share(plan.savingsTotal))
+            }
             Spacer(Modifier.height(10.dp))
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(RadiusMd)).background(Success.copy(alpha = 0.12f))
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.budget_free_label), style = Body.copy(color = Success, fontSize = 13.sp))
+                    Text(fmt(plan.free) + " " + currency, style = NumBold.copy(fontSize = 21.sp, color = Success))
+                }
+                Text(share(plan.free), style = NumBold.copy(fontSize = 15.sp, color = Success))
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        if (plan.fixed.isEmpty() && plan.debts.isEmpty() && plan.savings.isEmpty()) {
+            Spacer(Modifier.height(6.dp))
             Text(stringResource(R.string.pl_budget_commit_empty), style = BodyMuted)
         } else {
             CommitmentGroup(
-                icon = Icons.Default.Autorenew,
-                title = stringResource(R.string.budget_commit_fixed),
-                total = plan.fixedTotal,
-                currency = currency,
-                items = plan.fixed
+                key = "fixed", open = open, onToggle = { open = if (open == it) "" else it },
+                icon = Icons.Default.Autorenew, tint = Indigo, title = stringResource(R.string.budget_commit_fixed),
+                total = plan.fixedTotal, currency = currency, items = plan.fixed
             )
             CommitmentGroup(
-                icon = Icons.Default.CreditCard,
-                title = stringResource(R.string.budget_commit_debts),
-                total = plan.debtTotal,
-                currency = currency,
-                items = plan.debts
+                key = "debts", open = open, onToggle = { open = if (open == it) "" else it },
+                icon = Icons.Default.CreditCard, tint = midIndigo, title = stringResource(R.string.budget_commit_debts),
+                total = plan.debtTotal, currency = currency, items = plan.debts
             )
             CommitmentGroup(
-                icon = Icons.Default.Savings,
-                title = stringResource(R.string.budget_commit_savings),
-                total = plan.savingsTotal,
-                currency = currency,
-                items = plan.savings
+                key = "savings", open = open, onToggle = { open = if (open == it) "" else it },
+                icon = Icons.Default.Savings, tint = Success, title = stringResource(R.string.budget_commit_savings),
+                total = plan.savingsTotal, currency = currency, items = plan.savings
             )
         }
         if (savingsThisMonth != 0.0) {
@@ -528,6 +564,20 @@ private fun BudgetPlanCard(
                 style = Body.copy(fontSize = 13.sp, color = Success, fontWeight = FontWeight.Bold)
             )
         }
+    }
+}
+
+@Composable
+private fun ShareTile(modifier: Modifier, bg: Color, dot: Color, label: String, amount: Double, share: String) {
+    Column(modifier.clip(RoundedCornerShape(RadiusSm)).background(bg).padding(horizontal = 10.dp, vertical = 9.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).clip(RoundedCornerShape(Pill)).background(dot))
+            Spacer(Modifier.width(5.dp))
+            Text(label, style = Body.copy(color = InkSoft, fontSize = 12.sp), maxLines = 1)
+        }
+        Spacer(Modifier.height(3.dp))
+        Text(fmt(amount), style = NumBold.copy(fontSize = 15.sp), maxLines = 1)
+        Text(share, style = Body.copy(color = InkFaint, fontSize = 11.5.sp))
     }
 }
 
@@ -560,27 +610,48 @@ private fun PlanRow(
     }
 }
 
+// One folded row per commitment kind: icon, title, item count, total and a
+// chevron. Tapping it opens the items inline; only one group is open at a time.
 @Composable
 private fun CommitmentGroup(
+    key: String,
+    open: String,
+    onToggle: (String) -> Unit,
     icon: ImageVector,
+    tint: Color,
     title: String,
     total: Double,
     currency: String,
     items: List<Commitment>
 ) {
     if (items.isEmpty()) return
-    Spacer(Modifier.height(10.dp))
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(16.dp), tint = InkSoft)
-        Spacer(Modifier.width(6.dp))
-        Text(title, style = Body.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp), modifier = Modifier.weight(1f))
-        Text(fmt(total) + " " + currency, style = NumBold.copy(fontSize = 13.sp))
-    }
-    items.forEach { c ->
-        Row(Modifier.fillMaxWidth().padding(start = 22.dp, top = 3.dp, bottom = 3.dp)) {
-            Text(c.label, style = BodyMuted, modifier = Modifier.weight(1f), maxLines = 1)
-            Text(fmt(c.amount) + " " + currency, style = BodyMuted)
+    val expanded = open == key
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(RadiusSm)).clickable { onToggle(key) }.heightIn(min = 52.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(32.dp).clip(RoundedCornerShape(Pill)).background(tint.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(17.dp), tint = tint)
         }
+        Spacer(Modifier.width(10.dp))
+        Text(title, style = Body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
+        Text(
+            if (isArabicUi()) toArabicIndicDigits(items.size.toString()) else items.size.toString(),
+            style = Body.copy(color = InkFaint, fontSize = 13.sp)
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(fmt(total) + " " + currency, style = NumBold.copy(fontSize = 14.sp))
+        Spacer(Modifier.width(4.dp))
+        Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, Modifier.size(20.dp), tint = InkSoft)
+    }
+    if (expanded) {
+        items.forEach { c ->
+            Row(Modifier.fillMaxWidth().padding(start = 42.dp, top = 5.dp, bottom = 5.dp)) {
+                Text(c.label, style = BodyMuted, modifier = Modifier.weight(1f), maxLines = 1)
+                Text(fmt(c.amount) + " " + currency, style = BodyMuted)
+            }
+        }
+        Spacer(Modifier.height(4.dp))
     }
 }
 

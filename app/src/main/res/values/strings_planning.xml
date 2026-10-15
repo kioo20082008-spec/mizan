@@ -16,7 +16,7 @@
     <string name="pl_budget_commit_empty">لا توجد مصاريف ثابتة بعد. أضف فواتيرك وأقساطك من تبويب الالتزامات.</string>
     <string name="pl_budget_add_income">أضف دخلك</string>
     <string name="pl_budget_income_sheet_title">دخلك الشهري</string>
-    <string name="pl_budget_income_sheet_desc">يُستخدم لحساب خطتك بدلاً من الدخل المكتشف من الرسائل. اتركه فارغاً للرجوع إلى الحساب التلقائي.</string>
+    <string name="pl_budget_income_sheet_desc">راتبك ثابت كل شهر ولا يتغير مع الإيداعات الأخرى، وتُحسب عليه خطتك. اتركه فارغاً لاستخدام الراتب المكتشف من رسائلك.</string>
     <string name="pl_budget_income_field_fmt">الراتب الشهري (%1$s)</string>
     <string name="pl_budget_total_field_fmt">الميزانية الإجمالية (%1$s)</string>
     <string name="pl_budget_total_unset">لم تحدد ميزانية لهذا الشهر بعد</string>

@@ -163,12 +163,10 @@ class FinancialAdvisorTest {
 
         // A salary the user typed in themselves is no longer echoed back as a tip.
         assertFalse(advice.any { it.titleRes == R.string.adv_salary_manual_title })
-        // The 50/30/20 plan is driven by this month's *actual* income (9500)
-        // once it has posted; the manual salary only overrides the
-        // auto-detected figure when no income has landed yet. This mirrors the
-        // dedicated `planningIncome prefers this month's real income` test.
+        // The 50/30/20 plan is driven by the fixed salary (the typed 12000), not by
+        // whatever deposits happened to post this month (9500).
         val plan = advice.first { it.titleRes == R.string.adv_5030_20_title }
-        assertTrue(plan.bodyArgs.contains(FinancialAdvisor.fmt(9500.0)))
+        assertTrue(plan.bodyArgs.contains(FinancialAdvisor.fmt(12000.0)))
     }
 
     @Test
@@ -276,13 +274,15 @@ class FinancialAdvisorTest {
     }
 
     @Test
-    fun `planningIncome prefers this month's real income over salary once it has posted`() {
+    fun `planningIncome stays at the salary even after other income posts`() {
         val history = listOf(
             tx(9000.0, TxType.INCOME, timestamp = JAN_2024_START + 1_000L),
             tx(9000.0, TxType.INCOME, timestamp = FEB_MARK)
         )
         val s = FinancialAdvisor.summarize(history, JAN_2024_START, JAN_2024_END)
-        assertEquals(9000.0, FinancialAdvisor.planningIncome(s, history, manualSalary = 12000.0)!!, 0.001)
+        assertEquals(12000.0, FinancialAdvisor.planningIncome(s, history, manualSalary = 12000.0)!!, 0.001)
+        // With no typed salary, the detected one (9000 two months running) wins over the month's deposits.
+        assertEquals(9000.0, FinancialAdvisor.planningIncome(s, history, manualSalary = 0.0)!!, 0.001)
 
         val onlyARefundPosted = listOf(tx(500.0, TxType.INCOME))
         val s2 = FinancialAdvisor.summarize(onlyARefundPosted, JAN_2024_START, JAN_2024_END)
@@ -290,7 +290,7 @@ class FinancialAdvisorTest {
     }
 
     @Test
-    fun `planningIncome falls back to manual then detected salary before any income posts`() {
+    fun `planningIncome uses manual then detected salary, and only then the month's income`() {
         val priorMonthsOnly = listOf(
             tx(9000.0, TxType.INCOME, timestamp = FEB_MARK),
             tx(9000.0, TxType.INCOME, timestamp = MAR_MARK)

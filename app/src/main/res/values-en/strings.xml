@@ -549,7 +549,7 @@
 
     <!-- Commitments & budget plan -->
     <string name="budget_plan_title">Budget plan</string>
-    <string name="budget_income_label">Expected income</string>
+    <string name="budget_income_label">Monthly salary</string>
     <string name="budget_committed_label">Fixed commitments</string>
     <string name="budget_free_label">Free to spend</string>
     <string name="budget_commitments_title">Auto-deducted commitments</string>
@@ -613,4 +613,12 @@
     <string name="tx_swipe_delete">Delete</string>
     <string name="tx_swipe_gotit">Got it</string>
     <string name="widget_per_day_fmt">%1$s / day</string>
+    <string name="budget_income_edit">Edit</string>
+    <string name="budget_income_add">Add</string>
+    <string name="budget_salary_fixed">fixed</string>
+    <string name="budget_salary_auto">detected from SMS</string>
+    <string name="budget_salary_actual">from current month income</string>
+    <string name="budget_stat_fixed">Fixed</string>
+    <string name="budget_stat_debts">Debts</string>
+    <string name="budget_stat_savings">Savings</string>
 </resources>

@@ -549,7 +549,7 @@
 
     <!-- Commitments & budget plan -->
     <string name="budget_plan_title">خطة الميزانية</string>
-    <string name="budget_income_label">الدخل المتوقع</string>
+    <string name="budget_income_label">راتبك الشهري</string>
     <string name="budget_committed_label">الالتزامات الثابتة</string>
     <string name="budget_free_label">المتبقي للصرف</string>
     <string name="budget_commitments_title">التزامات تُخصم تلقائيًا</string>
@@ -613,4 +613,12 @@
     <string name="tx_swipe_delete">حذف</string>
     <string name="tx_swipe_gotit">فهمت</string>
     <string name="widget_per_day_fmt">%1$s يومياً</string>
+    <string name="budget_income_edit">تعديل</string>
+    <string name="budget_income_add">أضف</string>
+    <string name="budget_salary_fixed">ثابت</string>
+    <string name="budget_salary_auto">مكتشف من رسائلك</string>
+    <string name="budget_salary_actual">من دخل هذا الشهر</string>
+    <string name="budget_stat_fixed">ثوابت</string>
+    <string name="budget_stat_debts">أقساط</string>
+    <string name="budget_stat_savings">ادخار</string>
 </resources>
