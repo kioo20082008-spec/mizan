@@ -99,6 +99,9 @@ private data class WidgetData(
     val hasBill: Boolean,
     val status: Status,
     val flip: Boolean,
+    val pace: Float,
+    val rtl: Boolean,
+    val dailyPerDay: String,
 )
 
 class MizanWidget : GlanceAppWidget() {
@@ -112,11 +115,12 @@ class MizanWidget : GlanceAppWidget() {
         val p = palette(WidgetThemePreference.load(context))
         // One shared bitmap for every size class keeps the RemoteViews payload small.
         val ring = ringBitmap(context, data.pct, data.status, p)
-        provideContent { WidgetContent(data, p, ring, LocalSize.current) }
+        val bar = barBitmap(context, data.pct, data.pace, data.status, p, data.rtl)
+        provideContent { WidgetContent(data, p, ring, bar, LocalSize.current) }
     }
 
     companion object {
-        private val SMALL = DpSize(120.dp, 120.dp)    // ~2x2
+        private val SMALL = DpSize(110.dp, 110.dp)    // ~2x2
         private val MEDIUM = DpSize(250.dp, 110.dp)   // ~4x1
         private val LARGE = DpSize(250.dp, 175.dp)    // ~4x2
         private val XLARGE = DpSize(250.dp, 290.dp)   // ~4x3 and up
@@ -164,6 +168,9 @@ private fun fallbackData(context: Context): WidgetData {
         hasBill = false,
         status = Status.NONE,
         flip = needsFlip(isArabic(ctx)),
+        pace = 0f,
+        rtl = isArabic(ctx),
+        dailyPerDay = "",
     )
 }
 
@@ -262,6 +269,9 @@ private suspend fun loadWidgetData(context: Context): WidgetData {
         hasBill = bill != null,
         status = status,
         flip = needsFlip(arabic),
+        pace = if (hasBudget) elapsed else 0f,
+        rtl = arabic,
+        dailyPerDay = if (hasBudget && !over) ctx.getString(R.string.widget_per_day_fmt, wholeMoney(remaining / daysLeft, arabic)) else "",
     )
 }
 
@@ -348,6 +358,43 @@ private fun ringBitmap(context: Context, pct: Float, status: Status, p: Palette)
     return bmp
 }
 
+// 2x2 progress bar: a rounded track, the used part in the status color, and a
+// small marker where the cycle's elapsed time sits ("where you should be
+// today"). It starts from the reading-start side, so Arabic fills from the
+// right. The marker is a dark core with a white halo so it reads on every
+// theme, light, dark or colored.
+private fun barBitmap(context: Context, pct: Float, pace: Float, status: Status, p: Palette, rtl: Boolean): Bitmap {
+    val w = (context.resources.displayMetrics.density * 280f).toInt().coerceIn(420, 840)
+    val h = w * 12 / 140
+    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val c = Canvas(bmp)
+    val barH = h * 0.58f
+    val top = (h - barH) / 2f
+    val r = barH / 2f
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    fun x(f: Float) = if (rtl) w - f * w else f * w
+    paint.color = p.track.toArgb()
+    c.drawRoundRect(RectF(0f, top, w.toFloat(), top + barH), r, r, paint)
+    if (status != Status.NONE && pct > 0f) {
+        val f = pct.coerceIn(0f, 1f).coerceAtLeast(r * 2 / w)
+        paint.color = p.status(status).toArgb()
+        val a = x(0f); val b = x(f)
+        c.drawRoundRect(RectF(minOf(a, b), top, maxOf(a, b), top + barH), r, r, paint)
+    }
+    if (status != Status.NONE && pace > 0.02f && pace < 0.98f) {
+        val px = x(pace)
+        paint.style = Paint.Style.STROKE
+        paint.strokeCap = Paint.Cap.ROUND
+        paint.color = android.graphics.Color.WHITE
+        paint.strokeWidth = h * 0.24f
+        c.drawLine(px, h * 0.06f, px, h * 0.94f, paint)
+        paint.color = 0xFF1B1B22.toInt()
+        paint.strokeWidth = h * 0.12f
+        c.drawLine(px, h * 0.06f, px, h * 0.94f, paint)
+    }
+    return bmp
+}
+
 // ---------------------------------------------------------------------------
 // Layout helpers (direction-aware)
 // ---------------------------------------------------------------------------
@@ -375,7 +422,7 @@ private fun WidgetData.tAlign(): TextAlign = if (flip) TextAlign.End else TextAl
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun WidgetContent(d: WidgetData, p: Palette, ring: Bitmap, size: DpSize) {
+private fun WidgetContent(d: WidgetData, p: Palette, ring: Bitmap, bar: Bitmap, size: DpSize) {
     val root = GlanceModifier
         .fillMaxSize()
         .appWidgetBackground()
@@ -384,7 +431,7 @@ private fun WidgetContent(d: WidgetData, p: Palette, ring: Bitmap, size: DpSize)
         .clickable(actionStartActivity<MainActivity>())
 
     if (size.width < 200.dp) {
-        SmallLayout(d, p, ring, root)
+        SmallLayout(d, p, bar, root)
         return
     }
 
@@ -539,33 +586,75 @@ private fun heroFontSize(amount: String, big: Boolean): TextUnit {
     }
 }
 
+// 2x2: the remaining amount as the hero, a thin bar with a "where you should
+// be today" marker, then the daily allowance and days left.
 @Composable
-private fun SmallLayout(d: WidgetData, p: Palette, ring: Bitmap, root: GlanceModifier) {
-    Box(root.padding(12.dp), contentAlignment = Alignment.Center) {
-        Box(GlanceModifier.size(108.dp), contentAlignment = Alignment.Center) {
-            Image(
-                provider = ImageProvider(ring),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = GlanceModifier.size(108.dp),
-            )
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    d.heroAmount,
-                    maxLines = 1,
-                    style = TextStyle(
-                        color = if (d.status == Status.OVER) FixedColor(p.over) else p.text,
-                        fontSize = if (d.heroAmount.length <= 5) 22.sp else 17.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
+private fun SmallLayout(d: WidgetData, p: Palette, bar: Bitmap, root: GlanceModifier) {
+    val amountColor = if (d.status == Status.OVER) FixedColor(p.over) else p.text
+    val heroSize = when {
+        d.heroAmount.length <= 5 -> 34.sp
+        d.heroAmount.length <= 7 -> 28.sp
+        else -> 22.sp
+    }
+    Column(modifier = root.padding(horizontal = 14.dp, vertical = 12.dp)) {
+        DirRow(
+            d.flip, GlanceModifier.fillMaxWidth(), Alignment.CenterVertically,
+            {
+                Image(
+                    ImageProvider(R.drawable.ic_widget_mark),
+                    contentDescription = null,
+                    modifier = GlanceModifier.size(18.dp)
                 )
+            },
+            { Spacer(GlanceModifier.width(6.dp)) },
+            {
                 Text(
                     d.heroLabel,
                     maxLines = 1,
-                    style = TextStyle(color = p.sub, fontSize = 11.sp),
+                    modifier = GlanceModifier.defaultWeight(),
+                    style = TextStyle(color = p.sub, fontSize = 11.sp, textAlign = d.tAlign()),
                 )
-            }
-        }
+            },
+        )
+        Spacer(GlanceModifier.height(8.dp))
+        Text(
+            d.heroAmount,
+            maxLines = 1,
+            modifier = GlanceModifier.fillMaxWidth(),
+            style = TextStyle(color = amountColor, fontSize = heroSize, fontWeight = FontWeight.Bold, textAlign = d.tAlign()),
+        )
+        Text(
+            d.currency,
+            maxLines = 1,
+            modifier = GlanceModifier.fillMaxWidth(),
+            style = TextStyle(color = p.sub, fontSize = 12.sp, textAlign = d.tAlign()),
+        )
+        Spacer(GlanceModifier.defaultWeight())
+        Image(
+            provider = ImageProvider(bar),
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds,
+            modifier = GlanceModifier.fillMaxWidth().height(12.dp),
+        )
+        Spacer(GlanceModifier.height(5.dp))
+        DirRow(
+            d.flip, GlanceModifier.fillMaxWidth(), Alignment.CenterVertically,
+            {
+                Text(
+                    d.dailyPerDay,
+                    maxLines = 1,
+                    modifier = GlanceModifier.defaultWeight(),
+                    style = TextStyle(color = p.sub, fontSize = 11.sp, textAlign = d.tAlign()),
+                )
+            },
+            {
+                Text(
+                    d.daysLeftText,
+                    maxLines = 1,
+                    style = TextStyle(color = p.sub, fontSize = 11.sp, textAlign = if (d.flip) TextAlign.Start else TextAlign.End),
+                )
+            },
+        )
     }
 }
 

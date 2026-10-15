@@ -612,4 +612,5 @@
     <string name="tx_swipe_recat">تغيير الفئة</string>
     <string name="tx_swipe_delete">حذف</string>
     <string name="tx_swipe_gotit">فهمت</string>
+    <string name="widget_per_day_fmt">%1$s يومياً</string>
 </resources>

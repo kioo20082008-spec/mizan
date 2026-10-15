@@ -612,4 +612,5 @@
     <string name="tx_swipe_recat">Change category</string>
     <string name="tx_swipe_delete">Delete</string>
     <string name="tx_swipe_gotit">Got it</string>
+    <string name="widget_per_day_fmt">%1$s / day</string>
 </resources>
