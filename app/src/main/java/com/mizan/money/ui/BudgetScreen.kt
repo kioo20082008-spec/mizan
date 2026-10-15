@@ -468,9 +468,10 @@ private fun BudgetPlanCard(
     val freeTint = Success.copy(alpha = 0.25f)
     val tileBg = Line.copy(alpha = 0.45f)
     var open by rememberSaveable { mutableStateOf("") }
+    val arabicUi = isArabicUi()
     fun share(v: Double): String {
         val pct = if (total > 0) ((v / total) * 100).roundToInt() else 0
-        return if (isArabicUi()) toArabicIndicDigits("$pct") + "٪" else "$pct%"
+        return if (arabicUi) toArabicIndicDigits("$pct") + "٪" else "$pct%"
     }
     SoftCard(Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.budget_plan_title), style = H2.copy(fontSize = 17.sp))
